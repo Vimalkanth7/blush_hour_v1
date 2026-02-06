@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { API_BASE_URL, handleApiError } from '../../constants/Api';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Platform, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
-import { COLORS, SPACING, RADIUS, TYPOGRAPHY, SHADOWS } from '../../constants/Theme';
+import { COLORS, SPACING, RADIUS, TYPOGRAPHY } from '../../constants/Theme';
+import { Button } from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
 // ... logic remains identical
 // ... imports logic remains identical
 
@@ -99,10 +101,8 @@ export default function LoginScreen() {
 
                 <View style={styles.inputGroup}>
                     <Text style={styles.label}>Phone Number</Text>
-                    <TextInput
-                        style={styles.input}
+                    <Input
                         placeholder="99999 99999"
-                        placeholderTextColor={COLORS.disabledText}
                         keyboardType="phone-pad"
                         value={phone}
                         onChangeText={setPhone}
@@ -111,19 +111,17 @@ export default function LoginScreen() {
 
                 <View style={styles.inputGroup}>
                     <Text style={styles.label}>Password</Text>
-                    <View style={styles.passwordContainer}>
-                        <TextInput
-                            style={styles.passwordInput}
-                            placeholder="Enter your password"
-                            placeholderTextColor={COLORS.disabledText}
-                            secureTextEntry={!showPassword}
-                            value={password}
-                            onChangeText={setPassword}
-                        />
-                        <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                            <Ionicons name={showPassword ? "eye-off" : "eye"} size={24} color={COLORS.secondaryText} />
-                        </TouchableOpacity>
-                    </View>
+                    <Input
+                        placeholder="Enter your password"
+                        secureTextEntry={!showPassword}
+                        value={password}
+                        onChangeText={setPassword}
+                        rightSlot={(
+                            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                                <Ionicons name={showPassword ? "eye-off" : "eye"} size={24} color={COLORS.secondaryText} />
+                            </TouchableOpacity>
+                        )}
+                    />
                 </View>
 
                 {statusMsg && (
@@ -132,17 +130,13 @@ export default function LoginScreen() {
                     </View>
                 )}
 
-                <TouchableOpacity
-                    style={[styles.loginButton, { opacity: (phone && password) ? 1 : 0.5 }]}
+                <Button
+                    label="Log In"
                     onPress={handleLogin}
                     disabled={!phone || !password || isLoading}
-                >
-                    {isLoading ? (
-                        <ActivityIndicator color={COLORS.brandBase} />
-                    ) : (
-                        <Text style={styles.buttonText}>Log In</Text>
-                    )}
-                </TouchableOpacity>
+                    loading={isLoading}
+                    style={styles.loginButton}
+                />
             </ScrollView>
         </SafeAreaView>
     );
@@ -178,39 +172,8 @@ const styles = StyleSheet.create({
         color: COLORS.secondaryText,
         marginBottom: SPACING.sm
     },
-    input: {
-        fontSize: 18,
-        borderBottomWidth: 1,
-        borderBottomColor: COLORS.border,
-        paddingVertical: SPACING.sm,
-        color: COLORS.primaryText,
-        fontFamily: TYPOGRAPHY.fontFamily
-    },
-    passwordContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        borderBottomWidth: 1,
-        borderBottomColor: COLORS.border
-    },
-    passwordInput: {
-        flex: 1,
-        fontSize: 18,
-        paddingVertical: SPACING.sm,
-        color: COLORS.primaryText,
-        fontFamily: TYPOGRAPHY.fontFamily
-    },
     loginButton: {
-        marginTop: SPACING.section,
-        backgroundColor: COLORS.primary,
-        padding: SPACING.lg,
-        borderRadius: RADIUS.pill,
-        alignItems: 'center',
-        ...SHADOWS.small
-    },
-    buttonText: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: COLORS.brandBase
+        marginTop: SPACING.section
     },
     toast: {
         padding: SPACING.md,

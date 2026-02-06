@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Alert, ScrollView } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { API_BASE_URL } from '../../constants/Api';
-import { COLORS, TYPOGRAPHY, SHADOWS, SPACING, RADIUS } from '../../constants/Theme';
+import { COLORS, TYPOGRAPHY, SPACING } from '../../constants/Theme';
 import { Ionicons } from '@expo/vector-icons';
+import { Card } from '../../components/ui/Card';
 
 interface DashboardMetrics {
     users: {
@@ -78,7 +79,7 @@ export default function AdminOverview() {
 }
 
 const StatCard = ({ label, value, icon, color }: any) => (
-    <View style={styles.card}>
+    <Card style={styles.card}>
         <View style={[styles.iconBox, { backgroundColor: `${color}20` }]}> {/* 20% opacity */}
             <Ionicons name={icon} size={24} color={color} />
         </View>
@@ -86,23 +87,23 @@ const StatCard = ({ label, value, icon, color }: any) => (
             <Text style={styles.statValue}>{value.toLocaleString()}</Text>
             <Text style={styles.statLabel}>{label}</Text>
         </View>
-    </View>
+    </Card>
 );
 
 const styles = StyleSheet.create({
     container: { paddingBottom: 40 },
     loading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    pageTitle: { ...TYPOGRAPHY.h1, color: '#1E293B', marginBottom: SPACING.xl },
+    pageTitle: { ...TYPOGRAPHY.h1, color: COLORS.primaryText, marginBottom: SPACING.xl },
 
     grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 20 },
 
     card: {
-        backgroundColor: '#FFF', width: 240, padding: 24, borderRadius: RADIUS.md,
-        ...SHADOWS.small, borderWidth: 1, borderColor: '#E2E8F0',
-        flexDirection: 'row', alignItems: 'center'
+        width: 240,
+        flexDirection: 'row',
+        alignItems: 'center'
     },
     iconBox: { width: 48, height: 48, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
-    statValue: { fontSize: 24, fontWeight: 'bold', color: '#0F172A' },
-    statLabel: { fontSize: 13, color: '#64748B', fontWeight: '500' }
+    statValue: { fontSize: 24, fontWeight: 'bold', color: COLORS.primaryText },
+    statLabel: { fontSize: 13, color: COLORS.secondaryText, fontWeight: '500' }
 });

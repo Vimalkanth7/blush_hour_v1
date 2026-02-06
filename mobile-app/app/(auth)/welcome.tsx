@@ -2,17 +2,13 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ImageBackground, Dimensions } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Video, ResizeMode } from 'expo-av';
-import { COLORS, SPACING, RADIUS, TYPOGRAPHY, SHADOWS } from '../../constants/Theme';
+import { COLORS, SPACING, TYPOGRAPHY } from '../../constants/Theme';
+import { Button } from '../../components/ui/Button';
 
-const { width, height } = Dimensions.get('window');
+const { height } = Dimensions.get('window');
 
 export default function LandingScreen() {
     const router = useRouter();
-
-    const handlePhoneLogin = () => {
-        router.push('/phone-login');
-    };
 
     return (
         <View style={styles.container}>
@@ -30,13 +26,18 @@ export default function LandingScreen() {
                     <Text style={styles.title}>Blush Hour</Text>
                     <Text style={styles.subtitle}>Make the first move.</Text>
 
-                    <TouchableOpacity style={styles.primaryButton} onPress={() => router.push('/login')}>
-                        <Text style={styles.primaryButtonText}>Log In</Text>
-                    </TouchableOpacity>
+                    <Button
+                        label="Log In"
+                        onPress={() => router.push('/login')}
+                        style={styles.primaryButton}
+                    />
 
-                    <TouchableOpacity style={styles.secondaryButton} onPress={() => router.push('/phone-login')}>
-                        <Text style={styles.secondaryButtonText}>Create Account</Text>
-                    </TouchableOpacity>
+                    <Button
+                        label="Create Account"
+                        onPress={() => router.push('/phone-login')}
+                        variant="secondary"
+                        style={styles.secondaryButton}
+                    />
 
                     {/* <TouchableOpacity style={styles.secondaryButton}>
                         <Text style={styles.secondaryButtonText}>Continue with Google</Text>
@@ -80,30 +81,10 @@ const styles = StyleSheet.create({
     },
     primaryButton: {
         width: '100%',
-        backgroundColor: COLORS.primary,
-        padding: SPACING.lg,
-        borderRadius: RADIUS.pill,
-        alignItems: 'center',
         marginBottom: SPACING.md,
-        ...SHADOWS.small,
-    },
-    primaryButtonText: {
-        color: COLORS.brandBase,
-        fontWeight: 'bold',
-        fontSize: TYPOGRAPHY.bodyBase.fontSize,
     },
     secondaryButton: {
         width: '100%',
-        backgroundColor: COLORS.background,
-        padding: SPACING.lg,
-        borderRadius: RADIUS.pill,
-        alignItems: 'center',
         marginBottom: SPACING.md,
-        ...SHADOWS.small,
-    },
-    secondaryButtonText: {
-        color: COLORS.brandBase,
-        fontWeight: '600',
-        fontSize: TYPOGRAPHY.bodyBase.fontSize,
     },
 });

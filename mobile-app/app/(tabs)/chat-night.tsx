@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
+import { Card } from '../../components/ui/Card';
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
@@ -325,7 +326,7 @@ export default function ChatNightScreen() {
                         <Ionicons name="lock-closed" size={80} color={COLORS.secondaryText} />
                         <Text style={styles.heroText}>Unlock Chat Night</Text>
 
-                        <View style={styles.gatedCard}>
+                        <Card style={styles.gatedCard}>
                             <Text style={styles.gatedTitle}>Profile Completion Required</Text>
                             <Text style={styles.gatedDesc}>
                                 Your profile must be complete to join Chat Night.
@@ -343,7 +344,7 @@ export default function ChatNightScreen() {
                                 <Text style={styles.fixButtonText}>Complete Profile</Text>
                                 <Ionicons name="arrow-forward" size={16} color="#FFF" style={{ marginLeft: 8 }} />
                             </TouchableOpacity>
-                        </View>
+                        </Card>
                     </View>
                 ) : (
                     <View style={styles.openState}>
@@ -446,13 +447,9 @@ const styles = StyleSheet.create({
 
     // Gated Styles
     gatedCard: {
-        backgroundColor: COLORS.surface,
-        borderRadius: RADIUS.md,
-        padding: SPACING.lg,
         alignItems: 'center',
         marginTop: SPACING.lg,
-        width: '90%',
-        ...SHADOWS.card
+        width: '90%'
     },
     gatedTitle: {
         ...TYPOGRAPHY.h2,

@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../context/AuthContext';
 import { useRegistration } from '../../context/RegistrationContext';
 import { COLORS, SPACING, RADIUS, TYPOGRAPHY, SHADOWS } from '../../constants/Theme';
+import { Input } from '../../components/ui/Input';
 // ... logic remains same
 // ... imports logic remains same
 
@@ -13,8 +13,6 @@ export default function PhoneLoginScreen() {
     const router = useRouter();
     const [phone, setPhone] = useState('');
     const { updateData } = useRegistration();
-    const { signIn } = useAuth();
-
     const handleNext = () => {
         if (phone.length < 10) return;
 
@@ -36,21 +34,19 @@ export default function PhoneLoginScreen() {
 
             <Text style={styles.title}>What's your number?</Text>
 
-            <View style={styles.inputContainer}>
-                <View style={styles.countryCode}>
-                    <Text style={styles.countryText}>IN +91</Text>
-                </View>
-                <TextInput
-                    style={styles.input}
-                    placeholder="00000 00000"
-                    placeholderTextColor={COLORS.disabledText}
-                    keyboardType="phone-pad"
-                    autoFocus
-                    value={phone}
-                    onChangeText={(text) => setPhone(text.replace(/[^0-9]/g, ''))}
-                    maxLength={10}
-                />
-            </View>
+            <Input
+                placeholder="00000 00000"
+                keyboardType="phone-pad"
+                autoFocus
+                value={phone}
+                onChangeText={(text) => setPhone(text.replace(/[^0-9]/g, ''))}
+                maxLength={10}
+                leftSlot={(
+                    <View style={styles.countryCode}>
+                        <Text style={styles.countryText}>IN +91</Text>
+                    </View>
+                )}
+            />
 
             {phone.length > 0 && phone.length < 10 && (
                 <Text style={styles.errorText}>Please enter a valid 10-digit number</Text>
@@ -83,12 +79,6 @@ const styles = StyleSheet.create({
         color: COLORS.primaryText,
         marginBottom: 40
     },
-    inputContainer: {
-        flexDirection: 'row',
-        borderBottomWidth: 2,
-        borderBottomColor: COLORS.border,
-        paddingBottom: SPACING.sm
-    },
     countryCode: {
         borderRightWidth: 1,
         borderRightColor: COLORS.border,
@@ -97,12 +87,6 @@ const styles = StyleSheet.create({
         justifyContent: 'center'
     },
     countryText: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: COLORS.primaryText
-    },
-    input: {
-        flex: 1,
         fontSize: 18,
         fontWeight: '600',
         color: COLORS.primaryText

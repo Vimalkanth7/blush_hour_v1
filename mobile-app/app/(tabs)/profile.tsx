@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Card } from '../../components/ui/Card';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -130,7 +131,7 @@ export default function ProfileHubScreen() {
 
                 {/* Profile Strength Card */}
                 {completion < 100 && (
-                    <View style={styles.strengthCard}>
+                    <Card style={styles.strengthCard}>
                         <View style={styles.strengthHeader}>
                             <Text style={styles.strengthTitle}>Profile Strength</Text>
                             <View style={[styles.tierBadge, { backgroundColor: tier === 'Gold' ? '#FFD700' : tier === 'Silver' ? '#C0C0C0' : '#CD7F32' }]}>
@@ -166,7 +167,7 @@ export default function ProfileHubScreen() {
                         {completion < 80 && (
                             <Text style={styles.warningText}>Complete your profile to unlock Chat Night.</Text>
                         )}
-                    </View>
+                    </Card>
                 )}
 
                 {/* Hero Section */}
@@ -295,9 +296,9 @@ const styles = StyleSheet.create({
 
     // Profile Strength
     strengthCard: {
-        marginHorizontal: SPACING.screen, marginTop: SPACING.md, marginBottom: SPACING.lg, padding: SPACING.card,
-        backgroundColor: COLORS.surface, borderRadius: RADIUS.md, ...SHADOWS.card,
-        borderWidth: 1, borderColor: COLORS.border
+        marginHorizontal: SPACING.screen,
+        marginTop: SPACING.md,
+        marginBottom: SPACING.lg
     },
     strengthHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.md },
     strengthTitle: { ...TYPOGRAPHY.h2, fontSize: 18, color: COLORS.primaryText },
