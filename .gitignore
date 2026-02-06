@@ -9,3 +9,5 @@ venv/
 node_modules/
 .expo/
 *.log
+*.apk
+mobile-app/*.apk
