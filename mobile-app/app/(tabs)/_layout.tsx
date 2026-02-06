@@ -1,35 +1,62 @@
-import { Tabs } from 'expo-router';
+import { COLORS, SPACING, SHADOWS } from '../../constants/Theme';
 import React from 'react';
-
-import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { Tabs, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  const router = useRouter();
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         headerShown: false,
-        tabBarButton: HapticTab,
-      }}>
+        tabBarActiveTintColor: COLORS.primary,
+        tabBarInactiveTintColor: COLORS.secondaryText,
+        tabBarStyle: {
+          backgroundColor: COLORS.surface,
+          borderTopWidth: 0,
+          height: 90,
+          paddingTop: SPACING.sm,
+          ...SHADOWS.card, // Nice shadow for tab bar
+        },
+        tabBarLabelStyle: {
+          fontWeight: '600',
+          fontSize: 12,
+          marginBottom: 5
+        }
+      }}
+    >
       <Tabs.Screen
-        name="index"
+        name="discovery"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          title: 'Discovery',
+          tabBarIcon: ({ color }) => <Ionicons name="albums" size={28} color={color} />,
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="chat-night"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: 'Chat Night',
+          tabBarIcon: ({ color }) => <Ionicons name="moon" size={28} color={color} />,
+          tabBarLabel: 'Chat Night'
+        }}
+      />
+      <Tabs.Screen
+        name="matches"
+        options={{
+          title: 'Matches',
+          tabBarIcon: ({ color }) => <Ionicons name="chatbubbles" size={28} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color }) => <Ionicons name="person" size={28} color={color} />,
         }}
       />
     </Tabs>
   );
 }
+

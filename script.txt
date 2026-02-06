@@ -1,0 +1,104 @@
+python diagnostic_watchdog.py --restart-adb (Kills/Restarts connection)
+
+Give me the propmt to the different agents to instruck to do the below task/issue
+
+
+
+
+lead agent:
+
+
+frontend agent:
+
+
+backend agent:
+
+
+db agent:
+
+
+QA agent:
+
+
+
+Phone: 9990008888
+Password: GoldenPass_2025!
+
+
+Task:
+Context (what I see in the app):
+Expected behavior:
+Actual behavior:
+Where it happens (screen name / file if known):
+Constraints (don’t change X, keep Y working):
+Acceptance criteria:
+How to verify:
+
+
+
+Task:
+Context (what I see in the app):
+Expected behavior:
+Actual behavior:
+Where it happens (screen name / file if known):
+Constraints (don’t change X, keep Y working):
+Acceptance criteria:
+How to verify:
+
+
+
+
+***************************************************************************************************
+Example (UI change)
+
+To Frontend Agent:
+
+
+Task: Fix Photos onboarding.
+Context: On Photos screen, user can continue without 4 photos.
+Expected: Block Next until 4 photos uploaded, show message.
+Actual: Next works with 0 photos.
+Constraints: Don’t change backend APIs, don’t add dependencies.
+Acceptance: Next disabled or blocked; message shown; works on emulator.
+Verify: Run onboarding flow; confirm cannot proceed with <4.
+
+
+***************************************************************************************************
+
+Example (backend change)
+
+To Backend Agent:
+
+
+Task: When PATCH /api/users/me runs, onboarding_completed should not become True unless min profile rules satisfied.
+Expected: Only set onboarding_completed=True when first_name, birth_date, gender, and >=4 photos exist.
+Actual: It becomes True even with only firstName updated.
+Constraints: No schema changes.
+Verify: Patch only firstName -> onboarding_completed stays False. Patch full profile -> becomes True.
+
+
+
+
+***************************************************************************************************
+
+
+The right way to coordinate agents (best practice)
+Use Lead Agent as the “communication hub”
+
+You do this:
+
+Tell Lead what you want:
+
+“I want Photos onboarding fixed and flow stable”
+
+Lead splits tasks and writes a mini spec:
+
+Backend tasks
+
+Frontend tasks
+
+QA verification
+
+You paste each spec into each agent conversation
+
+This prevents mismatch.

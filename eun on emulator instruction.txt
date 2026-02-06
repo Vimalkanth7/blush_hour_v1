@@ -1,0 +1,737 @@
+exp://10.0.2.2:8081
+
+#############################################
+#############################################
+
+You are my Execution Agent. Your job is to start Blush Hour cleanly after a Windows restart, and run it on ONE Android emulator only (Pixel 7 emulator). The app must load fully and Login/Register must work without any red screens.
+
+STRICT RULES
+- Do NOT run 2 emulators (NO Pixel 7a).
+- Do NOT start multiple Metro instances.
+- Do NOT use tunnel mode unless LAN fails.
+- Do NOT enable Remote JS Debugging (this breaks Reanimated).
+- Emulator must use API base URL: http://10.0.2.2:8000
+- Backend must bind: 0.0.0.0:8000 (not localhost-only).
+
+PROJECT PATHS
+- Root:    C:\001_dating_app\blush_hour_v0
+- Backend: C:\001_dating_app\blush_hour_v0\backend
+- Mobile:  C:\001_dating_app\blush_hour_v0\mobile-app
+
+========================================================
+TASK 0 — SYSTEM BASELINE (MUST PASS BEFORE ANYTHING ELSE)
+========================================================
+
+0.1 Safe cleanup (avoid stuck ports)
+- Kill old Metro/Node:
+  taskkill /F /IM node.exe
+- Kill old backend:
+  taskkill /F /IM uvicorn.exe
+  taskkill /F /IM python.exe
+
+0.2 Docker must be running (HARD BLOCKER)
+- Check:
+  docker version
+  docker ps
+IF docker fails: open Docker Desktop, wait until it’s running, then re-run docker ps until it works.
+
+0.3 Start Mongo container
+- Start:
+  docker start blush_hour_mongo
+- Verify:
+  docker ps | findstr blush_hour_mongo
+
+========================================================
+TASK 1 — BACKEND START (MUST PASS HEALTH CHECKS)
+========================================================
+
+1.1 Start backend (keep this terminal open)
+- cd C:\001_dating_app\blush_hour_v0\backend
+- Activate venv:
+  .\venv\Scripts\activate
+- Start backend:
+  python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+1.2 Backend health checks (must be 200 OK)
+Run from a NEW terminal:
+- curl.exe http://localhost:8000/health
+- curl.exe http://127.0.0.1:8000/health
+Expected: StatusCode 200 and {"status":"healthy"}
+
+========================================================
+TASK 2 — EMULATOR (PIXEL 7 ONLY) + NETWORK CHECK
+========================================================
+
+2.1 Start ONE emulator only (Pixel 7)
+- Open Android Studio Device Manager
+- Launch ONLY Pixel 7 (do not start Pixel 7a)
+
+2.2 Verify exactly one emulator device is connected
+- adb devices
+Expected: only one “emulator-xxxx” in “device” state.
+If more than one: close all emulators, relaunch ONLY Pixel 7, then re-check.
+
+2.3 Verify emulator can reach host bridge
+- adb -s <emulator-id> shell ping -c 1 10.0.2.2
+Expected: success
+
+========================================================
+TASK 3 — MOBILE APP / METRO START (SINGLE INSTANCE, CLEAN)
+========================================================
+
+3.1 Set the correct API URL for emulator
+In the SAME terminal you will start Metro:
+- set EXPO_PUBLIC_API_URL=http://10.0.2.2:8000
+
+3.2 Start Metro clean (port 8081 only)
+- cd C:\001_dating_app\blush_hour_v0\mobile-app
+- npx expo start --android --port 8081 --clear
+
+3.3 Wait for Android bundling to complete successfully.
+If bundling hangs/stuck:
+- Ctrl+C
+- taskkill /F /IM node.exe
+- Run again:
+  npx expo start --android --port 8081 --clear
+
+========================================================
+TASK 4 — MUST-DO SETTINGS (PREVENT REANIMATED RED SCREEN)
+========================================================
+
+4.1 Ensure Remote JS Debugging is OFF in Expo Go
+On Pixel 7 emulator:
+- Open Dev Menu (Ctrl+M or shake)
+- Make sure:
+  - Remote Debugging / Debug JS Remotely = OFF
+Then Reload app.
+
+This prevents:
+“react-native-reanimated.useAnimatedGestureHandler is not a function (undefined)”
+
+========================================================
+TASK 5 — VALIDATION (LOGIN + REGISTER MUST WORK)
+========================================================
+
+5.1 App must load past splash into landing/login screens.
+
+5.2 Login test (must work)
+- Enter test credentials
+- Must not show “Network request failed”
+If it shows “Network request failed”:
+- Confirm backend health = 200
+- Confirm EXPO_PUBLIC_API_URL is 10.0.2.2:8000
+- Reload app
+
+5.3 Register test (must work)
+- Go to Create Account
+- Create password
+- Must not show network error
+
+========================================================
+TASK 6 — FAST TRIAGE (ONLY IF ERROR OCCURS)
+========================================================
+
+A) If error: “Network request failed”
+- Root cause: backend not reachable OR wrong base URL
+Fix checklist:
+  - curl.exe http://localhost:8000/health = 200
+  - set EXPO_PUBLIC_API_URL=http://10.0.2.2:8000
+  - reload app
+
+B) If error: “useAnimatedGestureHandler is not a function”
+- Root cause: Remote Debugging ON or dependency mismatch
+Fix order:
+  1) Ensure Remote Debugging OFF in Expo Go
+  2) Reload app
+  3) If still failing, in mobile-app run:
+     npx expo doctor
+     npx expo install react-native-reanimated react-native-gesture-handler
+     Then restart Metro with --clear
+
+C) If stuck at “Bundling 100%” forever
+- Root cause: stale Metro/node
+Fix:
+  - Ctrl+C Metro
+  - taskkill /F /IM node.exe
+  - npx expo start --android --port 8081 --clear
+
+========================================================
+FINAL DELIVERABLE (YOU MUST REPORT)
+========================================================
+Return a short status report:
+- Docker running: yes/no
+- Mongo container running: yes/no
+- Backend health 200: yes/no
+- Emulator count exactly 1 (Pixel 7): yes/no
+- Metro on 8081: yes/no
+- Remote Debug OFF: yes/no
+- Login/Register working: yes/no
+- If any fail: paste exact error + exact commands/output.
+
+
+#############################################
+#############################################
+Execution Agent: After restart, run Blush Hour for Emulator + Phone in parallel WITHOUT breaking each other.
+
+Rules:
+- Backend must run on 0.0.0.0:8000
+- Emulator API: http://10.0.2.2:8000 with Metro 8081
+- Phone API: http://192.168.1.2:8000 with Metro 8082
+- Never stop the emulator Metro once it is stable.
+
+Step 0 (Blockers)
+1) Start Docker Desktop → verify: docker ps
+2) Start Mongo: docker start blush_hour_mongo (or docker compose up -d)
+3) Start backend:
+   set CHAT_NIGHT_TEST_MODE=true
+   set CHAT_NIGHT_TEST_PASSES=10
+   cd backend
+   venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+4) Verify:
+   curl.exe http://localhost:8000/health  (200)
+   curl.exe http://192.168.1.2:8000/health (200)
+
+Step 1 (Emulator Metro 8081)
+Terminal A:
+- cd mobile-app
+- set EXPO_PUBLIC_API_URL=http://10.0.2.2:8000
+- set RCT_METRO_PORT=8081
+- npx expo start --android --port 8081 --clear
+Confirm emulator loads + login works. Then DO NOT touch Terminal A.
+
+Step 2 (Phone Metro 8082)
+Admin PowerShell:
+- netsh advfirewall firewall add rule name="BlushHour Backend 8000" dir=in action=allow protocol=TCP localport=8000
+- netsh advfirewall firewall add rule name="BlushHour Metro 8082" dir=in action=allow protocol=TCP localport=8082
+
+Terminal B:
+- cd mobile-app
+- set EXPO_PUBLIC_API_URL=http://192.168.1.2:8000
+- set RCT_METRO_PORT=8082
+- npx expo start --lan --port 8082 --clear
+
+Report:
+Docker/Mongo/Backend health/Metro8081/Metro8082 status + exact errors if any.
+
+####################################################
+
+
+You are my execution agent. After system restart, run Blush Hour cleanly in TWO targets without breaking each other.
+
+CONSTRAINTS:
+- Do NOT stop or change the working emulator session once it is stable.
+- Emulator must keep using API URL: http://10.0.2.2:8000
+- Phone must use API URL: http://<PC_LAN_IP>:8000 (my PC Wi-Fi IPv4 is 192.168.1.2)
+- Use separate Metro ports to avoid conflicts:
+  - Emulator Metro: 8081
+  - Phone Metro: 8082
+
+TASK 0 — Preflight checks
+1) Ensure Docker Desktop is running.
+2) Start Mongo container: docker start blush_hour_mongo
+3) Start backend on 0.0.0.0:8000 (NOT localhost only).
+4) Verify from PC: curl.exe http://localhost:8000/health  (expect 200)
+5) Verify from PC LAN: curl.exe http://192.168.1.2:8000/health (expect 200)
+
+TASK 1 — Emulator (Pixel 7) run (keep stable)
+1) Start Metro for emulator on port 8081:
+   - cd C:\001_dating_app\blush_hour_v0\mobile-app
+   - set EXPO_PUBLIC_API_URL=http://10.0.2.2:8000
+   - set RCT_METRO_PORT=8081
+   - npx expo start --android --port 8081 --clear
+2) Launch Pixel 7 emulator and open app via Expo Go.
+3) Confirm login/register works in emulator.
+
+TASK 2 — Real Phone (Pixel 8) run (without disturbing emulator)
+1) Add Windows Firewall inbound rules (MUST run as Admin):
+   netsh advfirewall firewall add rule name="BlushHour Backend 8000" dir=in action=allow protocol=TCP localport=8000
+   netsh advfirewall firewall add rule name="BlushHour Metro 8082" dir=in action=allow protocol=TCP localport=8082
+
+2) Start SECOND Metro instance for phone on port 8082:
+   - open a NEW terminal (do not close emulator metro)
+   - cd C:\001_dating_app\blush_hour_v0\mobile-app
+   - set EXPO_PUBLIC_API_URL=http://192.168.1.2:8000
+   - set RCT_METRO_PORT=8082
+   - npx expo start --lan --port 8082 --clear
+
+3) Phone verification:
+   - On phone browser open: http://192.168.1.2:8000/health (must load JSON healthy)
+   - Then Expo Go > scan QR from Metro(8082) OR enter: exp://192.168.1.2:8082
+   - Confirm login works on phone.
+
+DIAGNOSIS RULES (if phone fails but emulator works):
+- If phone can’t open http://192.168.1.2:8000/health -> firewall/backend bind/Wi-Fi isolation issue.
+- If backend works on phone but Expo says “Something went wrong” -> Metro port blocked or wrong mode; ensure Metro is LAN on 8082 and firewall allows 8082.
+- Do not use 10.0.2.2 on phone (only emulator can use that).
+Return a short status report with what passed/failed and exact commands used.
+
+
+################################################################################
+
+
+
+Full Clean Run on 1 Emulator)
+Goal: Bring up Blush Hour cleanly on ONE ensured emulator (Pixel 7) with all dependencies (Docker/DB/Backend/Metro) and confirm Login/Register works. No tunnel mode. Must be stable + not stuck at bundling.
+A) System prep (avoid slowness / leftovers)
+
+
+Close heavy apps (Chrome tabs, Android Studio if not needed).
+
+
+Kill leftovers:
+
+
+taskkill /F /IM node.exe
+
+
+taskkill /F /IM python.exe
+
+
+taskkill /F /IM uvicorn.exe
+
+
+
+
+Free ports:
+
+
+netstat -ano | findstr :8081 → kill PID if any
+
+
+netstat -ano | findstr :8000 → kill PID if any
+
+
+
+
+B) Docker + MongoDB (must be green)
+
+
+Start Docker Desktop and wait until Green/Running.
+
+
+Verify Mongo container:
+
+
+docker ps
+
+
+If mongo container not running, start it:
+
+
+If compose exists: from repo root run docker compose up -d
+
+
+Else start known container name (example): docker start blush_hour_mongo
+
+
+
+
+
+
+Confirm DB reachable:
+
+
+docker logs --tail 30 blush_hour_mongo (no crash loop)
+
+
+
+
+C) Backend (FastAPI)
+
+
+Start backend in test mode:
+
+
+cd backend
+
+
+$env:CHAT_NIGHT_TEST_MODE="true"
+
+
+$env:CHAT_NIGHT_TEST_PASSES="10"
+
+
+.\venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+
+
+
+Verify backend health from host (must be 200):
+
+
+Invoke-WebRequest http://localhost:8000/health -UseBasicParsing
+
+
+
+
+D) Emulator (ONLY Pixel 7)
+
+
+Start only Pixel 7 emulator (AVD “Pixel 7”).
+
+
+Confirm device:
+
+
+
+
+adb devices
+
+
+Ensure ONLY one emulator is “device” (online). If multiple, close others.
+
+
+
+
+Verify emulator can reach backend:
+
+
+
+
+adb -s emulator-5554 shell am start -a android.intent.action.VIEW -d http://10.0.2.2:8000/health
+
+
+Expected: browser shows OK / 200 response.
+
+
+E) Metro (Expo) — LAN only, stable
+
+
+Start Metro fresh:
+
+
+
+
+Open new terminal
+
+
+cd mobile-app
+
+
+$env:EXPO_PUBLIC_API_URL="http://10.0.2.2:8000"
+
+
+npx expo start -c --lan
+
+
+
+
+Verify Metro reachable from emulator (this is key):
+
+
+
+
+adb -s emulator-5554 shell am start -a android.intent.action.VIEW -d http://10.0.2.2:8081/status
+
+
+Expected: browser opens Metro status JSON.
+
+
+If FAILS → fix firewall:
+
+
+Ensure Node.js allowed in Windows Defender Firewall (Private)
+
+
+Retry /status until it loads.
+
+
+
+
+F) Launch app in Expo Go (force correct URL)
+
+
+On emulator open Expo Go → Enter URL manually
+
+
+Enter:
+
+
+
+
+exp://10.0.2.2:8081
+
+
+
+
+Wait for app to load fully past splash.
+
+
+G) Validation (must confirm)
+
+
+Test Register or Login once.
+
+
+If Login/Register fails:
+
+
+
+
+capture Metro console error
+
+
+capture backend logs around /api/auth/* request
+
+
+report exact endpoint failing + status code
+
+
+Output required (report back to user)
+
+
+Docker status + mongo running confirmation
+
+
+Backend /health result (200)
+
+
+Emulator browser result for:
+
+
+http://10.0.2.2:8000/health
+
+
+http://10.0.2.2:8081/status
+
+
+
+
+Confirmation: App loads past splash + Login/Register works (or exact error + logs)
+
+
+
+Important rules
+
+
+DO NOT use --tunnel.
+
+
+DO NOT open Pixel 7a.
+
+
+Keep terminals minimal (2 terminals max).
+
+
+If bundling hits 100% and hangs, immediately test /status on emulator and fix Metro reachability/firewall first.
+
+
+
+When you restart and send this to the Execution Agent, do not touch anything else until they report the 4 proofs (mongo + backend 200 + metro status + app login).
+
+
+
+
+
+
+
+
+
+
+
+###############################################################################
+
+
+We are running Blush Hour with:
+
+Backend: FastAPI + MongoDB (Docker)
+
+Frontend: Expo (React Native)
+
+One Android Emulator (Pixel 7) → must continue working
+
+One Physical Phone (Pixel 8) via Expo Go
+
+OS: Windows
+
+Network: Wi-Fi (192.168.1.2)
+
+Do NOT disturb working emulator while enabling phone access.
+
+🟢 TASK 0 — SYSTEM BASELINE CHECK (MANDATORY)
+
+Confirm Docker Desktop is running
+
+Confirm MongoDB container is up
+
+Kill all stale processes safely:
+
+node.exe
+
+uvicorn.exe
+
+Ensure no other app is using ports:
+
+8000 (backend)
+
+8081 (Metro)
+
+🟢 TASK 1 — RUN APP ON EMULATOR (Pixel 7)
+Step 1: Start Backend (Emulator-safe mode)
+
+Start backend with:
+
+Host: 0.0.0.0
+
+Port: 8000
+
+Env:
+
+CHAT_NIGHT_TEST_MODE=true
+
+CHAT_NIGHT_TEST_PASSES=10
+
+Verify from host:
+
+http://localhost:8000/health → 200 OK
+
+Verify from emulator:
+
+http://10.0.2.2:8000/health → 200 OK
+
+❗ Emulator must use 10.0.2.2, not LAN IP.
+
+Step 2: Start Expo for Emulator
+
+Set API URL:
+
+EXPO_PUBLIC_API_URL=http://10.0.2.2:8000
+
+Start Expo:
+
+Android mode
+
+Clear cache
+
+LAN (not tunnel)
+
+Launch app only on emulator
+
+Confirm:
+
+App loads past splash
+
+Login & Register work
+
+No “Network request failed”
+
+🚫 Do not connect phone yet.
+
+🟢 TASK 2 — ENABLE REAL MOBILE (Pixel 8) WITHOUT BREAKING EMULATOR
+Step 3: Prepare Firewall (CRITICAL)
+
+⚠️ Must be run in PowerShell (Run as Administrator)
+
+Add rules:
+
+netsh advfirewall firewall add rule name="BlushHour Backend 8000" dir=in action=allow protocol=TCP localport=8000
+netsh advfirewall firewall add rule name="BlushHour Metro 8081" dir=in action=allow protocol=TCP localport=8081
+
+
+Confirm rules added successfully.
+
+Step 4: Switch Expo to Phone-Compatible LAN Mode
+
+Stop Metro
+
+Set API URL:
+
+EXPO_PUBLIC_API_URL=http://192.168.1.2:8000
+
+Restart Expo:
+
+--lan
+
+--clear
+
+🚨 Do NOT change backend host — it must stay 0.0.0.0.
+
+Step 5: Validate Phone Network
+
+From phone browser:
+
+Open: http://192.168.1.2:8000/health
+
+Must show:
+
+{"status":"healthy"}
+
+
+If this fails → stop immediately (firewall or Wi-Fi issue).
+
+Step 6: Connect Expo Go on Phone
+
+On Pixel 8:
+
+Open Expo Go
+
+Ensure phone is on same Wi-Fi
+
+Connect using ONE method:
+
+Scan QR from terminal OR
+
+Enter manually:
+
+exp://192.168.1.2:8081
+
+
+App should:
+
+Load bundle
+
+Open login screen
+
+Login/Register without errors
+
+🟢 TASK 3 — FINAL VERIFICATION
+
+Confirm BOTH environments:
+
+Emulator (Pixel 7)
+
+Uses 10.0.2.2:8000
+
+Login works
+
+Chat Night loads
+
+Phone (Pixel 8)
+
+Uses 192.168.1.2:8000
+
+Login works
+
+No Network errors
+
+❗ Emulator and Phone must NOT share API URL.
+
+🧠 IMPORTANT RULES FOR AGENT
+
+Never mix:
+
+Emulator → 10.0.2.2
+
+Phone → 192.168.1.2
+
+Never use Tunnel unless LAN fails
+
+Never restart Docker unless DB fails
+
+Never kill backend while users are testing
+
+Report status after each task
+
+✅ END STATE (SUCCESS CRITERIA)
+
+Emulator works independently
+
+Phone works independently
+
+Backend shared safely
+
+No Metro stuck
+
+No Network request failed
+
+Ready for 2-user Chat Night testing

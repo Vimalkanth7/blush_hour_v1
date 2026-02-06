@@ -1,0 +1,75 @@
+# Blush Hour – Project Context
+
+## 1. Product Overview
+Blush Hour is a time-bound social discovery / dating app.
+The core idea is limited-time interactions to avoid endless swiping and ghosting.
+
+Core principles:
+- Time-based conversations
+- No infinite chat
+- Emotional safety
+- Intentional connections
+- Low cognitive overload
+
+## 2. Core Features Built So Far
+- Phone-based authentication (register/login)
+- Profile creation and editing
+- Web version working via Expo Web
+- Chat Night feature (in progress)
+- Talk Room UI (timer + engage button)
+
+## 3. Tech Stack
+Frontend:
+- Expo (React Native)
+- Expo Router
+- Web + Android support
+- AuthContext for auth state
+- SecureStore (mobile) and localStorage (web)
+
+Backend:
+- FastAPI
+- MongoDB (via Docker)
+- Beanie ODM
+- JWT-based authentication
+- CORS enabled for web ports
+
+Infra / Dev:
+- Docker Desktop for MongoDB
+- Uvicorn backend on port 8000
+- Expo Metro on ports 8081 / 8082
+- Web testing preferred over emulator
+
+## 4. Known Issues (Current)
+- Talk Room timer not running
+- Engage button not triggering room state change
+- networkError is not defined (frontend bug)
+- Two-user sync issues in Talk Room
+- Realtime logic incomplete
+
+## 5. What Is Working
+- Backend auth APIs verified via curl
+- Web login works (localhost:8082)
+- CORS issues fixed
+- Token storage fixed for web
+- Two-browser testing works
+
+## 6. Development Philosophy
+- Web-first development
+- Emulator and mobile later
+- Stability over features
+- Clear agent responsibilities
+- No random debugging
+
+## 7. Agent System (Antigravity)
+Agents used:
+- Lead GPT (decision maker)
+- Backend Agent
+- Frontend Agent
+- Realtime Agent
+- QA Agent
+- AI Agent (future)
+
+Rules:
+- Agents execute only assigned tasks
+- Lead decides scope and order
+- One task at a time

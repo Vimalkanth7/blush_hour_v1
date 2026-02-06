@@ -1,0 +1,534 @@
+###################################################################################################
+frontend 
+chat night gating UI
+Fix chat message ordering 
+
+backend
+Admin API reset passes fix 
+
+
+QA
+chat night E2E regression
+
+
+lead
+stabilize chat night hour
+
+
+###################################################################################################
+
+
+netstat -ano | findstr :8000
+netstat -ano | findstr :8081
+taskkill /PID <PID> /F
+
+
+user C - eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5MDAwMDAwMDA3IiwiZXhwIjoxNzcwNzk0NzM4fQ.gySCPxA3K1mTcg2syrF8FEFoXv-GYddv0XWSjpttL1k
+
+
+user B - eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5MDAwMDAwMDAyIiwiZXhwIjoxNzcwNzk1MzI5fQ.laNF1G6ywQsEKmBJ67bXodDsAs3aB_I3ClpSFMfRx5w
+
+docker compose up -d mongo redis
+
+
+cd C:\001_dating_app\blush_hour_v0\backend
+$env:CHAT_NIGHT_FORCE_OPEN="true"
+$env:CHAT_NIGHT_TEST_PASSES="100"
+$env:PROFILE_MIN_COMPLETION_FOR_CHAT_NIGHT="80"
+venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+
+
+npx expo start --web
+
+###################################################################################################
+###################################################################################################
+###################################################################################################
+
+
+
+
+
+
+
+0) One-time setup (do this once)
+
+cd C:\001_dating_app\blush_hour_v0\backend
+$env:CHAT_NIGHT_FORCE_OPEN="true"
+$env:CHAT_NIGHT_TEST_PASSES="100"
+$env:PROFILE_MIN_COMPLETION_FOR_CHAT_NIGHT="80"
+venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+
+
+
+A) Make sure Docker Desktop starts on boot
+
+Open Docker Desktop
+
+Settings → General → ✅ “Start Docker Desktop when you log in”
+
+Wait until it says Running
+
+B) Know your ports
+
+Mongo: 27017 (inside docker)
+
+Redis: 6379 (inside docker)
+
+Backend API: 8000
+
+Web app (Expo): 8081 (sometimes 8082 if busy)
+
+✅ Daily Morning Routine (after reboot)
+Step 1 — Start Docker (Mongo + Redis)
+
+Open PowerShell:
+
+cd C:\001_dating_app\blush_hour_v0
+docker compose up -d mongo redis
+
+
+Verify:
+
+docker ps
+
+
+If docker ps fails with the pipe error → Docker Desktop isn’t running yet. Open it and wait.
+
+Step 2 — Kill old ports (only if needed)
+
+Usually after restart nothing is using ports, but if you get “port already in use”, do:
+
+Kill port 8000 (backend)
+netstat -ano | findstr :8000
+taskkill /PID <PID> /F
+
+
+Example:
+
+taskkill /PID 12345 /F
+
+Kill port 8081 (frontend web)
+netstat -ano | findstr :8081
+taskkill /PID <PID> /F
+
+
+(Only do this if you actually get a port conflict.)
+
+Step 3 — Start Backend with Dev Overrides (24×7 + 100 passes)
+
+Open a new PowerShell window:
+
+cd C:\001_dating_app\blush_hour_v0\backend
+$env:CHAT_NIGHT_FORCE_OPEN="true"
+$env:CHAT_NIGHT_TEST_PASSES="100"
+venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+
+✅ This is the key difference vs your old routine.
+
+CHAT_NIGHT_FORCE_OPEN=true → Chat Night always open
+
+CHAT_NIGHT_TEST_PASSES=100 → everyone gets 100 passes
+
+Quick backend verification (optional but recommended)
+
+In another PowerShell window (or new tab):
+
+$login = Invoke-RestMethod -Uri "http://localhost:8000/api/auth/login" -Method Post -ContentType "application/json" -Body '{"phone_number":"9999911111","password":"Vimal@232"}'
+$token = $login.access_token
+Invoke-RestMethod -Uri "http://localhost:8000/api/chat-night/status" -Headers @{"Authorization"="Bearer $token"}
+
+
+You should see:
+
+is_open: True
+
+passes_total: 100
+
+Step 4 — Start Frontend Web
+
+Open another PowerShell window:
+
+cd C:\001_dating_app\blush_hour_v0\mobile-app
+npx expo start --web
+
+
+Then open:
+
+http://localhost:8081
+
+(or if terminal says 8082, use that)
+
+Step 5 — Test two accounts (two browsers)
+
+Open two separate sessions:
+
+Chrome normal window = Account A
+
+Chrome incognito (or Edge) = Account B
+
+Login both → go to:
+
+Chat Night tab/page → should show OPEN (no “closed” message)
+
+engage → mutual engage → go to Matches → thread should appear → open chat → send/receive
+
+✅ Your “Daily Terminals” checklist (should be 3 running)
+
+Docker Desktop running (background)
+
+Backend terminal running uvicorn with env overrides
+
+Frontend terminal running npx expo start --web
+
+###################################################################################################
+$login = Invoke-RestMethod -Uri "http://localhost:8000/api/auth/login" -Method Post -ContentType "application/json" -Body '{"phone_number":"2222211111","password":"Vimal@232"}'
+$token = $login.access_token
+Invoke-RestMethod -Uri "http://localhost:8000/api/chat-night/status" -Headers @{"Authorization"="Bearer $token"}
+
+
+
+
+###################################################################################################
+
+
+
+
+admin
+
+'{"phone_number": "1111111111", "password": "TestPass123!"}'
+
+###################################################################################################
+
+1. Start the Database (Docker)
+This spins up MongoDB and Redis in the background.
+
+cd c:\001_dating_app\blush_hour_v0
+docker-compose up -d mongo redis
+Wait ~10 seconds for it to start.
+
+2. Restart your Backend
+Go back to your Backend terminal, press Ctrl+C to stop it, and run the start command again:
+
+# In your existing Backend terminal
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+It should now say "Application startup complete".
+
+3. Login on Web
+Go back to Chrome (http://localhost:8081).
+Refesh the page.
+Try logging in again.
+Summary of Terminals you should have running:
+
+Docker (Background): Hosting MongoDB.
+Backend: Running uvicorn (connected to Docker DB).
+Frontend: Running npx expo start --web.
+
+npx expo start --web
+
+###################################################################################################
+###################################################################################################
+
+0) Clean start (very important)
+A) Kill anything using ports 8000 and 8081
+
+PowerShell (run as normal):
+
+netstat -ano | findstr :8000
+taskkill /PID <PID_FROM_ABOVE> /F
+
+netstat -ano | findstr :8081
+taskkill /PID <PID_FROM_ABOVE> /F
+
+
+
+$login = Invoke-RestMethod -Uri "http://localhost:8000/api/auth/login" -Method Post -ContentType "application/json" -Body '{"phone_number":"2222211111>","password":"Vimal@232"}'
+
+$login = Invoke-RestMethod -Uri "http://localhost:8000/api/auth/login" -Method Post -ContentType "application/json" -Body '{"phone_number":"2222233333","password":"Vimal@23>"}'
+
+
+
+(Replace <PID_FROM_ABOVE> with the number you see.)
+
+1) Start MongoDB (if you use Docker)
+
+From project root:
+
+docker compose up -d
+
+
+(or whatever command you normally use to start Mongo)
+
+Quick check:
+
+MongoDB Compass connects
+
+Or backend startup log says connected
+
+2) Start Backend with DEV overrides (Chat Night open + 100 passes)
+
+Open a new terminal:
+
+cd C:\001_dating_app\blush_hour_v0\backend
+$env:CHAT_NIGHT_FORCE_OPEN="true"
+$env:CHAT_NIGHT_TEST_PASSES="100"
+venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+
+✅ Confirm backend is running:
+
+You should see: Uvicorn running on http://0.0.0.0:8000
+
+3) Start Frontend (Web)
+
+Open a second terminal:
+
+cd C:\001_dating_app\blush_hour_v0\mobile-app
+npx expo start --web
+
+
+✅ Open web:
+
+http://localhost:8081
+
+4) Test with 2 accounts (Male + Female) in 2 browsers
+
+Use 2 separate sessions:
+
+Browser A (Incognito)
+
+Login as User A (Male)
+
+Browser B (Incognito / Different browser)
+
+Login as User B (Female)
+
+5) Verify Chat Night is open (both users)
+
+In each browser:
+
+Go to Chat Night tab
+
+Confirm:
+
+Open
+
+Passes Remaining: 100
+
+Enter Pool button works
+
+6) Create a match (required for chat to appear)
+
+For each user:
+
+Enter Pool
+
+Get matched
+
+Go to Talk Room
+
+Press Engage (both users must do it)
+
+✅ After both press Engage → a MatchUnlocked should exist and a ChatThread should exist.
+
+7) Verify Async Chat appears
+
+In each browser:
+
+Go to Matches tab
+
+Under Conversations, you should see the partner name (not “Unknown”)
+
+Click the conversation → Chat screen opens.
+
+8) Send/receive test
+
+User A: send “hello 1”
+User B: wait up to ~5–10 seconds (polling) → should see “hello 1” → reply “reply 1”
+User A: should receive “reply 1”
+
+If anything fails, check only these 3 things
+
+Backend still running and not crashed (terminal shows errors?)
+
+Frontend console (F12 → Console): any 401/403/500?
+
+Token exists (AuthContext shows logged in)
+
+#################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+restart the port and app
+
+
+netstat -ano | findstr :8000
+
+
+# if this doesnt work , try restart cmd
+tasklist /FI "PID eq 12345"
+
+
+
+cmd /c "set CHAT_NIGHT_TEST_USERS=7777766666,9990000000&& set CHAT_NIGHT_TEST_PASSES=100&& venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+
+
+
+cmd /c "set CHAT_NIGHT_TEST_USERS=7777766666,9990000000&& set CHAT_NIGHT_TEST_PASSES=100&& venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload"
+
+
+cmd /c "set CHAT_NIGHT_TEST_USERS=7777766666,9990000000&& set CHAT_NIGHT_TEST_PASSES=100&& venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload"
+
+
+
+
+
+
+Im running my backend agent and in the mean time , lets discuss about something , 
+I want to check the database that we have for the application , and to check if its clean and to know that did we design the pass for each user in the DB , regenrated everyday , but used or not ,
+
+
+
+
+
+
+
+
+
+$login = Invoke-RestMethod -Uri "http://localhost:8000/api/auth/login" -Method Post -ContentType "application/json" -Body '{"phone_number":"2222211111>","password":"Vimal@232"}'
+
+
+
+$login = Invoke-RestMethod -Uri "http://localhost:8000/api/auth/login" -Method Post -ContentType "application/json" -Body '{"phone_number":"7777766666","password":"Trisha@232"}'
+$token = $login.access_token
+Invoke-RestMethod -Uri "http://localhost:8000/api/chat-night/status" -Headers @{"Authorization"="Bearer $token"}
+
+
+$login = Invoke-RestMethod -Uri "http://localhost:8000/api/auth/login" -Method Post -ContentType "application/json" -Body '{"phone_number":"9999999995","password":"Vimal@232"}'
+$token = $login.access_token
+Invoke-RestMethod -Uri "http://localhost:8000/api/chat-night/status" -Headers @{"Authorization"="Bearer $token"}
+
+
+
+
+$login = Invoke-RestMethod -Uri "http://localhost:8000/api/auth/login" -Method Post -ContentType "application/json" -Body '{"phone_number":"2222211111","password":"Vimal@232"}'
+
+
+$login = Invoke-RestMethod -Uri "http://localhost:8000/api/auth/login" -Method Post -ContentType "application/json" -Body '{"phone_number":"2222233333","password":"Vimal@232"}'
+
+
+
+Invoke-RestMethod -Uri "http://localhost:8000/api/chat/threads" -Headers @{"Authorization"="Bearer $token"}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Admin user (you already have)
+
+Phone: 1111111111
+
+Password: TestPass123!
+
+Make sure role is admin (already done)
+
+User A (Incomplete profile)
+
+Phone: 9000000001
+
+Password: Vimal@232
+male
+User A male
+
+
+User B (Complete profile)
+
+Phone: 9000000002
+
+Password: TestPass123!
+
+Use brand new numbers so you know exactly what data belongs to which test.

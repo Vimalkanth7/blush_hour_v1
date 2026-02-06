@@ -1,0 +1,89 @@
+✅ MUST HAVE (Non-Negotiable by Feb 28)
+1️⃣ Core App Stability
+
+Registration / Login (solid, verified)
+
+Onboarding (profile completion %)
+
+Profile view (self + other)
+
+Discovery UI polish
+
+Chat Night (core differentiator)
+
+Talk Room (audio/video stable)
+
+Basic 1-to-1 chat after engage
+
+Settings page (minimal)
+
+Logout / delete account
+
+2️⃣ Monetization (Simple but Real)
+
+Chat Night extra passes
+
+OR subscription (₹199–₹399/month)
+(No complex pricing now)
+
+3️⃣ Deployment
+
+Backend live (prod DB)
+
+Web + Android APK
+
+Expo EAS build
+
+CI/CD (basic)
+
+4️⃣ Observability (You already started well)
+
+User events
+
+Match success rate
+
+Pass usage
+
+Active users
+
+Admin visibility
+
+5️⃣ Legal + Trust (India)
+
+Email verification
+
+Terms / Privacy
+
+Age 18+ enforcement
+
+⚠️ SHOULD HAVE (If Time Allows)
+
+AI-based profile matching (lightweight, rule-based first)
+
+Language / location filtering
+
+Profile edit UX polish
+
+Profile verification (manual or delayed AI)
+
+Better chat UI
+
+Push notifications
+
+❌ LATER (NOT in 30 days)
+
+These WILL kill speed if done now:
+
+Full AI bots
+
+Face verification via camera
+
+Complex ML matching
+
+iOS App Store launch (Android first)
+
+Multi-language UI
+
+Advanced fraud detection
+
+Full admin dashboard UI (API is enough now)

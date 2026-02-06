@@ -1,0 +1,46 @@
+
+
+
+ Next time the emulator gets stuck:
+
+Type .\refresh_env.ps1 in your terminal.
+It will automatically kill stale processes, restart everything, and launch the app for you.
+
+
+
+
+
+1. Start Database (MongoDB)
+# Start only the mongo service (detach mode)
+docker-compose up -d mongo
+Verify: netstat -ano | findstr "27017" should show LISTENING.
+
+2. Start Backend API
+Open a new key terminal tab (or run in background):
+
+cd c:\001_dating_app\blush_hour_v0
+.\backend\venv\Scripts\Activate.ps1
+cd backend
+# Run server
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+Health Check: Open http://localhost:8000/health -> {"status":"healthy"}
+
+3. Start Mobile App
+Open a new terminal tab:
+
+cd c:\001_dating_app\blush_hour_v0\mobile-app
+# Start Metro bundler with cache clear
+npx expo start -c
+Action: Press a for Android Emulator, or scan QR code with physical device.
+
+Troubleshooting
+Issue	Fix
+ModuleNotFoundError: motor	Run pip install -r backend\requirements.txt inside venv.
+Port 8000 already in use	Check docker: docker stop blush_hour_backend or find PID: `netstat -ano
+Android Emulator Connection	If API calls fail on emulator, ensure API URL in mobile-app is http://10.0.2.2:8000 (not localhost).
+Expo Env Vars missing	Stop Expo (Ctrl+C), then run npx expo start -c to clear cache and reload env.
+Verification Checklist
+ Backend Health: GET http://localhost:8000/health returns 200.
+ Docs verify: GET http://localhost:8000/docs loads Swagger UI.
+ Mobile App loads: "Blush Hour" splash screen appears.
+ Critical Flow: Welcome Screen -> Login -> Home.
