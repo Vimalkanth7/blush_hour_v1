@@ -4,64 +4,6 @@ Theme: Foundations & Safety (Small + Safe)
 Status: ACTIVE
 Rules: Follow AGENTS.md strictly
 
-🟢 W3-A — Profile V1 Schema Finalization (Backend)
-
-Agent: Backend Agent
-Scope: Backend only
-Risk Level: Low (Additive)
-
-🎯 Goal
-
-Introduce a stable V1 profile schema that is backward compatible and future-ready for AI, without changing user behavior.
-
-📂 Files to Inspect
-
-backend/app/models/user.py
-
-backend/app/schemas/user.py
-
-backend/app/routers/users.py
-
-backend/docs/07_PROFILE_SPEC.md (update if needed)
-
-🛠️ Required Changes
-
-Add profile_version: "v1" (default for all users)
-
-Add non-breaking, optional fields:
-
-interests: List[str] = []
-
-values: List[str] = []
-
-bio: Optional[str]
-
-prompts: List[{ question, answer }]
-
-Ensure:
-
-Existing users still deserialize correctly
-
-No required fields added
-
-No response shape breaks
-
-✅ Acceptance Criteria
-
-Existing users can fetch profile without errors
-
-New fields appear with safe defaults
-
-No frontend dependency introduced
-
-🚫 Constraints
-
-❌ No UI changes
-
-❌ No gating logic
-
-❌ No migrations that mutate existing data
-
 🟢 W3-B — Profile Completion Scoring (Backend, Flagged)
 
 Agent: Backend Agent

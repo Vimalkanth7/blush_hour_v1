@@ -11,6 +11,7 @@ class User(Document):
     birth_date: Optional[datetime] = None
     is_verified: bool = False
     onboarding_completed: bool = False
+    profile_version: str = "v1"
     
     # Admin / Safety
     role: str = "user" # 'user', 'admin'
@@ -34,12 +35,12 @@ class User(Document):
     kids_want: Optional[str] = None # New
     star_sign: Optional[str] = None # New
     
-    interests: Optional[list[str]] = None
-    values: Optional[list[str]] = None
+    interests: Optional[list[str]] = Field(default_factory=list)
+    values: Optional[list[str]] = Field(default_factory=list)
     causes: Optional[list[str]] = None
     religion: Optional[str] = None
     politics: Optional[str] = None
-    prompts: Optional[list[dict]] = None
+    prompts: Optional[list[dict]] = Field(default_factory=list)
     bio: Optional[str] = None
     photos: Optional[list[str]] = None
     

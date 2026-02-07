@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from typing import Optional, List, Dict
 from datetime import datetime
 from uuid import UUID
@@ -9,6 +9,10 @@ class ProfileStrength(BaseModel):
     missing_fields: List[str]
     tier: str
 
+class PromptItem(BaseModel):
+    question: Optional[str] = None
+    answer: Optional[str] = None
+
 class UserRead(BaseModel):
     id: Optional[PydanticObjectId] = Field(alias="_id")
     phone_number: str
@@ -17,6 +21,7 @@ class UserRead(BaseModel):
     birth_date: Optional[datetime] = None
     is_verified: bool = False
     onboarding_completed: bool = False
+    profile_version: str = "v1"
     
     show_gender: bool = True
     dating_mode: Optional[str] = None
@@ -34,12 +39,12 @@ class UserRead(BaseModel):
     kids_want: Optional[str] = None
     star_sign: Optional[str] = None
 
-    interests: Optional[List[str]] = None
-    values: Optional[List[str]] = None
+    interests: List[str] = Field(default_factory=list)
+    values: List[str] = Field(default_factory=list)
     causes: Optional[List[str]] = None
     religion: Optional[str] = None
     politics: Optional[str] = None
-    prompts: Optional[List[Dict[str, str]]] = None # Correct type hint based on usage
+    prompts: List[PromptItem] = Field(default_factory=list)
     bio: Optional[str] = None
     photos: Optional[List[str]] = None
     
@@ -47,6 +52,12 @@ class UserRead(BaseModel):
     profile_strength: Optional[ProfileStrength] = None
     
     created_at: datetime
+
+    @validator("interests", "values", "prompts", pre=True, always=True)
+    def default_empty_lists(cls, value):
+        if value is None:
+            return []
+        return value
 
     class Config:
         populate_by_name = True
