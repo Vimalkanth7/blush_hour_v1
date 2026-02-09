@@ -10,14 +10,15 @@ import { Card } from '../../components/ui/Card';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
-const AvatarView = ({ uri, completion }: { uri: string | null, completion: number }) => {
+const AvatarView = ({ uri, completion }: { uri: string | null, completion?: number }) => {
+    const showCompletion = typeof completion === 'number';
     // A simplified visual ring representation
     return (
         <View style={styles.avatarContainer}>
             <View style={styles.ringBack}>
                 <LinearGradient
                     colors={[COLORS.primary, COLORS.primary]}
-                    style={[styles.ringGradient, { opacity: completion > 0 ? 1 : 0.3 }]}
+                    style={[styles.ringGradient, { opacity: completion && completion > 0 ? 1 : 0.3 }]}
                 />
             </View>
             <View style={styles.imageContainer}>
@@ -29,9 +30,11 @@ const AvatarView = ({ uri, completion }: { uri: string | null, completion: numbe
                     </View>
                 )}
             </View>
-            <View style={styles.completionBadge}>
-                <Text style={styles.completionText}>{completion}%</Text>
-            </View>
+            {showCompletion && (
+                <View style={styles.completionBadge}>
+                    <Text style={styles.completionText}>{completion}%</Text>
+                </View>
+            )}
         </View>
     );
 };
@@ -42,9 +45,11 @@ export default function ProfileHubScreen() {
 
     // Derived Data
     const displayPhoto = user?.photos && user.photos.length > 0 ? user.photos[0] : null;
-    const completion = user?.profile_strength?.completion_percent || user?.profile_completion || 0;
-    const tier = user?.profile_strength?.tier || (completion >= 80 ? 'Gold' : completion >= 50 ? 'Silver' : 'Bronze');
-    const missingFields = user?.profile_strength?.missing_fields || [];
+    const profileStrength = user?.profile_strength;
+    const completionPercent = profileStrength?.completion_percent;
+    const tier = profileStrength?.tier;
+    const missingFields = profileStrength?.missing_fields || [];
+    const hasStrength = completionPercent !== undefined && completionPercent !== null && typeof tier === 'string';
 
     const age = useMemo(() => {
         if (!user?.birth_date) return '';
@@ -130,7 +135,7 @@ export default function ProfileHubScreen() {
             <ScrollView contentContainerStyle={styles.scrollContent}>
 
                 {/* Profile Strength Card */}
-                {completion < 100 && (
+                {hasStrength && (
                     <Card style={styles.strengthCard}>
                         <View style={styles.strengthHeader}>
                             <Text style={styles.strengthTitle}>Profile Strength</Text>
@@ -141,9 +146,9 @@ export default function ProfileHubScreen() {
 
                         <View style={styles.progressContainer}>
                             <View style={styles.progressBarBg}>
-                                <View style={[styles.progressBarFill, { width: `${completion}%`, backgroundColor: tier === 'Gold' ? '#DAA520' : COLORS.primary }]} />
+                                <View style={[styles.progressBarFill, { width: `${completionPercent!}%`, backgroundColor: tier === 'Gold' ? '#DAA520' : COLORS.primary }]} />
                             </View>
-                            <Text style={styles.progressText}>{completion}% complete</Text>
+                            <Text style={styles.progressText}>{completionPercent!}% complete</Text>
                         </View>
 
                         {missingFields.length > 0 && (
@@ -164,7 +169,7 @@ export default function ProfileHubScreen() {
                             </View>
                         )}
 
-                        {completion < 80 && (
+                        {completionPercent! < 80 && (
                             <Text style={styles.warningText}>Complete your profile to unlock Chat Night.</Text>
                         )}
                     </Card>
@@ -172,7 +177,7 @@ export default function ProfileHubScreen() {
 
                 {/* Hero Section */}
                 <View style={styles.heroSection}>
-                    <AvatarView uri={displayPhoto} completion={completion} />
+                    <AvatarView uri={displayPhoto} completion={hasStrength ? completionPercent : undefined} />
                     <Text style={styles.nameText}>{user?.first_name}, {age}</Text>
                 </View>
 
