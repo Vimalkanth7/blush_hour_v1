@@ -4,54 +4,6 @@ Theme: Foundations & Safety (Small + Safe)
 Status: ACTIVE
 Rules: Follow AGENTS.md strictly
 
-🟢 W3-C — Profile Read Consistency (Frontend)
-
-Agent: Frontend Agent
-Scope: Frontend only
-Risk Level: Very Low
-
-🎯 Goal
-
-Ensure frontend safely renders new profile fields (even if empty).
-
-📂 Files to Inspect
-
-mobile-app/app/(tabs)/profile.tsx
-
-mobile-app/app/modal/preview-profile.tsx
-
-mobile-app/components/profile/*
-
-🛠️ Required Changes
-
-Safely handle:
-
-Empty interests
-
-Empty values
-
-Missing bio
-
-Missing prompts
-
-Render fallbacks only (no new UI)
-
-✅ Acceptance Criteria
-
-Profile screen renders for:
-
-Old users
-
-New users
-
-No crashes or console errors
-
-🚫 Constraints
-
-❌ No redesign
-
-❌ No new inputs
-
 🟢 W3-D — Safety & Trust Fields (Backend)
 
 Agent: Backend Agent

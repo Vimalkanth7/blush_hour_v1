@@ -73,3 +73,23 @@ How verified:
 
 Risks / follow-ups:
 - None. Logic is deterministic and backward-compatible.
+
+W3-C — Profile Read Consistency (Frontend)
+Date: 2026-02-09
+Agent: Lead Agent (Docs-only)
+
+Files changed:
+- mobile-app/app/(tabs)/profile.tsx
+
+What changed:
+- Closed W3-C in Week 3 tracking artifacts with the frontend change notes.
+
+Why:
+- Record completion and verification details for the W3-C frontend update.
+
+How verified:
+- Backend API check.
+- Manual UI smoke PASS.
+
+Risks / follow-ups:
+- If `profile_strength` is missing, the block hides (noted).

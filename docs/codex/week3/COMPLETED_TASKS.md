@@ -23,3 +23,12 @@ Verification:
 Notes:
 - No API response shape changes.
 - No migrations required.
+
+🟢 W3-C — Profile Read Consistency (Frontend)
+
+Status: DONE
+
+Notes:
+- Frontend now reads `user.profile_strength` directly.
+- No frontend scoring.
+- Manual UI PASS recorded.
