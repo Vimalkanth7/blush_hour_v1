@@ -48,54 +48,8 @@ class User(Document):
     
     @property
     def profile_completion(self) -> int:
-        score = 0
-        # 1. Base (Onboarding) - 50%
-        # onboarding_completed implies required fields are set
-        if self.onboarding_completed:
-            score += 50
-        else:
-            # Fallback check if onboarding logic changed but flag not set
-            base_ok = self.first_name and self.birth_date and self.gender and (self.photos and len(self.photos) >= 4)
-            if base_ok: score += 50
-
-        # 2. Bio - 10%
-        if self.bio and len(self.bio.strip()) > 0:
-            score += 10
-            
-        # 3. Prompts - 10%
-        if self.prompts and len(self.prompts) >= 1:
-             score += 10
-             
-        # 4. Interests/Values/Causes - 10%
-        tag_count = (len(self.interests or [])) + (len(self.values or [])) + (len(self.causes or []))
-        if tag_count > 0:
-            score += 10
-            
-        # 5. Basics - 10% (Work, Location, Hometown) - relaxed rule: at least 2 present
-        basics_count = 0
-        if self.work: basics_count += 1
-        if self.location: basics_count += 1
-        if self.hometown: basics_count += 1
-        if basics_count >= 2:
-            score += 10
-            
-        # 6. Details - 10% (Height, Habits, Religion, Politics, Signs, Kids, EduLevel)
-        # Require a reasonable subset (e.g. 3)
-        details_count = 0
-        if self.height: details_count += 1
-        if self.star_sign: details_count += 1
-        if self.religion: details_count += 1
-        if self.politics: details_count += 1
-        if self.education_level: details_count += 1
-        if self.kids_have or self.kids_want: details_count += 1
-        if self.habits: 
-            # If habits dict has any real values
-            if any(self.habits.values()): details_count += 1
-            
-        if details_count >= 3:
-            score += 10
-            
-        return min(score, 100)
+        from app.services.profile_scoring import compute_profile_strength
+        return compute_profile_strength(self)["completion_percent"]
 
     class Settings:
         name = "users"

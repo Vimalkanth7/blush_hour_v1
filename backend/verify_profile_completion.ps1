@@ -83,7 +83,7 @@ Write-Host "   Score after Details: $score (Expected: 90)"
 # 8. Add Tags (+10) - Interests
 Write-Host "8. Adding Interests..."
 $tagsPatch = @{
-    interests = @("Coding", "Pizza")
+    interests = @("Coding", "Pizza", "Hiking")
 } | ConvertTo-Json
 $null = Invoke-RestMethod -Uri "$baseUrl/api/users/me" -Method Patch -Headers $headers -Body $tagsPatch -ContentType "application/json"
 $score = Get-Score
