@@ -4,56 +4,6 @@ Theme: Foundations & Safety (Small + Safe)
 Status: ACTIVE
 Rules: Follow AGENTS.md strictly
 
-🟢 W3-B — Profile Completion Scoring (Backend, Flagged)
-
-Agent: Backend Agent
-Scope: Backend only
-Risk Level: Low (Read-only, feature-flagged)
-
-🎯 Goal
-
-Compute a profile completion percentage without affecting any user flow.
-
-📂 Files to Inspect
-
-backend/app/services/profile_scoring.py
-
-backend/app/models/user.py
-
-backend/app/routers/users.py
-
-🛠️ Required Changes
-
-Compute profile_completion_percent using weighted logic:
-
-Photos
-
-Basics
-
-Bio / prompts
-
-Interests
-
-Expose score in profile read API
-
-Add feature flag:
-
-PROFILE_COMPLETION_ENABLED = false
-
-✅ Acceptance Criteria
-
-Score computes correctly when flag is ON
-
-No behavior change when flag is OFF
-
-Field is read-only
-
-🚫 Constraints
-
-❌ No feature gating
-
-❌ No UI changes
-
 🟢 W3-C — Profile Read Consistency (Frontend)
 
 Agent: Frontend Agent
