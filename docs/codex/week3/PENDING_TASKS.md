@@ -4,47 +4,7 @@ Theme: Foundations & Safety (Small + Safe)
 Status: ACTIVE
 Rules: Follow AGENTS.md strictly
 
-🟢 W3-D — Safety & Trust Fields (Backend)
 
-Agent: Backend Agent
-Scope: Backend only
-Risk Level: Low (Data-only)
-
-🎯 Goal
-
-Introduce safety & trust data scaffolding without enforcement.
-
-📂 Files to Inspect
-
-backend/app/models/user.py
-
-backend/app/schemas/user.py
-
-🛠️ Required Changes
-
-Add system-controlled fields:
-
-is_verified: bool = false
-
-verification_level: "none" | "photo" | "id"
-
-safety_score: int = 100
-
-reports_received: int = 0
-
-✅ Acceptance Criteria
-
-Fields exist with defaults
-
-Fields are NOT user-writable
-
-Admin-only mutation possible
-
-🚫 Constraints
-
-❌ No verification logic
-
-❌ No blocking behavior
 
 🟢 W3-E — QA: Profile Regression Verification
 

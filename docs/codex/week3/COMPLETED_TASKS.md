@@ -32,3 +32,17 @@ Notes:
 - Frontend now reads `user.profile_strength` directly.
 - No frontend scoring.
 - Manual UI PASS recorded.
+
+
+
+🟢 W3-D — profile_strength Contract Guarantee + Verification Script (Backend)
+
+Status: DONE
+
+Notes:
+
+/api/users/me always includes profile_strength
+
+Added verify_profile_strength_contract.ps1
+
+QA PASS: contract script passed after backend restart

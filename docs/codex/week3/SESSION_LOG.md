@@ -93,3 +93,11 @@ How verified:
 
 Risks / follow-ups:
 - If `profile_strength` is missing, the block hides (noted).
+
+
+
+Files changed: backend/app/routers/users.py, backend/verify_profile_strength_contract.ps1, docs/codex/week3/SESSION_LOG.md (if updated)
+
+Verification: verify_profile_strength_contract.ps1 ✅ PASS
+
+Risk: none (additive), rollback = revert commit

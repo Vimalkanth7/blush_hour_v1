@@ -42,22 +42,23 @@ class UserProfileUpdate(BaseModel):
 from app.services.profile_scoring import compute_profile_strength
 from app.schemas.user import ProfileStrength
 
+def _build_user_read_with_strength(user: User) -> UserRead:
+    strength = compute_profile_strength(user)
+    if not strength:
+        strength = {
+            "completion_percent": 0,
+            "missing_fields": [],
+            "tier": "Bronze",
+        }
+
+    user_dict = user.dict()
+    user_dict["profile_completion"] = strength.get("completion_percent", 0)
+    user_dict["profile_strength"] = ProfileStrength(**strength)
+    return UserRead(**user_dict)
+
 @router.get("/me", response_model=UserRead)
 async def get_my_profile(current_user: User = Depends(get_current_user)):
-    strength = compute_profile_strength(current_user)
-    
-    # We must construct the model manually or rely on from_attributes, 
-    # but since 'profile_strength' is not on the Document, we explicitly set it.
-    
-    # 1. Convert DB model to dict or copy
-    user_dict = current_user.dict()
-    
-    # 2. Add properties manually if not in dict
-    user_dict["profile_completion"] = strength["completion_percent"]
-    user_dict["profile_strength"] = ProfileStrength(**strength)
-    
-    # 3. Create UserRead (Validation will happen automatically)
-    return UserRead(**user_dict)
+    return _build_user_read_with_strength(current_user)
 
 @router.patch("/me", response_model=UserRead)
 async def update_my_profile(
@@ -173,4 +174,4 @@ async def update_my_profile(
         current_user.onboarding_completed = False
         
     await current_user.save()
-    return current_user
+    return _build_user_read_with_strength(current_user)
