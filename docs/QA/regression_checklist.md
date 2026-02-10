@@ -10,3 +10,7 @@ Must confirm after any change:
 - Sign out works
 - Backend /health is 200
 - /docs loads
+
+Regression guards (PASS required to merge):
+- `backend\\verify_profile_completion.ps1`
+- `backend\\verify_profile_strength_contract.ps1`

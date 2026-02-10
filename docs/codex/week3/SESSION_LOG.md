@@ -101,3 +101,29 @@ Files changed: backend/app/routers/users.py, backend/verify_profile_strength_con
 Verification: verify_profile_strength_contract.ps1 ✅ PASS
 
 Risk: none (additive), rollback = revert commit
+W3-E — QA: Profile Regression Verification
+Date: 2026-02-09
+Agent: Lead Agent (Docs-only)
+
+Files changed:
+- docs/07_PROFILE_SPEC.md
+- docs/05_API_CONTRACT.md
+- docs/QA/regression_checklist.md
+- docs/codex/week3/PENDING_TASKS.md
+- docs/codex/week3/COMPLETED_TASKS.md
+- docs/codex/week3/SESSION_LOG.md
+
+What changed:
+- Documented profile_strength fields and backend authority in the Profile spec.
+- Updated users/me GET + PATCH contract to always include profile_strength for legacy/partial users.
+- Added profile regression scripts to QA checklist with PASS required to merge.
+- Closed W3-E in Week 3 tracking.
+
+Why:
+- Align docs and QA guardrails with Week 3 profile_strength changes.
+
+How verified:
+- git diff --name-only (only: docs/05_API_CONTRACT.md; docs/07_PROFILE_SPEC.md; docs/QA/regression_checklist.md; docs/codex/week3/PENDING_TASKS.md; docs/codex/week3/COMPLETED_TASKS.md; docs/codex/week3/SESSION_LOG.md).
+
+Risks / follow-ups:
+- None.

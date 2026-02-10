@@ -26,6 +26,7 @@ Response:
 ### GET /api/users/me
 Auth: Bearer token required
 Response:
+- **profile_strength**: { completion_percent: int (0-100), tier: "Bronze"|"Silver"|"Gold", missing_fields: list[str] }
 - **profile_completion**: integer (0-100)
 - phone_number, first_name, birth_date, gender
 - bio, photos (list[str])
@@ -38,6 +39,9 @@ Response:
 - interests, values, causes
 - religion, politics
 - prompts
+
+Contract guarantee:
+- Response always includes `profile_strength` (even for legacy/partial users).
 
 ### PATCH /api/users/me
 Auth: Bearer token required
@@ -66,7 +70,8 @@ Request body (partial updates allowed):
 - prompts
 
 Response:
-- Updated user profile (including recalculated `profile_completion` and `onboarding_completed`)
+- Updated user profile (including recalculated `profile_completion`, `onboarding_completed`, and `profile_strength`)
+- Response always includes `profile_strength` (even for legacy/partial users).
 
 Notes:
 - `password_hash` is NEVER returned.

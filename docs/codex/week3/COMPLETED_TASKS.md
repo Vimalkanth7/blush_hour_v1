@@ -46,3 +46,11 @@ Notes:
 Added verify_profile_strength_contract.ps1
 
 QA PASS: contract script passed after backend restart
+🟢 W3-E — QA: Profile Regression Verification
+
+Status: DONE
+
+Notes:
+- Docs updated to guarantee `profile_strength` on users/me GET + PATCH.
+- QA regression checklist updated with required profile scripts.
+- Week 3 tracking closed for W3-E.

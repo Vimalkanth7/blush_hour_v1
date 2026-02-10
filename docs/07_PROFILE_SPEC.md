@@ -66,7 +66,7 @@ The main "Me" screen.
 - **Hero**:
   - Primary Avatar (Photo[0]).
   - Name + Computed Age.
-  - **Completion Ring**: Visual circle around avatar showing `profile_completion` %.
+  - **Completion Ring**: Visual circle around avatar showing `profile_strength.completion_percent` %.
 - **Actions**:
   - [Edit Profile] -> Opens Edit Modal.
   - [Preview] -> Opens Preview Modal (Read-only card view).
@@ -75,6 +75,13 @@ The main "Me" screen.
 
 ## 3. Data Rules & Completion Logic
 **Authority**: The Backend computes these values. The frontend DOES NOT calculate percentages locally.
+
+### Profile Strength (Server-Computed)
+- `profile_strength.completion_percent` (0-100)
+- `profile_strength.tier` (Bronze|Silver|Gold)
+- `profile_strength.missing_fields` (list of strings)
+
+Backend computes it; frontend renders it; no frontend recomputation.
 
 ### Onboarding vs Profile Completion
 1.  **`onboarding_completed` (Boolean)**:
