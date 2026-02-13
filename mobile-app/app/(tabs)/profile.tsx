@@ -58,6 +58,18 @@ export default function ProfileHubScreen() {
         return Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
     }, [user?.birth_date]);
 
+    const languages = user?.languages ?? [];
+    const habits = user?.habits ?? {};
+    const habitItems = [
+        { key: 'drinking', label: 'Drinking', value: habits.drinking },
+        { key: 'smoking', label: 'Smoking', value: habits.smoking },
+        { key: 'exercise', label: 'Exercise', value: habits.exercise },
+        { key: 'kids', label: 'Kids', value: habits.kids }
+    ];
+    const visibleHabits = habitItems.filter((item) => item.value);
+    const hasHabits = visibleHabits.length > 0;
+    const hasLanguages = languages.length > 0;
+
     // Handle Edit Navigation
     const onEditPress = () => {
         router.push("/modal/edit-profile");
@@ -206,6 +218,54 @@ export default function ProfileHubScreen() {
                     </TouchableOpacity>
                 </View>
 
+                {/* Languages & Habits */}
+                <View style={styles.detailsSection}>
+                    <Card style={styles.detailCard}>
+                        <View style={styles.sectionHeaderRow}>
+                            <Text style={styles.sectionTitle}>Languages</Text>
+                            <TouchableOpacity onPress={onEditPress} activeOpacity={0.7}>
+                                <Text style={styles.sectionAction}>{hasLanguages ? 'Edit' : 'Add'}</Text>
+                            </TouchableOpacity>
+                        </View>
+                        {hasLanguages ? (
+                            <View style={styles.chipRow}>
+                                {languages.map((language) => (
+                                    <View key={language} style={styles.chip}>
+                                        <Text style={styles.chipText}>{language}</Text>
+                                    </View>
+                                ))}
+                            </View>
+                        ) : (
+                            <TouchableOpacity onPress={onEditPress} activeOpacity={0.7}>
+                                <Text style={styles.emptyText}>Add languages</Text>
+                            </TouchableOpacity>
+                        )}
+                    </Card>
+
+                    <Card style={styles.detailCard}>
+                        <View style={styles.sectionHeaderRow}>
+                            <Text style={styles.sectionTitle}>Habits</Text>
+                            <TouchableOpacity onPress={onEditPress} activeOpacity={0.7}>
+                                <Text style={styles.sectionAction}>{hasHabits ? 'Edit' : 'Add'}</Text>
+                            </TouchableOpacity>
+                        </View>
+                        {hasHabits ? (
+                            <View style={styles.habitList}>
+                                {visibleHabits.map((habit) => (
+                                    <View key={habit.key} style={styles.habitRow}>
+                                        <Text style={styles.habitLabel}>{habit.label}</Text>
+                                        <Text style={styles.habitValue}>{habit.value}</Text>
+                                    </View>
+                                ))}
+                            </View>
+                        ) : (
+                            <TouchableOpacity onPress={onEditPress} activeOpacity={0.7}>
+                                <Text style={styles.emptyText}>Add habits</Text>
+                            </TouchableOpacity>
+                        )}
+                    </Card>
+                </View>
+
                 {/* Marketing / Upsell Section */}
                 <View style={styles.upsellContainer}>
                     <LinearGradient
@@ -283,6 +343,28 @@ const styles = StyleSheet.create({
         ...SHADOWS.small
     },
     actionLabel: { ...TYPOGRAPHY.bodyBase, color: COLORS.secondaryText, fontSize: 14 },
+
+    // Languages & Habits
+    detailsSection: { paddingHorizontal: SPACING.screen, gap: SPACING.md, marginBottom: SPACING.xl },
+    detailCard: { },
+    sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.sm },
+    sectionTitle: { ...TYPOGRAPHY.h2, fontSize: 16, color: COLORS.primaryText },
+    sectionAction: { fontSize: 13, color: COLORS.brandBase, fontWeight: '600' },
+    chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    chip: {
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: RADIUS.pill,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        backgroundColor: COLORS.surface
+    },
+    chipText: { fontSize: 12, color: COLORS.secondaryText },
+    habitList: { gap: 8 },
+    habitRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    habitLabel: { fontSize: 13, color: COLORS.secondaryText },
+    habitValue: { fontSize: 13, color: COLORS.primaryText, fontWeight: '600' },
+    emptyText: { fontSize: 13, color: COLORS.disabledText },
 
     // Upsell
     upsellContainer: { paddingHorizontal: SPACING.screen },

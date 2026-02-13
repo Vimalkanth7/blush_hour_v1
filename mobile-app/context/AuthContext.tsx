@@ -35,6 +35,7 @@ interface UserProfile {
         exercise?: string;
         drinking?: string;
         smoking?: string;
+        kids?: string;
     };
     kids_have?: string;
     kids_want?: string;
@@ -46,6 +47,7 @@ interface UserProfile {
     interests?: string[];
     values?: string[];
     causes?: string[];
+    languages?: string[];
     prompts?: { question: string; answer: string }[];
 }
 

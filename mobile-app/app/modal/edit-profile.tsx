@@ -11,6 +11,27 @@ import { API_BASE_URL } from '../../constants/Api';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 
+const LANGUAGE_OPTIONS = [
+    'English',
+    'Hindi',
+    'Tamil',
+    'Telugu',
+    'Kannada',
+    'Malayalam',
+    'Marathi',
+    'Bengali',
+    'Gujarati',
+    'Punjabi',
+    'Urdu'
+];
+
+const HABIT_OPTIONS = {
+    drinking: ['No', 'Occasionally', 'Yes'],
+    smoking: ['No', 'Occasionally', 'Yes'],
+    exercise: ['Never', 'Sometimes', 'Often'],
+    kids: ['No', 'Want someday', 'Have kids']
+};
+
 export default function EditProfileScreen() {
     const router = useRouter();
     const { initialSection } = useLocalSearchParams();
@@ -37,6 +58,7 @@ export default function EditProfileScreen() {
     const [exercise, setExercise] = useState(user?.habits?.exercise || '');
     const [drinking, setDrinking] = useState(user?.habits?.drinking || '');
     const [smoking, setSmoking] = useState(user?.habits?.smoking || '');
+    const [kids, setKids] = useState(user?.habits?.kids || '');
     const [educationLevel, setEducationLevel] = useState(user?.education_level || '');
     const [datingPreference, setDatingPreference] = useState(user?.dating_preference || '');
     const [kidsHave, setKidsHave] = useState(user?.kids_have || '');
@@ -49,6 +71,7 @@ export default function EditProfileScreen() {
     const [interests, setInterests] = useState(user?.interests?.join(', ') || '');
     const [values, setValues] = useState(user?.values?.join(', ') || '');
     const [causes, setCauses] = useState(user?.causes?.join(', ') || '');
+    const [languages, setLanguages] = useState<string[]>(user?.languages ?? []);
 
     // 6. Prompts (Array of {question, answer})
     const [prompts, setPrompts] = useState<{ question: string, answer: string }[]>(
@@ -111,10 +134,29 @@ export default function EditProfileScreen() {
         setPrompts(newP);
     };
 
+    const toggleLanguage = (language: string) => {
+        setLanguages((prev) => {
+            if (prev.includes(language)) {
+                return prev.filter((item) => item !== language);
+            }
+            return [...prev, language];
+        });
+    };
+
+    const buildHabitsPayload = () => {
+        const payload: Record<string, string> = {};
+        if (exercise) payload.exercise = exercise;
+        if (drinking) payload.drinking = drinking;
+        if (smoking) payload.smoking = smoking;
+        if (kids) payload.kids = kids;
+        return payload;
+    };
+
     // --- Save Logic ---
     const handleSave = async () => {
         setIsSaving(true);
         try {
+            const habitsPayload = buildHabitsPayload();
             const body = {
                 // Section 1
                 photos: photos.filter(Boolean),
@@ -127,11 +169,7 @@ export default function EditProfileScreen() {
                 location,
                 // Section 4
                 height,
-                habits: {
-                    exercise,
-                    drinking,
-                    smoking
-                },
+                habits: habitsPayload,
                 education_level: educationLevel,
                 dating_preference: datingPreference,
                 kids_have: kidsHave,
@@ -143,6 +181,7 @@ export default function EditProfileScreen() {
                 interests: interests.split(',').map(s => s.trim()).filter(Boolean),
                 values: values.split(',').map(s => s.trim()).filter(Boolean),
                 causes: causes.split(',').map(s => s.trim()).filter(Boolean),
+                languages,
                 // Section 6
                 prompts: prompts.filter(p => p.answer.trim().length > 0)
             };
@@ -171,6 +210,11 @@ export default function EditProfileScreen() {
             setIsSaving(false);
         }
     };
+
+    const visibleLanguageOptions = React.useMemo(() => {
+        const extraLanguages = languages.filter((language) => !LANGUAGE_OPTIONS.includes(language));
+        return [...LANGUAGE_OPTIONS, ...extraLanguages];
+    }, [languages]);
 
     return (
         <View style={styles.container}>
@@ -253,10 +297,7 @@ export default function EditProfileScreen() {
                     <Text style={styles.sectionHeader}>MORE ABOUT YOU</Text>
                     <View style={styles.sectionContainer}>
                         <ProfileRow label="Height" value={height} onChange={setHeight} placeholder="Add Height" />
-                        <ProfileRow label="Exercise" value={exercise} onChange={setExercise} placeholder="Add Habit" />
                         <ProfileRow label="Education Level" value={educationLevel} onChange={setEducationLevel} placeholder="Add Degree" />
-                        <ProfileRow label="Drinking" value={drinking} onChange={setDrinking} placeholder="Add Habit" />
-                        <ProfileRow label="Smoking" value={smoking} onChange={setSmoking} placeholder="Add Habit" />
                         <ProfileRow label="Looking For" value={datingPreference} onChange={setDatingPreference} placeholder="Add Pref" />
                         <ProfileRow label="Kids (Have)" value={kidsHave} onChange={setKidsHave} placeholder="Add Status" />
                         <ProfileRow label="Kids (Want)" value={kidsWant} onChange={setKidsWant} placeholder="Add Status" />
@@ -265,7 +306,36 @@ export default function EditProfileScreen() {
                         <ProfileRow label="Religion" value={religion} onChange={setReligion} placeholder="Add Beliefs" last />
                     </View>
 
-                    {/* Section 5: Tags (Simplified) */}
+                    {/* Section 5: Languages */}
+                    <Text style={styles.sectionHeader}>LANGUAGES</Text>
+                    <View style={styles.sectionContainer}>
+                        <View style={styles.chipWrap}>
+                            {visibleLanguageOptions.map((language) => {
+                                const selected = languages.includes(language);
+                                return (
+                                    <TouchableOpacity
+                                        key={language}
+                                        onPress={() => toggleLanguage(language)}
+                                        style={[styles.chip, selected && styles.chipActive]}
+                                    >
+                                        <Text style={[styles.chipText, selected && styles.chipTextActive]}>{language}</Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </View>
+                    </View>
+                    <Text style={styles.helperText}>Tap to select multiple</Text>
+
+                    {/* Section 6: Habits */}
+                    <Text style={styles.sectionHeader}>HABITS</Text>
+                    <View style={styles.sectionContainer}>
+                        <HabitRow label="Drinking" value={drinking} options={HABIT_OPTIONS.drinking} onChange={setDrinking} />
+                        <HabitRow label="Smoking" value={smoking} options={HABIT_OPTIONS.smoking} onChange={setSmoking} />
+                        <HabitRow label="Exercise" value={exercise} options={HABIT_OPTIONS.exercise} onChange={setExercise} />
+                        <HabitRow label="Kids" value={kids} options={HABIT_OPTIONS.kids} onChange={setKids} last />
+                    </View>
+
+                    {/* Section 7: Tags (Simplified) */}
                     <Text
                         style={styles.sectionHeader}
                         onLayout={(e) => setSectionY(prev => ({ ...prev, interests: e.nativeEvent.layout.y }))}
@@ -279,7 +349,7 @@ export default function EditProfileScreen() {
                     </View>
                     <Text style={styles.helperText}>Separate with commas</Text>
 
-                    {/* Section 6: Prompts */}
+                    {/* Section 8: Prompts */}
                     <Text
                         style={styles.sectionHeader}
                         onLayout={(e) => setSectionY(prev => ({ ...prev, prompts: e.nativeEvent.layout.y }))}
@@ -356,6 +426,26 @@ const ProfileRow = ({ label, value, onChange, placeholder, editable = true, last
     </TouchableOpacity>
 );
 
+const HabitRow = ({ label, value, options, onChange, last }: any) => (
+    <View style={[styles.habitRow, last && styles.lastRow]}>
+        <Text style={styles.label}>{label}</Text>
+        <View style={styles.habitOptions}>
+            {options.map((option: string) => {
+                const selected = value === option;
+                return (
+                    <TouchableOpacity
+                        key={option}
+                        onPress={() => onChange(option)}
+                        style={[styles.chip, selected && styles.chipActive]}
+                    >
+                        <Text style={[styles.chipText, selected && styles.chipTextActive]}>{option}</Text>
+                    </TouchableOpacity>
+                );
+            })}
+        </View>
+    </View>
+);
+
 const getColorForCompletion = (val: number) => {
     if (val < 50) return COLORS.destructive;
     if (val < 80) return COLORS.primary;
@@ -400,6 +490,27 @@ const styles = StyleSheet.create({
 
     label: { fontSize: 16, color: COLORS.primaryText },
     input: { flex: 1, fontSize: 16, color: COLORS.secondaryText, marginLeft: 10 },
+
+    habitRow: {
+        paddingVertical: SPACING.md,
+        paddingHorizontal: SPACING.screen,
+        marginLeft: SPACING.screen,
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.border
+    },
+    habitOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: SPACING.sm },
+    chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, padding: SPACING.screen },
+    chip: {
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: RADIUS.pill,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        backgroundColor: COLORS.surface
+    },
+    chipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+    chipText: { fontSize: 13, color: COLORS.secondaryText },
+    chipTextActive: { color: COLORS.background, fontWeight: '600' },
 
     helperText: { marginLeft: SPACING.screen, marginTop: 6, fontSize: 12, color: COLORS.disabledText },
 
