@@ -14,3 +14,4 @@ Must confirm after any change:
 Regression guards (PASS required to merge):
 - `backend\\verify_profile_completion.ps1`
 - `backend\\verify_profile_strength_contract.ps1`
+- `backend\\verify_languages_habits_contract.ps1`
