@@ -3,7 +3,7 @@ from app.models.user import User
 from app.auth.dependencies import get_current_user
 from app.schemas.user import UserRead
 from pydantic import BaseModel
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 import os
 
@@ -30,8 +30,10 @@ class UserProfileUpdate(BaseModel):
     drinking: Optional[str] = None
     smoking: Optional[str] = None
     kids: Optional[str] = None
+    habits: Optional[Dict[str, Any]] = None
     interests: Optional[List[str]] = None
     values: Optional[List[str]] = None
+    languages: Optional[List[str]] = None
     causes: Optional[List[str]] = None
     religion: Optional[str] = None
     politics: Optional[str] = None
@@ -116,8 +118,10 @@ async def update_my_profile(
     if data.starSign is not None:
         current_user.star_sign = data.starSign
     
-    # Handle habits update (merging or overwriting)
+    # Handle habits update (merge dict + legacy fields)
     new_habits = current_user.habits or {}
+    if data.habits is not None:
+        new_habits.update(data.habits)
     if data.exercise is not None: new_habits["exercise"] = data.exercise
     if data.drinking is not None: new_habits["drinking"] = data.drinking
     if data.smoking is not None: new_habits["smoking"] = data.smoking
@@ -129,6 +133,9 @@ async def update_my_profile(
         
     if data.values is not None:
         current_user.values = data.values
+
+    if data.languages is not None:
+        current_user.languages = data.languages
         
     if data.causes is not None:
         current_user.causes = data.causes

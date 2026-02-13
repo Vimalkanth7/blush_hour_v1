@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, validator
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 from uuid import UUID
 from beanie import PydanticObjectId
@@ -34,13 +34,14 @@ class UserRead(BaseModel):
     location: Optional[str] = None
     hometown: Optional[str] = None
 
-    habits: Optional[dict] = None
+    habits: Dict[str, Any] = Field(default_factory=dict)
     kids_have: Optional[str] = None
     kids_want: Optional[str] = None
     star_sign: Optional[str] = None
 
     interests: List[str] = Field(default_factory=list)
     values: List[str] = Field(default_factory=list)
+    languages: List[str] = Field(default_factory=list)
     causes: Optional[List[str]] = None
     religion: Optional[str] = None
     politics: Optional[str] = None
@@ -53,10 +54,16 @@ class UserRead(BaseModel):
     
     created_at: datetime
 
-    @validator("interests", "values", "prompts", pre=True, always=True)
+    @validator("interests", "values", "languages", "prompts", pre=True, always=True)
     def default_empty_lists(cls, value):
         if value is None:
             return []
+        return value
+
+    @validator("habits", pre=True, always=True)
+    def default_empty_dict(cls, value):
+        if value is None:
+            return {}
         return value
 
     class Config:

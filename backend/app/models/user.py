@@ -30,13 +30,14 @@ class User(Document):
     location: Optional[str] = None # New
     hometown: Optional[str] = None # New
     
-    habits: Optional[dict] = None # { drinking: str, smoking: str, exercise: str, kids: str }
+    habits: Optional[dict] = Field(default_factory=dict) # { drinking: str, smoking: str, exercise: str, kids: str }
     kids_have: Optional[str] = None # New
     kids_want: Optional[str] = None # New
     star_sign: Optional[str] = None # New
     
     interests: Optional[list[str]] = Field(default_factory=list)
     values: Optional[list[str]] = Field(default_factory=list)
+    languages: Optional[list[str]] = Field(default_factory=list)
     causes: Optional[list[str]] = None
     religion: Optional[str] = None
     politics: Optional[str] = None
