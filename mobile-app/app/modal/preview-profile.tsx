@@ -38,6 +38,13 @@ export default function PreviewProfileScreen() {
 
     // --- Derived Data ---
     const completion = userData.profile_completion || 0;
+    const languages = Array.isArray(userData.languages)
+        ? userData.languages.filter((item: any) => typeof item === 'string' && item.trim().length > 0)
+        : [];
+    const habits = userData.habits && typeof userData.habits === 'object' ? userData.habits : {};
+    const kidsValue = [userData.kids_have, userData.kids_want]
+        .filter((value: any) => typeof value === 'string' && value.trim().length > 0)
+        .join(", ");
 
     const age = useMemo(() => {
         if (!userData.birth_date) return null;
@@ -121,24 +128,31 @@ export default function PreviewProfileScreen() {
                     <InfoRow icon="home-outline" label="Hometown" value={userData.hometown} />
                 </View>
 
-                {/* Section 5: More About You */}
+                {/* Section 5: Languages */}
+                <Text style={styles.sectionTitle}>Languages</Text>
+                <ChipGroup items={languages} emptyLabel="Not specified" />
+
+                {/* Section 6: Habits */}
+                <Text style={styles.sectionTitle}>Habits</Text>
+                <View style={styles.infoList}>
+                    <InfoRowWithFallback icon="wine-outline" label="Drinking" value={habits.drinking} />
+                    <InfoRowWithFallback icon="cafe-outline" label="Smoking" value={habits.smoking} />
+                    <InfoRowWithFallback icon="barbell-outline" label="Exercise" value={habits.exercise} />
+                    <InfoRowWithFallback icon="happy-outline" label="Kids" value={kidsValue} />
+                </View>
+
+                {/* Section 7: More About You */}
                 <Text style={styles.sectionTitle}>More about you</Text>
                 <View style={styles.infoList}>
                     <InfoRow icon="resize-outline" label="Height" value={userData.height} />
-                    <InfoRow icon="barbell-outline" label="Exercise" value={userData.habits?.exercise} />
                     <InfoRow icon="book-outline" label="Education level" value={userData.education_level} />
-                    <InfoRow icon="wine-outline" label="Drinking" value={userData.habits?.drinking} />
-                    <InfoRow icon="cafe-outline" label="Smoking" value={userData.habits?.smoking} />
                     <InfoRow icon="heart-outline" label="Looking for" value={userData.dating_preference} />
-                    <InfoRow icon="happy-outline" label="Kids" value={
-                        [userData.kids_have, userData.kids_want].filter(Boolean).join(", ") || null
-                    } />
                     <InfoRow icon="star-outline" label="Star sign" value={userData.star_sign} />
                     <InfoRow icon="flag-outline" label="Politics" value={userData.politics} />
                     <InfoRow icon="hand-left-outline" label="Religion" value={userData.religion} />
                 </View>
 
-                {/* Section 6: Interests */}
+                {/* Section 8: Interests */}
                 <Text style={styles.sectionTitle}>Interests</Text>
                 <ChipGroup items={userData.interests} emptyLabel="Add interests" />
 
@@ -148,7 +162,7 @@ export default function PreviewProfileScreen() {
                 <Text style={styles.sectionTitle}>Causes</Text>
                 <ChipGroup items={userData.causes} emptyLabel="Add causes" />
 
-                {/* Section 7: Prompts */}
+                {/* Section 9: Prompts */}
                 <Text style={styles.sectionTitle}>Prompts</Text>
                 {userData.prompts && userData.prompts.length > 0 ? (
                     userData.prompts.map((p: any, i: number) => (
@@ -186,6 +200,26 @@ const InfoRow = ({ icon, label, value }: { icon: any, label: string, value: stri
         </View>
     </View>
 );
+
+const InfoRowWithFallback = ({ icon, label, value, emptyLabel = "Not specified" }: { icon: any, label: string, value: string | null | undefined, emptyLabel?: string }) => {
+    const normalized = typeof value === 'string' ? value.trim() : '';
+    const displayValue = normalized.length > 0 ? normalized : emptyLabel;
+    const isMissing = normalized.length === 0;
+    return (
+        <View style={styles.row}>
+            <View style={styles.rowLeft}>
+                <Ionicons name={icon} size={20} color={COLORS.secondaryText} style={{ marginRight: SPACING.md, width: 20 }} />
+                <Text style={styles.rowLabel}>{label}</Text>
+            </View>
+            <View style={styles.rowRight}>
+                <Text style={[styles.rowValue, isMissing && styles.placeholderValue]}>
+                    {displayValue}
+                </Text>
+                <Ionicons name="chevron-forward" size={16} color={COLORS.disabledText} style={{ marginLeft: SPACING.sm }} />
+            </View>
+        </View>
+    );
+};
 
 const ChipGroup = ({ items, emptyLabel }: { items: string[] | undefined, emptyLabel: string }) => {
     if (!items || items.length === 0) {

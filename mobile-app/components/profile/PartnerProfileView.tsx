@@ -15,6 +15,7 @@ export interface PartnerProfile {
     interests?: string[];
     values?: string[];
     causes?: string[];
+    languages?: string[];
     prompts?: Array<{ question?: string; answer?: string } | any>;
     birth_date?: string;
     work?: string;
@@ -67,6 +68,13 @@ export default function PartnerProfileView({ profile, fallbackName, fallbackAge,
     // Derived Data
     const displayName = profile.first_name || fallbackName || "Unknown";
     const displayAge = profile.age || fallbackAge || "";
+    const languages = Array.isArray(profile?.languages)
+        ? profile.languages.filter((item) => typeof item === 'string' && item.trim().length > 0)
+        : [];
+    const habits = (profile?.habits ?? {}) as NonNullable<PartnerProfile['habits']>;
+    const kidsValue = [profile.kids_have, profile.kids_want]
+        .filter((value) => typeof value === 'string' && value.trim().length > 0)
+        .join(", ");
 
     // Photos
     const photos = useMemo(() => {
@@ -130,6 +138,19 @@ export default function PartnerProfileView({ profile, fallbackName, fallbackAge,
                 <InfoRow icon="home-outline" label="Hometown" value={profile.hometown} />
             </View>
 
+            {/* Languages */}
+            <Text style={styles.sectionTitle}>Languages</Text>
+            <ChipGroup items={languages} emptyLabel="Not specified" />
+
+            {/* Habits */}
+            <Text style={styles.sectionTitle}>Habits</Text>
+            <View style={styles.infoList}>
+                <InfoRowWithFallback icon="wine-outline" label="Drinking" value={habits.drinking} />
+                <InfoRowWithFallback icon="cafe-outline" label="Smoking" value={habits.smoking} />
+                <InfoRowWithFallback icon="barbell-outline" label="Exercise" value={habits.exercise} />
+                <InfoRowWithFallback icon="happy-outline" label="Kids" value={kidsValue} />
+            </View>
+
             {/* More About You - Interactive */}
             <TouchableOpacity
                 activeOpacity={0.7}
@@ -151,14 +172,8 @@ export default function PartnerProfileView({ profile, fallbackName, fallbackAge,
             {isDetailsExpanded && (
                 <View style={styles.infoList}>
                     <InfoRow icon="resize-outline" label="Height" value={profile.height} />
-                    <InfoRow icon="barbell-outline" label="Exercise" value={profile.habits?.exercise} />
                     <InfoRow icon="book-outline" label="Education level" value={profile.education_level} />
-                    <InfoRow icon="wine-outline" label="Drinking" value={profile.habits?.drinking} />
-                    <InfoRow icon="cafe-outline" label="Smoking" value={profile.habits?.smoking} />
                     <InfoRow icon="heart-outline" label="Looking for" value={profile.dating_preference} />
-                    <InfoRow icon="happy-outline" label="Kids" value={
-                        [profile.kids_have, profile.kids_want].filter(Boolean).join(", ") || null
-                    } />
                     <InfoRow icon="star-outline" label="Star sign" value={profile.star_sign} />
                     <InfoRow icon="flag-outline" label="Politics" value={profile.politics} />
                     <InfoRow icon="hand-left-outline" label="Religion" value={profile.religion} />
@@ -222,8 +237,32 @@ const InfoRow = ({ icon, label, value }: { icon: any, label: string, value: stri
     );
 };
 
-const ChipGroup = ({ items }: { items: string[] | undefined }) => {
-    if (!items || items.length === 0) return null;
+const InfoRowWithFallback = ({ icon, label, value, emptyLabel = "Not specified" }: { icon: any, label: string, value: string | null | undefined, emptyLabel?: string }) => {
+    const normalized = typeof value === 'string' ? value.trim() : '';
+    const displayValue = normalized.length > 0 ? normalized : emptyLabel;
+    const isMissing = normalized.length === 0;
+    return (
+        <View style={styles.row}>
+            <View style={styles.rowLeft}>
+                <Ionicons name={icon} size={20} color={COLORS.secondaryText} style={{ marginRight: SPACING.md, width: 20 }} />
+                <Text style={styles.rowLabel}>{label}</Text>
+            </View>
+            <View style={styles.rowRight}>
+                <Text style={[styles.rowValue, isMissing && styles.placeholderValue]}>{displayValue}</Text>
+            </View>
+        </View>
+    );
+};
+
+const ChipGroup = ({ items, emptyLabel }: { items: string[] | undefined, emptyLabel?: string }) => {
+    if (!items || items.length === 0) {
+        if (!emptyLabel) return null;
+        return (
+            <View style={styles.card}>
+                <Text style={styles.placeholderText}>{emptyLabel}</Text>
+            </View>
+        );
+    }
     return (
         <View style={styles.chipContainer}>
             {items.map((item, i) => (
@@ -274,6 +313,7 @@ const styles = StyleSheet.create({
     rowLabel: { fontSize: 16, color: COLORS.secondaryText },
     rowRight: { flexDirection: 'row', alignItems: 'center', flex: 1, justifyContent: 'flex-end' },
     rowValue: { fontSize: 16, color: COLORS.primaryText, textAlign: 'right', flexWrap: 'wrap' },
+    placeholderValue: { color: COLORS.secondaryText, fontStyle: 'italic' },
 
     // Chips
     chipContainer: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, gap: 8 },
