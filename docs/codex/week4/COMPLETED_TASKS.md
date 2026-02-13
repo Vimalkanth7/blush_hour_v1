@@ -29,3 +29,13 @@ Added backend/verify_languages_habits_contract.ps1 to enforce non-null defaults 
 Added script to docs/QA/regression_checklist.md as PASS-required.
 
 Verified alongside Week3 guards (profile completion + profile_strength contract).
+
+🟢 W4-D — Show languages + habits in Preview + Partner Profile (Frontend)
+
+Status: DONE
+
+Notes:
+- Added Languages chips + Habits section (drinking/smoking/exercise/kids) with legacy-safe “Not specified” fallbacks.
+- Updated both Preview Profile modal and PartnerProfileView to surface these signals where decisions are made.
+- No regressions: Week3/Week4 backend contracts remain PASS via regression scripts.
+Tag: v1-w4d-profile-preview-partner-habits-languages
