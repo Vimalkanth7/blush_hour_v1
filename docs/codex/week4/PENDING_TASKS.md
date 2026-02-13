@@ -3,13 +3,7 @@
 
 
 
-## 🟡 W4-C — QA Guard: verify languages + habits contract
-Status: TODO
-Owner: QA Agent
-Depends on: W4-A
-Notes:
-- Add backend verification script for GET/PATCH contract
-- Assert never-null defaults and update semantics
+
 
 ## 🟡 W4-D — Docs lock-in for languages + habits
 Status: TODO
