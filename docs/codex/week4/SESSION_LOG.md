@@ -1,22 +1,24 @@
-# Week 4 — Session Log
-
-## W4-A — Add languages + habits (legacy-safe defaults)
+## W4-B — Profile UI: render + edit languages & habits
 Date: 2026-02-??
-Agent: Backend Agent
+Agent: Frontend Agent (Codex) + QA Agent (Antigravity) + Founder (Manual UI)
 
 Files changed:
-- backend/app/models/user.py
-- backend/app/schemas/user.py
-- backend/app/routers/users.py
+- mobile-app/app/(tabs)/profile.tsx
+- mobile-app/app/modal/edit-profile.tsx
+- mobile-app/context/AuthContext.tsx
 
 What changed:
-- Added languages + habits with safe defaults and legacy-safe coercion.
-- Extended PATCH /api/users/me to accept languages + habits.
+- Added Languages + Habits cards on Profile screen with Edit CTAs.
+- Added Edit Profile UI to update languages (multi-select) and habits (drinking/smoking/exercise/kids).
+- Wired PATCH /api/users/me to send languages + habits and render saved values with safe defaults.
 
 How verified:
-- backend/verify_profile_completion.ps1 — PASS
-- backend/verify_profile_strength_contract.ps1 — PASS
-- Manual + QA confirmed GET/PATCH returns non-null values after restart.
+- API checks (GET/PATCH): PASS (languages array, habits object, profile_strength intact).
+- Regression scripts:
+  - backend/verify_profile_completion.ps1 — PASS
+  - backend/verify_profile_strength_contract.ps1 — PASS
+- Founder manual UI smoke test — PASS (values persist across navigation + refresh).
 
 Risks / follow-ups:
-- Consider adding a dedicated regression script for languages/habits contract (W4-C).
+- Custom languages not in the predefined list cannot be newly added (existing custom values still display).
+- Legacy kids fields exist alongside habits.kids; consider consolidating later if you want one source of truth.

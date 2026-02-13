@@ -1,14 +1,7 @@
 
 # Week 4 — Matching Fuel Expansion (Profile Signals)
 
-## 🟡 W4-B — Frontend: Edit Profile UI for Languages + Habits
-Status: TODO
-Owner: Frontend Agent
-Depends on: W4-A
-Notes:
-- Add UI to update languages + habits via PATCH /api/users/me
-- Persist across refresh/navigation
-- No frontend scoring logic
+
 
 ## 🟡 W4-C — QA Guard: verify languages + habits contract
 Status: TODO
