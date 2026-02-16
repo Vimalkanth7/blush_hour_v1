@@ -15,8 +15,16 @@ Status: DONE
 Tag: v1-w5b-chat-night-v5-flagged
 
 Notes:
-- Integrated V5 ranking into Chat Night matching behind env flags.
-- Bounded candidate scan (max candidates) and optional min score threshold.
-- Safe fallback to FIFO when disabled, below threshold, or on scoring failure.
-- Logged match metadata safely: match_algo, score, reason_tags (no PII).
-- Regression guards PASS (Week3/Week4 scripts unchanged).
+- Integrated V5 ranking into Chat Night matching behind env flags:
+  - CHAT_NIGHT_V5_MATCHING_ENABLED (default false)
+  - CHAT_NIGHT_V5_MAX_CANDIDATES (bounded scan)
+  - CHAT_NIGHT_V5_MIN_SCORE (optional threshold)
+- Default behavior remains FIFO when flag is disabled.
+- If V5 is enabled but score < threshold, system falls back to FIFO.
+- Match logging includes {match_algo, score, reason_tags} and is PII-safe.
+- Regression guards PASS:
+  - backend\verify_profile_completion.ps1
+  - backend\verify_profile_strength_contract.ps1
+  - backend\verify_languages_habits_contract.ps1
+- QA runtime scenarios PASS (flag OFF FIFO, flag ON V5 ranking, high threshold fallback).
+
