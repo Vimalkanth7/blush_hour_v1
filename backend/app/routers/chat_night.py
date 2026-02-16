@@ -5,12 +5,14 @@ from app.models.chat import ChatThread
 from app.schemas.chat_night import ChatNightStatus, ChatNightRoomResponse
 from app.auth.dependencies import get_current_user
 from datetime import datetime, timedelta, timezone
+from typing import Optional, List
 from beanie import PydanticObjectId
 import os
 import uuid
 
 import re
 from app.services.event_logger import log_event
+from app.services.chat_night_matching_v5 import pick_best_candidate
 from app.core.config import settings
 
 router = APIRouter()
@@ -52,6 +54,34 @@ def is_whitelisted_for_testing(user: User) -> bool:
         if normalize_phone_last_10(p) == user_norm:
             return True
     return False
+
+def v5_enabled() -> bool:
+    return os.getenv("CHAT_NIGHT_V5_MATCHING_ENABLED", "false").lower() == "true"
+
+def v5_max_candidates() -> int:
+    try:
+        return int(os.getenv("CHAT_NIGHT_V5_MAX_CANDIDATES", "50"))
+    except ValueError:
+        return 50
+
+def v5_min_score() -> int:
+    try:
+        return int(os.getenv("CHAT_NIGHT_V5_MIN_SCORE", "0"))
+    except ValueError:
+        return 0
+
+async def load_users_from_ids(user_ids: List[str], limit: int) -> List[User]:
+    users: List[User] = []
+    if limit <= 0:
+        return users
+    for uid in user_ids[:limit]:
+        try:
+            user = await User.get(PydanticObjectId(uid))
+        except Exception:
+            continue
+        if user:
+            users.append(user)
+    return users
 
 async def find_active_room_for_user(user_id: str):
     return await ChatNightRoom.find_one(
@@ -157,20 +187,49 @@ async def try_match_and_create_room(user_id: str, gender: str, date_ist: str):
     # Based on gender, look at OPPOSITE queue
     # FIFO: Pop index 0
     
-    partner_id = None
+    partner_id: Optional[str] = None
+    match_algo = "fifo"
+    score: Optional[int] = None
+    reason_tags: Optional[List[str]] = None
     
-    if gender == "Woman":
-        # Look in men_queue
-        if len(men_queue) > 0:
-            partner_id = men_queue.pop(0)
+    opposite_queue = men_queue if gender == "Woman" else women_queue
+    
+    if len(opposite_queue) == 0:
+        return None
+    
+    if v5_enabled():
+        current_user_obj: Optional[User] = None
+        try:
+            current_user_obj = await User.get(PydanticObjectId(user_id))
+        except Exception:
+            current_user_obj = None
+            
+        if current_user_obj:
+            max_candidates = v5_max_candidates()
+            candidates = await load_users_from_ids(opposite_queue, max_candidates)
+            best = pick_best_candidate(current_user_obj, candidates, limit=max_candidates)
+            if best:
+                best_score = int(best.get("score", 0))
+                if best_score >= v5_min_score():
+                    candidate_obj = best.get("candidate")
+                    if candidate_obj:
+                        candidate_id = str(candidate_obj.id)
+                        if candidate_id != user_id:
+                            try:
+                                opposite_queue.remove(candidate_id)
+                                partner_id = candidate_id
+                                match_algo = "v5"
+                                score = best_score
+                                reason_tags = best.get("reason_tags") or []
+                            except ValueError:
+                                partner_id = None
+    
+    if partner_id is None:
+        if len(opposite_queue) > 0:
+            partner_id = opposite_queue.pop(0)
             # Ensure partner is not self (sanity)
             if partner_id == user_id:
                 partner_id = None # Should not happen if correctly queued
-    else:
-        # Mean -> Look in women_queue
-        if len(women_queue) > 0:
-            partner_id = women_queue.pop(0)
-            if partner_id == user_id: partner_id = None
             
     if partner_id:
         # Create Room
@@ -191,7 +250,10 @@ async def try_match_and_create_room(user_id: str, gender: str, date_ist: str):
             source="backend", 
             payload={
                 "room_id": room.room_id, 
-                "users": [room.male_user_id, room.female_user_id]
+                "users": [room.male_user_id, room.female_user_id],
+                "match_algo": match_algo,
+                "score": score if score is not None else 0,
+                "reason_tags": reason_tags if reason_tags is not None else []
             }
         )
         
