@@ -70,6 +70,12 @@ def v5_min_score() -> int:
     except ValueError:
         return 0
 
+def pair_cooldown_minutes() -> int:
+    try:
+        return int(os.getenv("CHAT_NIGHT_PAIR_COOLDOWN_MINUTES", "30"))
+    except ValueError:
+        return 30
+
 async def load_users_from_ids(user_ids: List[str], limit: int) -> List[User]:
     users: List[User] = []
     if limit <= 0:
@@ -88,6 +94,29 @@ async def find_active_room_for_user(user_id: str):
         {"$or": [{"male_user_id": user_id}, {"female_user_id": user_id}]},
         ChatNightRoom.state == "active"
     )
+
+async def get_recent_partner_ids(user_id: str, minutes: int) -> set[str]:
+    if minutes <= 0:
+        return set()
+
+    since = get_now_utc() - timedelta(minutes=minutes)
+
+    rooms = await ChatNightRoom.find(
+        {
+            "$or": [{"male_user_id": user_id}, {"female_user_id": user_id}],
+            "starts_at": {"$gte": since},
+        }
+    ).to_list()
+
+    partners = set()
+    for r in rooms:
+        if r.male_user_id == user_id:
+            partners.add(r.female_user_id)
+        elif r.female_user_id == user_id:
+            partners.add(r.male_user_id)
+
+    partners.discard(user_id)
+    return partners
 
 # NOTE: Keeping is_whitelisted_for_testing for legacy individual whitelist support if needed,
 # but new settings apply globally or complement it.
@@ -196,6 +225,8 @@ async def try_match_and_create_room(user_id: str, gender: str, date_ist: str):
     
     if len(opposite_queue) == 0:
         return None
+
+    cooldown_set = await get_recent_partner_ids(user_id, pair_cooldown_minutes())
     
     if v5_enabled():
         current_user_obj: Optional[User] = None
@@ -207,7 +238,13 @@ async def try_match_and_create_room(user_id: str, gender: str, date_ist: str):
         if current_user_obj:
             max_candidates = v5_max_candidates()
             candidates = await load_users_from_ids(opposite_queue, max_candidates)
-            best = pick_best_candidate(current_user_obj, candidates, limit=max_candidates)
+            eligible_candidates = [
+                candidate for candidate in candidates
+                if str(candidate.id) != user_id and str(candidate.id) not in cooldown_set
+            ]
+            best = None
+            if eligible_candidates:
+                best = pick_best_candidate(current_user_obj, eligible_candidates, limit=max_candidates)
             if best:
                 best_score = int(best.get("score", 0))
                 if best_score >= v5_min_score():
@@ -226,10 +263,14 @@ async def try_match_and_create_room(user_id: str, gender: str, date_ist: str):
     
     if partner_id is None:
         if len(opposite_queue) > 0:
-            partner_id = opposite_queue.pop(0)
-            # Ensure partner is not self (sanity)
-            if partner_id == user_id:
-                partner_id = None # Should not happen if correctly queued
+            max_scan = v5_max_candidates()
+            selected_index = None
+            for idx, cid in enumerate(opposite_queue[:max_scan]):
+                if cid != user_id and cid not in cooldown_set:
+                    selected_index = idx
+                    break
+            if selected_index is not None:
+                partner_id = opposite_queue.pop(selected_index)
             
     if partner_id:
         # Create Room
