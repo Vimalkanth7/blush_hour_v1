@@ -1,26 +1,6 @@
 # Week 5 — Chat Night Matching (V5, No-AI)
 
-## 🟡 W5-A — Add V5 Chat Night scoring module (no-AI)
-Status: TODO
-Owner: Backend Agent
 
-Goal:
-- Implement a standalone V5 scoring module that returns {score, reason_tags} using existing profile signals.
-
-Allowed files:
-- backend/app/services/chat_night_matching_v5.py (new)
-- backend/app/services/* (only if needed)
-
-Acceptance criteria:
-- New module exists and is NOT wired into Chat Night yet (additive only).
-- Handles legacy-safe defaults (missing/null → [] / {}).
-- Deterministic scoring for same inputs.
-- reason_tags are PII-safe (no phone, coords, etc.), max 6.
-
-Verification:
-- backend\verify_profile_completion.ps1 — PASS
-- backend\verify_profile_strength_contract.ps1 — PASS
-- backend\verify_languages_habits_contract.ps1 — PASS
 
 
 ## 🟡 W5-B — Integrate V5 scorer into Chat Night pairing (feature-flagged)
