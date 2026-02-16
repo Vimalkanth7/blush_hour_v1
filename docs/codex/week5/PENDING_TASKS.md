@@ -3,46 +3,6 @@
 
 
 
-## 🟡 W5-B — Integrate V5 scorer into Chat Night pairing (feature-flagged)
-Status: TODO
-Owner: Backend Agent
-Depends on: W5-A
-
-Goal:
-- Use V5 ranking to pick best partner in Chat Night pool, behind env/admin toggle.
-- Keep current logic as fallback.
-
-Allowed files:
-- backend/app/routers/chat_night.py
-- backend/app/services/chat_night_matching_v5.py
-- backend/app/services/chat_night* (only if required)
-
-Acceptance criteria:
-- V5 logic used only when flag enabled.
-- Pairing remains fast (no heavy loops; bounded candidates).
-- No regression to passes/timers/gating.
-- reason_tags recorded/logged safely for future icebreakers.
-
-Verification:
-- existing chat night verify scripts (if present) + Week3/Week4 guards — PASS
-
-
-## 🟡 W5-C — Cooldown guard (avoid repeat pairing)
-Status: TODO
-Owner: Backend Agent
-Depends on: W5-B
-
-Goal:
-- Prevent same pair from matching repeatedly within cooldown window.
-
-Acceptance criteria:
-- Cooldown enforced.
-- Does not deadlock pool.
-
-Verification:
-- new verify script or extend existing chat-night simulation script
-
-
 ## 🟡 W5-D — Fairness boost (wait-time priority)
 Status: TODO
 Owner: Backend Agent

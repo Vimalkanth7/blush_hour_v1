@@ -28,3 +28,12 @@ Notes:
   - backend\verify_languages_habits_contract.ps1
 - QA runtime scenarios PASS (flag OFF FIFO, flag ON V5 ranking, high threshold fallback).
 
+## 🟢 W5-C — Cooldown guard (avoid repeat pairing)
+Status: DONE
+Tag: v1-w5c-chat-night-cooldown
+
+Notes:
+- Added a configurable cooldown window to prevent repeat pairing of the same two users.
+- Cooldown filtering applies to both V5 selection and FIFO fallback (bounded scan), avoiding deadlocks.
+- Added verify_chat_night_cooldown.ps1 and verified in both FIFO and V5 modes.
+- Logs remain PII-safe (match_algo/score/reason_tags only).

@@ -51,3 +51,35 @@ How verified:
 Tag:
 - v1-w5b-chat-night-v5-flagged
 
+## W5-C — Cooldown guard (avoid repeat pairing)
+Date: 2026-02-??
+Agent: Backend Agent (Codex) + QA Agent (Antigravity) + Founder
+
+Files changed:
+- backend/app/routers/chat_night.py
+- backend/verify_chat_night_cooldown.ps1
+
+What changed:
+- Added cooldown helpers to avoid repeat pairing within a configurable window.
+- Applied cooldown filtering to V5 candidate selection and FIFO fallback (bounded scan), preventing deadlocks.
+- Added verify_chat_night_cooldown.ps1 to validate FIFO + V5 cooldown behavior.
+
+How verified:
+- Diff safety: git diff --name-only — PASS (clean working tree).
+- Regression guards:
+  - backend\verify_profile_completion.ps1 — PASS
+  - backend\verify_profile_strength_contract.ps1 — PASS
+  - backend\verify_languages_habits_contract.ps1 — PASS
+- Cooldown verification:
+  - backend\verify_chat_night_cooldown.ps1 — PASS
+  - Verified twice with backend restart:
+    - CHAT_NIGHT_V5_MATCHING_ENABLED=false (FIFO) — PASS
+    - CHAT_NIGHT_V5_MATCHING_ENABLED=true (V5) — PASS
+- Log sanity: match events include match_algo/score/reason_tags; no PII.
+
+Tag:
+- v1-w5c-chat-night-cooldown
+
+Risks / follow-ups:
+- In-memory queues remain unlocked (pre-existing); rare race conditions still possible under concurrency.
+- verify_chat_night_cooldown.ps1 expects test passes available; script fails fast if insufficient.
