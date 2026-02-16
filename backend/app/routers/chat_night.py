@@ -5,14 +5,14 @@ from app.models.chat import ChatThread
 from app.schemas.chat_night import ChatNightStatus, ChatNightRoomResponse
 from app.auth.dependencies import get_current_user
 from datetime import datetime, timedelta, timezone
-from typing import Optional, List
+from typing import Optional, List, Dict
 from beanie import PydanticObjectId
 import os
 import uuid
 
 import re
 from app.services.event_logger import log_event
-from app.services.chat_night_matching_v5 import pick_best_candidate
+from app.services.chat_night_matching_v5 import rank_candidates
 from app.core.config import settings
 
 router = APIRouter()
@@ -26,6 +26,7 @@ ROOM_DURATION_MINUTES = 5
 # In-Memory Queue (FIFO)
 men_queue = []
 women_queue = []
+queue_wait_since: Dict[str, datetime] = {}
 
 # --- Helpers ---
 
@@ -75,6 +76,39 @@ def pair_cooldown_minutes() -> int:
         return int(os.getenv("CHAT_NIGHT_PAIR_COOLDOWN_MINUTES", "30"))
     except ValueError:
         return 30
+
+def wait_boost_enabled() -> bool:
+    return os.getenv("CHAT_NIGHT_WAITTIME_BOOST_ENABLED", "true").lower() == "true"
+
+def wait_boost_step_seconds() -> int:
+    try:
+        value = int(os.getenv("CHAT_NIGHT_WAITTIME_BOOST_STEP_SECONDS", "30"))
+        return max(1, value)
+    except ValueError:
+        return 30
+
+def wait_boost_max_points() -> int:
+    try:
+        value = int(os.getenv("CHAT_NIGHT_WAITTIME_BOOST_MAX_POINTS", "15"))
+        return max(0, value)
+    except ValueError:
+        return 15
+
+def get_wait_seconds(user_id: str, now: datetime) -> int:
+    started = queue_wait_since.get(user_id, now)
+    try:
+        return max(0, int((now - started).total_seconds()))
+    except Exception:
+        return 0
+
+def compute_wait_boost(wait_seconds: int) -> int:
+    if not wait_boost_enabled():
+        return 0
+    max_points = wait_boost_max_points()
+    if max_points <= 0:
+        return 0
+    step_seconds = wait_boost_step_seconds()
+    return min(max_points, max(0, wait_seconds) // step_seconds)
 
 async def load_users_from_ids(user_ids: List[str], limit: int) -> List[User]:
     users: List[User] = []
@@ -220,6 +254,8 @@ async def try_match_and_create_room(user_id: str, gender: str, date_ist: str):
     match_algo = "fifo"
     score: Optional[int] = None
     reason_tags: Optional[List[str]] = None
+    wait_seconds: Optional[int] = None
+    wait_boost: Optional[int] = None
     
     opposite_queue = men_queue if gender == "Woman" else women_queue
     
@@ -227,6 +263,7 @@ async def try_match_and_create_room(user_id: str, gender: str, date_ist: str):
         return None
 
     cooldown_set = await get_recent_partner_ids(user_id, pair_cooldown_minutes())
+    selection_now = get_now_utc()
     
     if v5_enabled():
         current_user_obj: Optional[User] = None
@@ -242,12 +279,35 @@ async def try_match_and_create_room(user_id: str, gender: str, date_ist: str):
                 candidate for candidate in candidates
                 if str(candidate.id) != user_id and str(candidate.id) not in cooldown_set
             ]
-            best = None
             if eligible_candidates:
-                best = pick_best_candidate(current_user_obj, eligible_candidates, limit=max_candidates)
-            if best:
-                best_score = int(best.get("score", 0))
-                if best_score >= v5_min_score():
+                min_score = v5_min_score()
+                ranked = rank_candidates(current_user_obj, eligible_candidates, now=selection_now, limit=max_candidates)
+                best = None
+                best_effective = -1
+                best_wait_seconds = -1
+                best_wait_boost = 0
+                for item in ranked:
+                    base_score = int(item.get("score", 0))
+                    if base_score < min_score:
+                        continue
+                    candidate_obj = item.get("candidate")
+                    if not candidate_obj:
+                        continue
+                    candidate_id = str(candidate_obj.id)
+                    if candidate_id == user_id:
+                        continue
+                    candidate_wait_seconds = get_wait_seconds(candidate_id, selection_now)
+                    candidate_boost = compute_wait_boost(candidate_wait_seconds)
+                    effective_score = min(100, base_score + candidate_boost)
+                    if (
+                        effective_score > best_effective
+                        or (effective_score == best_effective and candidate_wait_seconds > best_wait_seconds)
+                    ):
+                        best = item
+                        best_effective = effective_score
+                        best_wait_seconds = candidate_wait_seconds
+                        best_wait_boost = candidate_boost
+                if best:
                     candidate_obj = best.get("candidate")
                     if candidate_obj:
                         candidate_id = str(candidate_obj.id)
@@ -256,8 +316,10 @@ async def try_match_and_create_room(user_id: str, gender: str, date_ist: str):
                                 opposite_queue.remove(candidate_id)
                                 partner_id = candidate_id
                                 match_algo = "v5"
-                                score = best_score
+                                score = int(best.get("score", 0))
                                 reason_tags = best.get("reason_tags") or []
+                                wait_seconds = best_wait_seconds
+                                wait_boost = best_wait_boost
                             except ValueError:
                                 partner_id = None
     
@@ -265,14 +327,22 @@ async def try_match_and_create_room(user_id: str, gender: str, date_ist: str):
         if len(opposite_queue) > 0:
             max_scan = v5_max_candidates()
             selected_index = None
+            selected_wait_seconds = -1
             for idx, cid in enumerate(opposite_queue[:max_scan]):
-                if cid != user_id and cid not in cooldown_set:
+                if cid == user_id or cid in cooldown_set:
+                    continue
+                candidate_wait_seconds = get_wait_seconds(cid, selection_now)
+                if candidate_wait_seconds > selected_wait_seconds:
                     selected_index = idx
-                    break
+                    selected_wait_seconds = candidate_wait_seconds
             if selected_index is not None:
                 partner_id = opposite_queue.pop(selected_index)
+                wait_seconds = selected_wait_seconds
+                wait_boost = compute_wait_boost(wait_seconds)
             
     if partner_id:
+        queue_wait_since.pop(user_id, None)
+        queue_wait_since.pop(partner_id, None)
         # Create Room
         now = get_now_utc()
         room = ChatNightRoom(
@@ -294,7 +364,9 @@ async def try_match_and_create_room(user_id: str, gender: str, date_ist: str):
                 "users": [room.male_user_id, room.female_user_id],
                 "match_algo": match_algo,
                 "score": score if score is not None else 0,
-                "reason_tags": reason_tags if reason_tags is not None else []
+                "reason_tags": reason_tags if reason_tags is not None else [],
+                "wait_seconds": wait_seconds if wait_seconds is not None else 0,
+                "wait_boost": wait_boost if wait_boost is not None else 0
             }
         )
         
@@ -423,6 +495,8 @@ async def enter_pool(request: Request, current_user: User = Depends(get_current_
         
     # 2. Idempotency: Check if already queued
     if uid in men_queue or uid in women_queue:
+        if uid not in queue_wait_since:
+            queue_wait_since[uid] = get_now_utc()
         return {"status": "queued"}
         
     # 3. Check Pass Availability
@@ -439,10 +513,13 @@ async def enter_pool(request: Request, current_user: User = Depends(get_current_
         return {"status": "match_found", "room_id": room.room_id}
     else:
         # Enqueue
+        now = get_now_utc()
         if gender == "Woman":
             women_queue.append(uid)
         else:
             men_queue.append(uid)
+        if uid not in queue_wait_since:
+            queue_wait_since[uid] = now
         return {"status": "queued"}
 
 @router.get("/my-room")
@@ -495,6 +572,7 @@ async def leave_pool(current_user: User = Depends(get_current_user)):
     uid = str(current_user.id)
     if uid in men_queue: men_queue.remove(uid)
     if uid in women_queue: women_queue.remove(uid)
+    queue_wait_since.pop(uid, None)
     return {"status": "left"}
 
 @router.get("/room/{room_id}", response_model=ChatNightRoomResponse)
