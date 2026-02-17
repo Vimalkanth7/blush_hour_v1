@@ -59,6 +59,9 @@ def is_whitelisted_for_testing(user: User) -> bool:
 def v5_enabled() -> bool:
     return os.getenv("CHAT_NIGHT_V5_MATCHING_ENABLED", "false").lower() == "true"
 
+def include_match_meta() -> bool:
+    return os.getenv("CHAT_NIGHT_INCLUDE_MATCH_META", "false").lower() == "true"
+
 def v5_max_candidates() -> int:
     try:
         return int(os.getenv("CHAT_NIGHT_V5_MAX_CANDIDATES", "50"))
@@ -260,7 +263,7 @@ async def try_match_and_create_room(user_id: str, gender: str, date_ist: str):
     opposite_queue = men_queue if gender == "Woman" else women_queue
     
     if len(opposite_queue) == 0:
-        return None
+        return None, None
 
     cooldown_set = await get_recent_partner_ids(user_id, pair_cooldown_minutes())
     selection_now = get_now_utc()
@@ -356,18 +359,22 @@ async def try_match_and_create_room(user_id: str, gender: str, date_ist: str):
         await room.insert()
         
         # Log Match
+        match_meta = {
+            "match_algo": match_algo,
+            "score": score if score is not None else 0,
+            "reason_tags": reason_tags if reason_tags is not None else [],
+            "wait_seconds": wait_seconds if wait_seconds is not None else 0,
+            "wait_boost": wait_boost if wait_boost is not None else 0,
+        }
+
         await log_event(
-            "chat_night.match", 
-            source="backend", 
+            "chat_night.match",
+            source="backend",
             payload={
-                "room_id": room.room_id, 
+                "room_id": room.room_id,
                 "users": [room.male_user_id, room.female_user_id],
-                "match_algo": match_algo,
-                "score": score if score is not None else 0,
-                "reason_tags": reason_tags if reason_tags is not None else [],
-                "wait_seconds": wait_seconds if wait_seconds is not None else 0,
-                "wait_boost": wait_boost if wait_boost is not None else 0
-            }
+                **match_meta,
+            },
         )
         
         # CONSUME PASSES for BOTH
@@ -386,9 +393,9 @@ async def try_match_and_create_room(user_id: str, gender: str, date_ist: str):
             pass_b.passes_used += 1
             await pass_b.save()
             
-        return room
+        return room, match_meta
     
-    return None
+    return None, None
 
 # --- Endpoints ---
 
@@ -507,10 +514,19 @@ async def enter_pool(request: Request, current_user: User = Depends(get_current_
     # 4. Attempt Match (Consumes pass if successful)
     gender = current_user.gender or "Man" # Fallback
     
-    room = await try_match_and_create_room(uid, gender, date_ist)
+    room, match_meta = await try_match_and_create_room(uid, gender, date_ist)
     
     if room:
-        return {"status": "match_found", "room_id": room.room_id}
+        response = {"status": "match_found", "room_id": room.room_id}
+        if include_match_meta():
+            response["match_meta"] = match_meta or {
+                "match_algo": "fifo",
+                "score": 0,
+                "reason_tags": [],
+                "wait_seconds": 0,
+                "wait_boost": 0,
+            }
+        return response
     else:
         # Enqueue
         now = get_now_utc()

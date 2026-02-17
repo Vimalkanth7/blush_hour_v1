@@ -119,3 +119,44 @@ Tag:
 
 Risks / follow-ups:
 - Wait tracking is in-memory and resets on backend restart (acceptable for this scope).
+
+
+
+## W5-E — Regression script: V5 match contract
+Date: 2026-02-??
+Agent: QA Agent (Antigravity) + Backend Agent (Codex) + Founder
+
+Files changed:
+- backend/verify_chat_night_v5_contract.ps1 (new)
+- backend/app/routers/chat_night.py
+- docs/QA/regression_checklist.md
+
+What changed:
+- Added a dedicated regression verifier `verify_chat_night_v5_contract.ps1` that:
+  - Spins up a small pool and checks partner selection determinism (V5 high-overlap wins even if queued second).
+  - Verifies FIFO behavior when V5 is disabled.
+  - Validates safe `reason_tags` (non-empty in V5 mode, <= 6).
+- Added gated `/api/chat-night/enter` response field `match_meta` when `CHAT_NIGHT_INCLUDE_MATCH_META=true`
+  (contains only: match_algo, score, reason_tags, wait_seconds, wait_boost).
+- Registered the new verifier as PASS-required in `docs/QA/regression_checklist.md`.
+
+Why:
+- Lock the V5 matching behavior contract so future changes cannot silently break determinism, fallback behavior, or safe metadata.
+
+How verified:
+- Preconditions: backend started with the required env flags so `match_meta` is emitted.
+- Regression guards:
+  - backend\verify_profile_completion.ps1 — PASS
+  - backend\verify_profile_strength_contract.ps1 — PASS
+  - backend\verify_languages_habits_contract.ps1 — PASS
+- New contract test:
+  - backend\verify_chat_night_v5_contract.ps1 — PASS (final line: “PASS: chat night v5 contract verified”)
+- Diff safety: only expected files modified.
+
+Tag:
+- v1-w5e-chat-night-v5-contract
+
+Risks / follow-ups:
+- The contract script requires the backend process to be started with `CHAT_NIGHT_INCLUDE_MATCH_META=true`
+  (and test-mode flags); otherwise the script will fail expecting `match_meta`.
+- Rate limits may introduce waits; the script includes backoff/gaps to stay reliable.

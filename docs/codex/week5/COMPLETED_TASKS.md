@@ -47,3 +47,19 @@ Notes:
 - FIFO mode: uses bounded scan to select the longest-waiting eligible candidate (rather than pure pop(0)).
 - Added backend\verify_chat_night_fairness.ps1 and verified in both FIFO and V5 modes.
 - Match logging includes numeric wait_seconds + wait_boost (PII-safe).
+
+
+
+## 🟢 W5-E — Regression script: V5 match contract
+Status: DONE
+Tag: v1-w5e-chat-night-v5-contract
+
+Notes:
+- Added backend verification script `backend/verify_chat_night_v5_contract.ps1` to lock the V5 match contract.
+- Script asserts:
+  - V5 mode deterministically selects the higher-overlap candidate (two runs).
+  - FIFO mode selects the first queued candidate when V5 is disabled.
+  - `reason_tags` are present in V5 mode, PII-safe, and capped at 6.
+  - `match_meta` is only returned from `/api/chat-night/enter` when `CHAT_NIGHT_INCLUDE_MATCH_META=true`.
+- Updated `docs/QA/regression_checklist.md` to require PASS for `backend\verify_chat_night_v5_contract.ps1` before merging.
+- Regression guards remain green (Week3/Week4/W5).
