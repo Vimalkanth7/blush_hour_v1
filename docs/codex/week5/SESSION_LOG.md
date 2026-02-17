@@ -160,3 +160,20 @@ Risks / follow-ups:
 - The contract script requires the backend process to be started with `CHAT_NIGHT_INCLUDE_MATCH_META=true`
   (and test-mode flags); otherwise the script will fail expecting `match_meta`.
 - Rate limits may introduce waits; the script includes backoff/gaps to stay reliable.
+
+## W5-F - Docs lock-in (V5 formula + reason_tags spec)
+Date: 2026-02-17
+Agent: Docs/Lead Agent (Codex)
+
+Files changed:
+- docs/codex/week5/W5_F_V5_FORMULA_AND_MATCHING_SPEC.md
+- docs/codex/week5/PENDING_TASKS.md
+- docs/codex/week5/COMPLETED_TASKS.md
+- docs/codex/week5/SESSION_LOG.md
+
+What changed:
+- Converted W5-F spec into a single source of truth covering V5 formula, reason_tags, flags, cooldown, fairness, logging, and QA scripts.
+- Closed W5-F tracking in week 5 task files (docs-only).
+
+How verified:
+- Diff safety: git diff --name-only shows only docs/codex/week5/*.

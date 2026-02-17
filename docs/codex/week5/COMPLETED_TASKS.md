@@ -63,3 +63,12 @@ Notes:
   - `match_meta` is only returned from `/api/chat-night/enter` when `CHAT_NIGHT_INCLUDE_MATCH_META=true`.
 - Updated `docs/QA/regression_checklist.md` to require PASS for `backend\verify_chat_night_v5_contract.ps1` before merging.
 - Regression guards remain green (Week3/Week4/W5).
+
+## W5-F - Docs lock-in (V5 formula + reason_tags spec)
+Status: DONE
+Tag: v1-w5f-docs-close
+
+Notes:
+- Updated the spec doc `docs/codex/week5/W5_F_V5_FORMULA_AND_MATCHING_SPEC.md` as the single source of truth.
+- Covers V5 formula, reason_tags, feature flags, cooldown, fairness, logging, and QA scripts.
+- Tracking files updated (docs-only change).
