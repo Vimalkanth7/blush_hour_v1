@@ -1,41 +1,22 @@
-# Week 6 — Realtime + Talk Room Stabilization
+# Week 6 — Pending Tasks
 
 ## 🟡 W6-A — Realtime stabilization (highest priority)
-Status: TODO
-Owner: Backend Agent + Frontend Agent
-Depends on: Week 5 complete
+Status: IN PROGRESS  
+Owner: Lead + Backend Agent + Frontend Agent
 
-Goal:
-- Make Talk Room / Chat Night room timing + engage-state reliable across 2 devices/browsers.
-- Remove client clock drift issues and flaky UI state transitions.
-
-Acceptance criteria:
-- Timer is based on backend authoritative clock (no client drift).
-- Engage → room state transition works end-to-end (API + UI + polling/realtime).
-- "NetworkError" frontend exception resolved (root cause fixed + guarded).
-- Realtime approach decided and implemented reliably:
-  - polling only OR websockets (choose one for Week 6-A).
-- A deterministic QA script or manual checklist exists for "2 browsers, 1 room".
-
-Verification:
-- Existing regression scripts (Week3/4/5) — PASS
-- New "2 browsers, 1 room" sanity script/checklist — PASS
-
+Subtasks:
+- ✅ W6-A2: Talk Room authoritative timer sync + focus refresh (DONE, tag v1-w6a2-authoritative-timer)
+- 🟡 W6-A3: Engage → room state transition reliability (API + UI + polling/realtime)
+- 🟡 W6-A4: Resolve networkError frontend exception + recovery UX
+- 🟡 W6-A5: Decide realtime approach (polling vs websockets) + make 2-user sync reliable
+- 🟡 W6-A6: Add deterministic QA script / checklist for “2 browsers, 1 room” sanity
 
 ## 🟡 W6-B — AI-assisted matching quality (safe, controlled)
-Status: TODO
-Owner: Backend Agent + QA Agent + Frontend Agent (as needed)
+Status: TODO  
+Owner: AI Agent + QA Agent  
 Depends on: W6-A
 
 Goal:
-- Add AI-generated match reasons / icebreakers (non-sensitive, safe).
-- Add frequency controls and safety validation.
-
-Acceptance criteria:
-- AI reasons/icebreakers are non-sensitive and policy-safe (no PII, no exact location, no trauma).
-- Rate limits + frequency controls prevent spam.
-- QA checks added for safety + PII exclusion.
-
-Verification:
-- New QA script/checklist for safety prompts — PASS
-- Existing regression scripts — PASS
+- Add AI “match reasons” / icebreakers (non-sensitive, safety rules enforced)
+- Add rate limits + frequency controls (no spam)
+- Add QA checks for safety + PII exclusion
