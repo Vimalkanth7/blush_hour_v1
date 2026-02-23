@@ -32,9 +32,7 @@ docker compose up -d mongo redis
 
 
 cd C:\001_dating_app\blush_hour_v0\backend
-$env:CHAT_NIGHT_FORCE_OPEN="true"
-$env:CHAT_NIGHT_TEST_PASSES="100"
-$env:PROFILE_MIN_COMPLETION_FOR_CHAT_NIGHT="80"
+
 venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 
@@ -48,7 +46,11 @@ npx expo start --web
 
 
 
-
+cd C:\001_dating_app\blush_hour_v0\backend
+$env:CHAT_NIGHT_FORCE_OPEN="true"
+$env:CHAT_NIGHT_TEST_PASSES="100"
+$env:PROFILE_MIN_COMPLETION_FOR_CHAT_NIGHT="80"
+venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 
 0) One-time setup (do this once)
