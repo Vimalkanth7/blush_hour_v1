@@ -27,6 +27,7 @@ ROOM_DURATION_MINUTES = 5
 men_queue = []
 women_queue = []
 queue_wait_since: Dict[str, datetime] = {}
+LIVE_ROOM_STATES = {"active", "engaged"}
 
 # --- Helpers ---
 
@@ -126,11 +127,49 @@ async def load_users_from_ids(user_ids: List[str], limit: int) -> List[User]:
             users.append(user)
     return users
 
+def room_ends_at_utc(room: ChatNightRoom) -> datetime:
+    if room.ends_at.tzinfo is None:
+        return room.ends_at.replace(tzinfo=timezone.utc)
+    return room.ends_at.astimezone(timezone.utc)
+
+def room_is_expired(room: ChatNightRoom, now: Optional[datetime] = None) -> bool:
+    ref = now or get_now_utc()
+    return ref > room_ends_at_utc(room)
+
+async def normalize_room_if_expired(room: ChatNightRoom, now: Optional[datetime] = None) -> bool:
+    if room.state not in LIVE_ROOM_STATES:
+        return False
+    if not room_is_expired(room, now):
+        return False
+    room.state = "ended"
+    await room.save()
+    return True
+
+def build_engage_status(room: ChatNightRoom, my_engage: bool) -> str:
+    if room.state == "engaged":
+        return "match_unlocked"
+    if my_engage:
+        return "waiting_for_partner"
+    return "pending"
+
 async def find_active_room_for_user(user_id: str):
-    return await ChatNightRoom.find_one(
-        {"$or": [{"male_user_id": user_id}, {"female_user_id": user_id}]},
-        ChatNightRoom.state == "active"
-    )
+    rooms = await ChatNightRoom.find(
+        {
+            "$or": [{"male_user_id": user_id}, {"female_user_id": user_id}],
+            "state": {"$in": list(LIVE_ROOM_STATES)},
+        }
+    ).sort(-ChatNightRoom.starts_at).to_list()
+
+    if not rooms:
+        return None
+
+    now = get_now_utc()
+    for room in rooms:
+        if await normalize_room_if_expired(room, now):
+            continue
+        return room
+
+    return None
 
 async def get_recent_partner_ids(user_id: str, minutes: int) -> set[str]:
     if minutes <= 0:
@@ -497,7 +536,7 @@ async def enter_pool(request: Request, current_user: User = Depends(get_current_
     
     # 1. Idempotency: Check if already in active room
     active_room = await find_active_room_for_user(uid)
-    if active_room:
+    if active_room and active_room.state == "active":
         return {"status": "active_room", "room_id": active_room.room_id}
         
     # 2. Idempotency: Check if already queued
@@ -568,7 +607,7 @@ async def get_my_room(current_user: User = Depends(get_current_user)):
         
     # Calculate Remaining Seconds
     now = get_now_utc()
-    rem = int((room.ends_at.replace(tzinfo=timezone.utc) - now).total_seconds())
+    rem = int((room_ends_at_utc(room) - now).total_seconds())
     if rem < 0: rem = 0
     
     return {
@@ -599,9 +638,7 @@ async def get_room(room_id: str, current_user: User = Depends(get_current_user))
         
     # Check Expiry
     now = get_now_utc()
-    if now > room.ends_at.replace(tzinfo=timezone.utc) and room.state == 'active':
-        room.state = 'ended'
-        await room.save()
+    await normalize_room_if_expired(room, now)
         
     # Partner Info
     uid = str(current_user.id)
@@ -639,15 +676,11 @@ async def get_room(room_id: str, current_user: User = Depends(get_current_user))
     partner_photo = partner.photos[0] if (partner and partner.photos) else None
     
     # Calculate Seconds Remaining
-    rem = int((room.ends_at.replace(tzinfo=timezone.utc) - now).total_seconds())
+    rem = int((room_ends_at_utc(room) - now).total_seconds())
     if rem < 0: rem = 0
     
     # Engage Status UI logic
-    status_ui = "pending"
-    if room.state == "engaged":
-        status_ui = "match_unlocked"
-    elif my_engage:
-        status_ui = "waiting_for_partner"
+    status_ui = build_engage_status(room, my_engage)
             
     return ChatNightRoomResponse(
         room_id=room.room_id,
@@ -669,63 +702,92 @@ async def engage_room(
     current_user: User = Depends(get_current_user)
 ):
     room_id = data.get("room_id")
+    if not room_id:
+        raise HTTPException(400, "room_id is required")
+
     room = await ChatNightRoom.find_one(ChatNightRoom.room_id == room_id)
-    if not room: raise HTTPException(404, "Room not found")
-    
-    # Validate Active
-    now = get_now_utc()
-    if room.state != "active":
-         raise HTTPException(400, "Room ended")
-    if now > room.ends_at.replace(tzinfo=timezone.utc):
-         room.state = 'ended'
-         await room.save()
-         raise HTTPException(400, "Room expired")
-         
+    if not room:
+        raise HTTPException(404, "Room not found")
+
     uid = str(current_user.id)
-    if uid == room.male_user_id:
-        room.engage_male = True
-    elif uid == room.female_user_id:
-        room.engage_female = True
-    else:
+    is_male_user = uid == room.male_user_id
+    is_female_user = uid == room.female_user_id
+    if not is_male_user and not is_female_user:
         raise HTTPException(403, "Not in room")
-        
-    await log_event("chat_night.engage", source="backend", user_id=uid, payload={"room_id": room_id})
-        
+    
+    # Validate Liveness
+    now = get_now_utc()
+    if await normalize_room_if_expired(room, now):
+        raise HTTPException(400, "Room expired")
+    if room.state == "ended":
+        raise HTTPException(400, "Room ended")
+
+    if room.state == "engaged":
+        my_engage = room.engage_male if is_male_user else room.engage_female
+        return {
+            "status": "success",
+            "room_state": room.state,
+            "engage_status": build_engage_status(room, my_engage),
+            "match_unlocked": True,
+        }
+
+    engage_changed = False
+    if is_male_user and not room.engage_male:
+        room.engage_male = True
+        engage_changed = True
+    if is_female_user and not room.engage_female:
+        room.engage_female = True
+        engage_changed = True
+
+    if engage_changed:
+        await log_event("chat_night.engage", source="backend", user_id=uid, payload={"room_id": room_id})
+
     # Check Mutual
     if room.engage_male and room.engage_female:
         room.state = "engaged"
         room.engaged_at = now
-        
-        # Log Unlocked
-        await log_event(
-            "chat_night.unlocked", 
-            source="backend", 
-            payload={"room_id": room_id, "users": [room.male_user_id, room.female_user_id]}
-        )
-        
-        # Unlock Match
-        match = MatchUnlocked(
-            user_ids=[room.male_user_id, room.female_user_id],
-            room_id=room_id
-        )
-        await match.insert()
-        
+
+        match = await MatchUnlocked.find_one(MatchUnlocked.room_id == room_id)
+        if not match:
+            # Log Unlocked
+            await log_event(
+                "chat_night.unlocked",
+                source="backend",
+                payload={"room_id": room_id, "users": [room.male_user_id, room.female_user_id]}
+            )
+
+            # Unlock Match
+            match = MatchUnlocked(
+                user_ids=[room.male_user_id, room.female_user_id],
+                room_id=room_id
+            )
+            await match.insert()
+
         # BRIDGE: Auto-create ChatThread immediately
-        try:
-             # MatchUnlocked user_ids are strings, ChatThread wants PydanticObjectId
-             p1 = PydanticObjectId(room.male_user_id)
-             p2 = PydanticObjectId(room.female_user_id)
-             
-             t = ChatThread(
-                 match_id=match.id,
-                 participants=[p1, p2],
-                 created_at=match.created_at
-             )
-             await t.insert()
-        except Exception as e:
-             # DuplicateKeyError or other issues shouldn't block the MatchUnlocked flow
-             # It will be healed by GET /threads anyway. Log and continue.
-             print(f"ChatThread creation bridge warning: {e}")
-        
+        if match:
+            try:
+                existing_thread = await ChatThread.find_one(ChatThread.match_id == match.id)
+                if not existing_thread:
+                    # MatchUnlocked user_ids are strings, ChatThread wants PydanticObjectId
+                    p1 = PydanticObjectId(room.male_user_id)
+                    p2 = PydanticObjectId(room.female_user_id)
+
+                    t = ChatThread(
+                        match_id=match.id,
+                        participants=[p1, p2],
+                        created_at=match.created_at
+                    )
+                    await t.insert()
+            except Exception as e:
+                # DuplicateKeyError or other issues shouldn't block the MatchUnlocked flow
+                # It will be healed by GET /threads anyway. Log and continue.
+                print(f"ChatThread creation bridge warning: {e}")
+
     await room.save()
-    return {"status": "success", "room_state": room.state}
+    my_engage = room.engage_male if is_male_user else room.engage_female
+    return {
+        "status": "success",
+        "room_state": room.state,
+        "engage_status": build_engage_status(room, my_engage),
+        "match_unlocked": room.state == "engaged",
+    }
