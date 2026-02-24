@@ -23,20 +23,51 @@ export default function TalkRoomScreen() {
     const [lastSync, setLastSync] = useState(Date.now());
 
     const appState = useRef(AppState.currentState);
+    const lastServerSecondsRemainingRef = useRef(300);
+    const lastSyncAtRef = useRef(Date.now());
+    const pollNowRef = useRef<(() => void) | null>(null);
+
+    const getEstimatedRemaining = (nowMs: number = Date.now()) => {
+        const elapsedSeconds = Math.floor((nowMs - lastSyncAtRef.current) / 1000);
+        return Math.max(0, lastServerSecondsRemainingRef.current - elapsedSeconds);
+    };
 
     // Track AppState
     useEffect(() => {
         const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
             appState.current = nextAppState;
+            if (nextAppState === 'active') {
+                pollNowRef.current?.();
+            }
         });
         return () => subscription.remove();
     }, []);
 
-    // Local Timer Tick: Decrement every second for smooth UI
+    useEffect(() => {
+        if (Platform.OS !== 'web' || typeof document === 'undefined' || typeof window === 'undefined') {
+            return;
+        }
+
+        const handleWebFocus = () => {
+            if (!document.hidden) {
+                pollNowRef.current?.();
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleWebFocus);
+        window.addEventListener('focus', handleWebFocus);
+
+        return () => {
+            document.removeEventListener('visibilitychange', handleWebFocus);
+            window.removeEventListener('focus', handleWebFocus);
+        };
+    }, []);
+
+    // Local timer is a smooth estimate between authoritative server syncs.
     useEffect(() => {
         const timerId = setInterval(() => {
-            // Only decrement if active? Actually better to keep running or rely on sync
-            setTimeLeft(prev => (prev > 0 ? prev - 1 : 0));
+            const estimated = getEstimatedRemaining();
+            setTimeLeft(prev => (prev === estimated ? prev : estimated));
         }, 1000);
         return () => clearInterval(timerId);
     }, []);
@@ -45,34 +76,51 @@ export default function TalkRoomScreen() {
         if (!roomId) return;
 
         let active = true;
-        let timeoutId: any; // Type 'any' to handle Platform differences (number vs NodeJS.Timeout)
+        let timeoutId: ReturnType<typeof setTimeout> | undefined;
+        let inFlight = false;
 
-        const loop = async () => {
+        const scheduleNext = (delayMs: number) => {
             if (!active) return;
+            if (timeoutId) clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => {
+                void loop();
+            }, delayMs);
+        };
 
-            // 1. Hygiene: Pause if background
+        const pollRoom = async (): Promise<number> => {
+            if (!active) return 0;
+            if (inFlight) return 2000;
+
+            // Slow polling while backgrounded.
             if (appState.current.match(/inactive|background/)) {
-                timeoutId = setTimeout(loop, 4000); // Slow poll or pause
-                return;
+                return 4000;
             }
 
+            inFlight = true;
             try {
                 const res = await fetch(`${API_BASE_URL}/api/chat-night/room/${roomId}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 
                 if (!res.ok) {
-                    // 404 or other error -> maybe room ended or network issue
                     throw new Error(`HTTP ${res.status}`);
                 }
 
                 const data = await res.json();
-                if (!active) return;
+                if (!active) return 0;
 
-                // Sync State
-                setTimeLeft(data.seconds_remaining);
+                const parsedSeconds = Number(data.seconds_remaining);
+                const serverRemaining = Number.isFinite(parsedSeconds)
+                    ? Math.max(0, Math.floor(parsedSeconds))
+                    : 0;
+                const syncedAt = Date.now();
+
+                // Authoritative reconciliation from backend.
+                lastServerSecondsRemainingRef.current = serverRemaining;
+                lastSyncAtRef.current = syncedAt;
+                setTimeLeft(serverRemaining);
                 setRoomState(data.state);
-                setLastSync(Date.now());
+                setLastSync(syncedAt);
                 setNetworkError(false);
 
                 // Sync Engagement
@@ -84,41 +132,55 @@ export default function TalkRoomScreen() {
                 }
 
                 // Handle Ended
-                if (data.state === 'ended' || data.seconds_remaining <= 0) {
+                if (data.state === 'ended' || serverRemaining <= 0) {
                     Alert.alert("Session Ended", "The chat session has finished.");
-                    handleEndCall();
-                    return; // Stop polling
+                    router.replace('/(tabs)/chat-night');
+                    return 0; // Stop polling
                 }
 
                 // Handle Match
                 if (data.match_unlocked) {
                     setMatchUnlocked(true);
                     setTimeout(() => {
-                        Alert.alert("It's a Match! 💖", "You both engaged! You can now find them in your Matches tab.");
+                        Alert.alert("It's a Match!", "You both engaged! You can now find them in your Matches tab.");
                         router.replace('/(tabs)/matches');
                     }, 1000);
-                    return; // Stop polling
+                    return 0; // Stop polling
                 }
 
-                // Next poll
-                timeoutId = setTimeout(loop, 2000);
-
+                return 2000;
             } catch (e) {
                 console.warn("[TalkRoom] Polling error", e);
                 setNetworkError(true);
-                // Backoff on error
-                timeoutId = setTimeout(loop, 5000);
+                return 5000;
+            } finally {
+                inFlight = false;
             }
         };
 
+        const loop = async () => {
+            const nextDelay = await pollRoom();
+            if (!active || nextDelay <= 0) return;
+            scheduleNext(nextDelay);
+        };
+
+        const triggerImmediatePoll = () => {
+            if (!active || inFlight) return;
+            if (timeoutId) clearTimeout(timeoutId);
+            void loop();
+        };
+
+        pollNowRef.current = triggerImmediatePoll;
+
         // Start loop
-        loop();
+        void loop();
 
         return () => {
             active = false;
-            clearTimeout(timeoutId);
+            pollNowRef.current = null;
+            if (timeoutId) clearTimeout(timeoutId);
         };
-    }, [roomId, token]);
+    }, [roomId, token, router]);
 
     const formatTime = (seconds: number) => {
         const m = Math.floor(seconds / 60);
