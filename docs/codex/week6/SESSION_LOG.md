@@ -74,3 +74,40 @@ Tag:
 
 Risks / follow-ups:
 - There is still a narrow race window for truly simultaneous /engage calls (no DB-level unique constraint on room unlock records). A unique index on room_id would harden this further.
+
+
+
+## W6-A1.2 — Engage UI sync (frontend)
+
+Date: 2026-02-23  
+Agent: Frontend Agent + QA Agent (Antigravity)
+
+Files changed:
+- mobile-app/app/chat/talk-room.tsx
+- manual run browser check.txt
+
+What changed:
+- UI now shows “Waiting” when backend engage_status=waiting_for_partner, and “Unlocked” when match_unlocked.
+- Added safety guards in polling:
+  - Missing roomId → alert + redirect to /(tabs)/chat-night
+  - Missing token / 401/403 → alert + redirect to /(auth)/welcome
+  - 404 room → alert + redirect to /(tabs)/chat-night
+- Added one-time navigation guard to prevent duplicate alerts/navigation during refocus/poll loops.
+- Engage call now applies immediate UI sync when response includes engage_status/match_unlocked (still compatible with poll-based sync).
+
+Why:
+- Ensure both clients reliably reflect engage_status transitions (pending → waiting_for_partner → match_unlocked) without stale UI.
+
+How verified:
+- Backend health: Invoke-RestMethod http://localhost:8000/health — healthy/connected
+- Backend verifier: backend\verify_talk_room_engage_sync.ps1 — PASS
+- Two-browser manual test:
+  - A engages → shows Waiting
+  - B engages → both show Unlocked
+  - No duplicate alerts/navigation on tab switching/focus
+
+Tag:
+- v1-w6a1_2-engage-ui-sync
+
+Risks / follow-ups:
+- Remaining W6-A work: NetworkError recovery UX (W6-A3), realtime approach decision/hardening (W6-A4), and PASS-required “2 browsers, 1 room” checklist/script (W6-A5).

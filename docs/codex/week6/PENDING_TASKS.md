@@ -30,50 +30,64 @@ Notes:
 - Shared helpers normalize expiry + compute engage_status consistently.
 - Added deterministic verifier: backend\verify_talk_room_engage_sync.ps1 — PASS
 
-### 🟡 W6-A1.2 — Engage UI sync (frontend)
+### ✅ W6-A1.2 — Engage UI sync (frontend)
 
-Status: TODO  
+Status: DONE  
 Owner: Frontend Agent  
-Goal:
-- Ensure both clients reliably reflect engage_status transitions (pending → waiting_for_partner → match_unlocked) without stale UI.
-Acceptance criteria:
-- Two-browser test: A engages → A waiting_for_partner, B pending; B engages → both match_unlocked.
-- No stuck “waiting” UI after successful unlock.
+Tag: v1-w6a1_2-engage-ui-sync
+
+Notes:
+- UI now reflects engage_status explicitly:
+  - A engages → shows “Waiting”
+  - B engages → both show “Unlocked”
+- Added safe guards for missing roomId/token + explicit HTTP handling (401/403/404) to avoid false “Network Error”.
+- Added one-time navigation guard to prevent duplicate alerts/navigation on refocus/poll.
+
 Verification:
-- Two-browser checklist PASS + backend verifier PASS.
+- Two-browser manual test PASS (A shows Waiting, B shows Unlocked after engage).
+- Backend verifier PASS: backend\verify_talk_room_engage_sync.ps1.
 
 ### 🟡 W6-A3 — Resolve NetworkError + recovery UX
 
 Status: TODO  
-Owner: Frontend Agent (+ Backend Agent if root cause is API)  
+Owner: Frontend Agent (+ Backend Agent if root cause is API)
+
 Goal:
 - Fix root cause of NetworkError in Talk Room and add safe recovery/backoff.
+
 Acceptance criteria:
 - No uncaught NetworkError; UI shows retry state + recovers automatically.
 - Polling backoff is bounded and returns to normal on success.
+
 Verification:
 - Two-browser checklist PASS with simulated network drop/reconnect.
 
 ### 🟡 W6-A4 — Realtime approach decision + hardening
 
 Status: TODO  
-Owner: Lead Agent + Backend Agent + Frontend Agent  
+Owner: Lead Agent + Backend Agent + Frontend Agent
+
 Goal:
 - Decide and lock “polling-only” OR “websockets” for two-user sync; implement reliably.
+
 Acceptance criteria:
 - Chosen approach documented and implemented.
 - State sync remains reliable under backgrounding and temporary network loss.
+
 Verification:
 - Two-browser checklist PASS.
 
 ### 🟡 W6-A5 — Deterministic QA script / checklist: “2 browsers, 1 room”
 
 Status: TODO  
-Owner: QA Agent  
+Owner: QA Agent
+
 Goal:
 - Add a small deterministic QA checklist or script for Talk Room sync sanity.
+
 Acceptance criteria:
 - Checklist/script exists and is PASS-required for W6-A completion.
+
 Verification:
 - Checklist/script PASS + existing regression scripts PASS.
 

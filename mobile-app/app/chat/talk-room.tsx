@@ -1,4 +1,4 @@
-import { COLORS, TYPOGRAPHY, SPACING, RADIUS, SHADOWS } from '../../constants/Theme';
+import { COLORS, SPACING, SHADOWS } from '../../constants/Theme';
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform, AppState, AppStateStatus } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -16,8 +16,8 @@ export default function TalkRoomScreen() {
     const [timeLeft, setTimeLeft] = useState(300); // 5 minutes
     const [isMuted, setIsMuted] = useState(false);
     const [engaged, setEngaged] = useState(false);
+    const [engageStatus, setEngageStatus] = useState<'pending' | 'waiting_for_partner' | 'match_unlocked'>('pending');
     const [matchUnlocked, setMatchUnlocked] = useState(false); // Both engaged
-    const [roomState, setRoomState] = useState('active');
     // Fix: explicitly define networkError state to prevent reference errors
     const [networkError, setNetworkError] = useState(false);
     const [lastSync, setLastSync] = useState(Date.now());
@@ -26,6 +26,7 @@ export default function TalkRoomScreen() {
     const lastServerSecondsRemainingRef = useRef(300);
     const lastSyncAtRef = useRef(Date.now());
     const pollNowRef = useRef<(() => void) | null>(null);
+    const didNavigateRef = useRef(false);
 
     const getEstimatedRemaining = (nowMs: number = Date.now()) => {
         const elapsedSeconds = Math.floor((nowMs - lastSyncAtRef.current) / 1000);
@@ -65,15 +66,36 @@ export default function TalkRoomScreen() {
 
     // Local timer is a smooth estimate between authoritative server syncs.
     useEffect(() => {
+        if (!roomId || !token) {
+            return;
+        }
+
         const timerId = setInterval(() => {
+            if (didNavigateRef.current) return;
             const estimated = getEstimatedRemaining();
             setTimeLeft(prev => (prev === estimated ? prev : estimated));
         }, 1000);
         return () => clearInterval(timerId);
-    }, []);
+    }, [roomId, token]);
 
     useEffect(() => {
-        if (!roomId) return;
+        if (!roomId) {
+            if (!didNavigateRef.current) {
+                didNavigateRef.current = true;
+                Alert.alert("Session Error", "Talk room not found. Returning to Chat Night.");
+                router.replace('/(tabs)/chat-night');
+            }
+            return;
+        }
+
+        if (!token) {
+            if (!didNavigateRef.current) {
+                didNavigateRef.current = true;
+                Alert.alert("Not Authenticated", "Please login to continue.");
+                router.replace('/(auth)/welcome');
+            }
+            return;
+        }
 
         let active = true;
         let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -88,7 +110,7 @@ export default function TalkRoomScreen() {
         };
 
         const pollRoom = async (): Promise<number> => {
-            if (!active) return 0;
+            if (!active || didNavigateRef.current) return 0;
             if (inFlight) return 2000;
 
             // Slow polling while backgrounded.
@@ -101,6 +123,24 @@ export default function TalkRoomScreen() {
                 const res = await fetch(`${API_BASE_URL}/api/chat-night/room/${roomId}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
+
+                if (res.status === 401 || res.status === 403) {
+                    if (!didNavigateRef.current) {
+                        didNavigateRef.current = true;
+                        Alert.alert("Session Expired", "Please login again.");
+                        router.replace('/(auth)/welcome');
+                    }
+                    return 0;
+                }
+
+                if (res.status === 404) {
+                    if (!didNavigateRef.current) {
+                        didNavigateRef.current = true;
+                        Alert.alert("Room Ended", "This chat room is no longer available.");
+                        router.replace('/(tabs)/chat-night');
+                    }
+                    return 0;
+                }
 
                 if (!res.ok) {
                     throw new Error(`HTTP ${res.status}`);
@@ -119,9 +159,9 @@ export default function TalkRoomScreen() {
                 lastServerSecondsRemainingRef.current = serverRemaining;
                 lastSyncAtRef.current = syncedAt;
                 setTimeLeft(serverRemaining);
-                setRoomState(data.state);
                 setLastSync(syncedAt);
                 setNetworkError(false);
+                setEngageStatus((data.engage_status ?? 'pending') as 'pending' | 'waiting_for_partner' | 'match_unlocked');
 
                 // Sync Engagement
                 if (data.engage_status === 'waiting_for_partner') {
@@ -133,23 +173,30 @@ export default function TalkRoomScreen() {
 
                 // Handle Ended
                 if (data.state === 'ended' || serverRemaining <= 0) {
-                    Alert.alert("Session Ended", "The chat session has finished.");
-                    router.replace('/(tabs)/chat-night');
+                    if (!didNavigateRef.current) {
+                        didNavigateRef.current = true;
+                        Alert.alert("Session Ended", "The chat session has finished.");
+                        router.replace('/(tabs)/chat-night');
+                    }
                     return 0; // Stop polling
                 }
 
                 // Handle Match
                 if (data.match_unlocked) {
                     setMatchUnlocked(true);
-                    setTimeout(() => {
+                    if (!didNavigateRef.current) {
+                        didNavigateRef.current = true;
                         Alert.alert("It's a Match!", "You both engaged! You can now find them in your Matches tab.");
                         router.replace('/(tabs)/matches');
-                    }, 1000);
+                    }
                     return 0; // Stop polling
                 }
 
                 return 2000;
             } catch (e) {
+                if (didNavigateRef.current) {
+                    return 0;
+                }
                 console.warn("[TalkRoom] Polling error", e);
                 setNetworkError(true);
                 return 5000;
@@ -165,7 +212,7 @@ export default function TalkRoomScreen() {
         };
 
         const triggerImmediatePoll = () => {
-            if (!active || inFlight) return;
+            if (!active || inFlight || didNavigateRef.current) return;
             if (timeoutId) clearTimeout(timeoutId);
             void loop();
         };
@@ -189,7 +236,16 @@ export default function TalkRoomScreen() {
     };
 
     const handleEngage = async () => {
-        if (!roomId || engaged) return;
+        if (!roomId || engaged || didNavigateRef.current) return;
+
+        if (!token) {
+            if (!didNavigateRef.current) {
+                didNavigateRef.current = true;
+                Alert.alert("Not Authenticated", "Please login to continue.");
+                router.replace('/(auth)/welcome');
+            }
+            return;
+        }
 
         // Optimistic UI
         setEngaged(true);
@@ -206,6 +262,25 @@ export default function TalkRoomScreen() {
             if (!res.ok) {
                 Alert.alert("Error", "Could not submit engagement.");
                 setEngaged(false); // Revert
+                return;
+            }
+
+            const payload = await res.json().catch(() => null);
+
+            if (payload?.engage_status) {
+                setEngageStatus(payload.engage_status as 'pending' | 'waiting_for_partner' | 'match_unlocked');
+            }
+
+            if (payload?.engage_status === 'waiting_for_partner') {
+                setEngaged(true);
+            } else if (payload?.engage_status === 'match_unlocked') {
+                setEngaged(true);
+                setMatchUnlocked(true);
+            }
+
+            if (payload?.match_unlocked === true) {
+                setMatchUnlocked(true);
+                setEngaged(true);
             }
         } catch (e) {
             console.error(e);
@@ -214,25 +289,45 @@ export default function TalkRoomScreen() {
     };
 
     const handleEndCall = () => {
+        if (didNavigateRef.current) return;
+        didNavigateRef.current = true;
         router.replace('/(tabs)/chat-night');
     };
 
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.topBar}>
-                <View style={[styles.activeIndicator, { backgroundColor: matchUnlocked ? COLORS.destructive : COLORS.success }]} />
+                <View
+                    style={[
+                        styles.activeIndicator,
+                        { backgroundColor: matchUnlocked ? COLORS.destructive : COLORS.success },
+                    ]}
+                />
                 <View>
                     <Text style={styles.statusText}>
                         {matchUnlocked ? "Match Unlocked!" : "Voice Connected"}
                     </Text>
-                    <Text style={{ fontSize: 10, color: networkError ? COLORS.destructive : COLORS.dark.secondaryText, textAlign: 'center' }}>
-                        {networkError ? "Network Error" : `Sync: ${Math.floor((Date.now() - lastSync) / 1000)}s ago`}
+                    <Text
+                        style={{
+                            fontSize: 10,
+                            color: networkError ? COLORS.destructive : COLORS.dark.secondaryText,
+                            textAlign: "center",
+                        }}
+                    >
+                        {networkError
+                            ? "Network Error"
+                            : `Sync: ${Math.floor((Date.now() - lastSync) / 1000)}s ago`}
                     </Text>
                 </View>
             </View>
 
             <View style={styles.centerContent}>
-                <View style={[styles.timerCircle, matchUnlocked && { borderColor: COLORS.destructive }]}>
+                <View
+                    style={[
+                        styles.timerCircle,
+                        matchUnlocked ? { borderColor: COLORS.destructive } : undefined,
+                    ]}
+                >
                     <Text style={styles.timerText}>{formatTime(timeLeft)}</Text>
                     <Text style={styles.timerLabel}>REMAINING</Text>
                 </View>
@@ -244,17 +339,28 @@ export default function TalkRoomScreen() {
                     style={[styles.roundButton, isMuted ? styles.btnActive : styles.btnInactive]}
                     onPress={() => setIsMuted(!isMuted)}
                 >
-                    <Ionicons name={isMuted ? "mic-off" : "mic"} size={28} color={isMuted ? COLORS.brandBase : COLORS.dark.primaryText} />
+                    <Ionicons
+                        name={isMuted ? "mic-off" : "mic"}
+                        size={28}
+                        color={isMuted ? COLORS.brandBase : COLORS.dark.primaryText}
+                    />
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                    style={[styles.engageButton, (engaged || matchUnlocked) && styles.engagedButton]}
+                    style={[
+                        styles.engageButton,
+                        (engaged || matchUnlocked) ? styles.engagedButton : undefined,
+                    ]}
                     onPress={handleEngage}
                     disabled={engaged || matchUnlocked}
                 >
-                    <Ionicons name={matchUnlocked ? "heart-circle" : "heart"} size={32} color={COLORS.dark.primaryText} />
+                    <Ionicons
+                        name={matchUnlocked ? "heart-circle" : "heart"}
+                        size={32}
+                        color={COLORS.dark.primaryText}
+                    />
                     <Text style={styles.engageText}>
-                        {matchUnlocked ? "Unlocked" : engaged ? "Sent" : "Engage"}
+                        {matchUnlocked ? "Unlocked" : engageStatus === "waiting_for_partner" ? "Waiting" : engaged ? "Sent" : "Engage"}
                     </Text>
                 </TouchableOpacity>
 

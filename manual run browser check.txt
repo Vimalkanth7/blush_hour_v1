@@ -43,6 +43,40 @@ npx expo start --web
 ###################################################################################################
 ###################################################################################################
 
+Invoke-RestMethod http://localhost:8000/api/chat-night/room/ROOM_ID | ConvertTo-Json -Depth 6
+Invoke-RestMethod http://localhost:8000/api/chat-night/room/28a42df5-256a-4624-ab03-2b9d75b2f942| ConvertTo-Json -Depth 6
+
+28a42df5-256a-4624-ab03-2b9d75b2f942
+
+
+# Replace the text inside the quotes with your copied token
+$token = "eyJhbGciOiJIUzI1NiIsInR5..." 
+
+$headers = @{ 
+    Authorization = "Bearer $token" 
+}
+
+# Note: Ensure the port (8000 vs 8081) matches your running backend
+Invoke-RestMethod "http://localhost:8000/api/chat-night/room/28a42df5-256a-4624-ab03-2b9d75b2f942" -Headers $headers | ConvertTo-Json -Depth 6
+
+
+
+
+
+Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIzMzM3Nzc2NjY2IiwiZXhwIjoxNzcyNDQ2NzQ2fQ.T87ZjAztjBHHtELlH4NP7ltYWqhIf1MH8iGxBDjFfoY
+
+$token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIzMzM3Nzc2NjY2IiwiZXhwIjoxNzcyNDQ2NzQ2fQ.T87ZjAztjBHHtELlH4NP7ltYWqhIf1MH8iGxBDjFfoY"
+$headers = @{ Authorization = "Bearer $token" }
+Invoke-RestMethod "http://localhost:8000/api/chat-night/room/28a42df5-256a-4624-ab03-2b9d75b2f942" -Headers $headers | ConvertTo-Json -Depth 6
+
+
+
+
+$token = "<PASTE_TOKEN_HERE>"
+$headers = @{ Authorization = "Bearer $token" }
+Invoke-RestMethod "http://localhost:8000/api/chat-night/room/28a42df5-256a-4624-ab03-2b9d75b2f942" -Headers $headers | ConvertTo-Json -Depth 6
+
+
 
 
 
@@ -51,6 +85,24 @@ $env:CHAT_NIGHT_FORCE_OPEN="true"
 $env:CHAT_NIGHT_TEST_PASSES="100"
 $env:PROFILE_MIN_COMPLETION_FOR_CHAT_NIGHT="80"
 venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+
+
+$env:CHAT_NIGHT_TEST_MODE="true"
+$env:CHAT_NIGHT_FORCE_OPEN="true"
+$env:CHAT_NIGHT_TEST_PASSES="50"
+$env:CHAT_NIGHT_PAIR_COOLDOWN_MINUTES="0"
+$env:CHAT_NIGHT_WAITTIME_BOOST_ENABLED="false"
+
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+
+
+
+
+
+
+
 
 
 0) One-time setup (do this once)
