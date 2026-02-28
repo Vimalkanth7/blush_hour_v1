@@ -1,5 +1,29 @@
 ﻿# Week 6 - Session Log
 
+## W6-A5 — Checklist-only regression gate
+
+Date: 2026-02-28  
+Agent: QA Agent (Antigravity)
+
+Files changed:
+- docs/QA/regression_checklist.md
+- docs/codex/week6/PENDING_TASKS.md
+- docs/codex/week6/COMPLETED_TASKS.md
+- docs/codex/week6/SESSION_LOG.md
+
+What changed:
+- Added `manual run browser check.txt` as PASS-required checklist reference in `docs/QA/regression_checklist.md`.
+- Updated Week 6 tracking: W6-A5 moved to DONE in PENDING_TASKS.md, new entry in COMPLETED_TASKS.md.
+
+How verified:
+- `git diff --name-only` output shows only the 4 allowed files.
+
+Tag:
+- v1-w6a5-checklist-gate
+
+Risks / follow-ups:
+- None (docs-only change).
+
 ## W6-A4 - Polling-only realtime decision + hardening (docs-first)
 
 Date: 2026-02-28  

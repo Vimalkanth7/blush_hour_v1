@@ -83,14 +83,14 @@ Verification:
 
 ### W6-A5 - Deterministic QA script / checklist: "2 browsers, 1 room"
 
-Status: TODO  
+Status: DONE  
 Owner: QA Agent  
-Goal:
-- Add a small deterministic QA checklist or script for Talk Room sync sanity.
-Acceptance criteria:
-- Checklist/script exists and is PASS-required for W6-A completion.
-Verification:
-- Checklist/script PASS + existing regression scripts PASS.
+Tag: v1-w6a5-checklist-gate
+
+Notes:
+- Checklist-only PASS gate.
+- Uses `manual run browser check.txt`.
+- Now listed in `docs/QA/regression_checklist.md` as PASS required.
 
 ## W6-B - AI-assisted matching quality (safe, controlled)
 

@@ -1,5 +1,15 @@
 ﻿# Week 6 - Completed Tasks
 
+## W6-A5 — Checklist gate: "2 browsers, 1 room"
+
+Status: DONE  
+Owner: QA Agent  
+Tag: v1-w6a5-checklist-gate
+
+Notes:
+- Added `manual run browser check.txt` to PASS-required regression gate list in `docs/QA/regression_checklist.md`.
+- Week 6 tracking updated.
+
 ## W6-A4 - Realtime approach decision + hardening (docs-first)
 
 Status: DONE  
