@@ -8,6 +8,9 @@ import { useAuth } from '../../context/AuthContext';
 
 import { API_BASE_URL } from '../../constants/Api';
 
+type NetworkState = 'ok' | 'reconnecting' | 'offline' | 'rate_limited';
+const POLL_BACKOFF_MS = [2000, 3000, 5000, 8000, 13000] as const;
+
 export default function TalkRoomScreen() {
     const router = useRouter();
     const { roomId } = useLocalSearchParams<{ roomId: string }>();
@@ -18,13 +21,14 @@ export default function TalkRoomScreen() {
     const [engaged, setEngaged] = useState(false);
     const [engageStatus, setEngageStatus] = useState<'pending' | 'waiting_for_partner' | 'match_unlocked'>('pending');
     const [matchUnlocked, setMatchUnlocked] = useState(false); // Both engaged
-    // Fix: explicitly define networkError state to prevent reference errors
-    const [networkError, setNetworkError] = useState(false);
+    const [networkState, setNetworkState] = useState<NetworkState>('ok');
     const [lastSync, setLastSync] = useState(Date.now());
 
     const appState = useRef(AppState.currentState);
     const lastServerSecondsRemainingRef = useRef(300);
     const lastSyncAtRef = useRef(Date.now());
+    const backoffIndexRef = useRef(0);
+    const lastErrorCodeRef = useRef<number | undefined>(undefined);
     const pollNowRef = useRef<(() => void) | null>(null);
     const didNavigateRef = useRef(false);
 
@@ -101,6 +105,15 @@ export default function TalkRoomScreen() {
         let timeoutId: ReturnType<typeof setTimeout> | undefined;
         let inFlight = false;
 
+        const consumeBackoffDelay = (minDelayMs = 0) => {
+            const boundedIndex = Math.min(backoffIndexRef.current, POLL_BACKOFF_MS.length - 1);
+            const nextDelay = Math.max(POLL_BACKOFF_MS[boundedIndex], minDelayMs);
+            if (backoffIndexRef.current < POLL_BACKOFF_MS.length - 1) {
+                backoffIndexRef.current += 1;
+            }
+            return nextDelay;
+        };
+
         const scheduleNext = (delayMs: number) => {
             if (!active) return;
             if (timeoutId) clearTimeout(timeoutId);
@@ -116,6 +129,12 @@ export default function TalkRoomScreen() {
             // Slow polling while backgrounded.
             if (appState.current.match(/inactive|background/)) {
                 return 4000;
+            }
+
+            if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.onLine === false) {
+                lastErrorCodeRef.current = undefined;
+                setNetworkState('offline');
+                return consumeBackoffDelay(8000);
             }
 
             inFlight = true;
@@ -142,8 +161,22 @@ export default function TalkRoomScreen() {
                     return 0;
                 }
 
+                if (res.status === 429) {
+                    lastErrorCodeRef.current = 429;
+                    setNetworkState('rate_limited');
+                    return consumeBackoffDelay(8000);
+                }
+
+                if (res.status >= 500) {
+                    lastErrorCodeRef.current = res.status;
+                    setNetworkState('reconnecting');
+                    return consumeBackoffDelay();
+                }
+
                 if (!res.ok) {
-                    throw new Error(`HTTP ${res.status}`);
+                    lastErrorCodeRef.current = res.status;
+                    setNetworkState('reconnecting');
+                    return consumeBackoffDelay();
                 }
 
                 const data = await res.json();
@@ -160,7 +193,9 @@ export default function TalkRoomScreen() {
                 lastSyncAtRef.current = syncedAt;
                 setTimeLeft(serverRemaining);
                 setLastSync(syncedAt);
-                setNetworkError(false);
+                backoffIndexRef.current = 0;
+                lastErrorCodeRef.current = undefined;
+                setNetworkState('ok');
                 setEngageStatus((data.engage_status ?? 'pending') as 'pending' | 'waiting_for_partner' | 'match_unlocked');
 
                 // Sync Engagement
@@ -197,16 +232,25 @@ export default function TalkRoomScreen() {
                 if (didNavigateRef.current) {
                     return 0;
                 }
-                console.warn("[TalkRoom] Polling error", e);
-                setNetworkError(true);
-                return 5000;
+                const lastErrorCode = lastErrorCodeRef.current;
+                lastErrorCodeRef.current = undefined;
+                console.warn("[TalkRoom] Polling error", { error: e, lastErrorCode });
+                setNetworkState('reconnecting');
+                return consumeBackoffDelay();
             } finally {
                 inFlight = false;
             }
         };
 
         const loop = async () => {
-            const nextDelay = await pollRoom();
+            let nextDelay = 0;
+            try {
+                nextDelay = await pollRoom();
+            } catch (e) {
+                console.warn("[TalkRoom] Poll loop fallback", e);
+                setNetworkState('reconnecting');
+                nextDelay = consumeBackoffDelay();
+            }
             if (!active || nextDelay <= 0) return;
             scheduleNext(nextDelay);
         };
@@ -294,6 +338,15 @@ export default function TalkRoomScreen() {
         router.replace('/(tabs)/chat-night');
     };
 
+    const syncSecondsAgo = Math.floor((Date.now() - lastSync) / 1000);
+    const syncStatusText = networkState === 'offline'
+        ? 'Offline'
+        : networkState === 'reconnecting'
+            ? 'Reconnecting...'
+            : networkState === 'rate_limited'
+                ? 'Retrying (rate limit)...'
+                : `Sync: ${syncSecondsAgo}s ago`;
+
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.topBar}>
@@ -310,13 +363,11 @@ export default function TalkRoomScreen() {
                     <Text
                         style={{
                             fontSize: 10,
-                            color: networkError ? COLORS.destructive : COLORS.dark.secondaryText,
+                            color: networkState === 'ok' ? COLORS.dark.secondaryText : COLORS.destructive,
                             textAlign: "center",
                         }}
                     >
-                        {networkError
-                            ? "Network Error"
-                            : `Sync: ${Math.floor((Date.now() - lastSync) / 1000)}s ago`}
+                        {syncStatusText}
                     </Text>
                 </View>
             </View>

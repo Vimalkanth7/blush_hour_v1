@@ -111,3 +111,57 @@ Tag:
 
 Risks / follow-ups:
 - Remaining W6-A work: NetworkError recovery UX (W6-A3), realtime approach decision/hardening (W6-A4), and PASS-required “2 browsers, 1 room” checklist/script (W6-A5).
+
+
+## W6-A3 — Talk Room NetworkError recovery UX (frontend)
+
+Date: 2026-02-28  
+Agent: Frontend Agent (Antigravity)
+
+Files changed:
+- mobile-app/app/chat/talk-room.tsx
+- manual run browser check.txt
+- docs/codex/week6/PENDING_TASKS.md
+- docs/codex/week6/COMPLETED_TASKS.md
+- docs/codex/week6/SESSION_LOG.md
+
+What changed:
+- Replaced Talk Room `networkError` boolean with `networkState`:
+  - `ok` / `reconnecting` / `offline` / `rate_limited`
+- Added bounded polling backoff via `[2000, 3000, 5000, 8000, 13000]` and reset-on-success behavior.
+- Added explicit recoverable error handling in poll loop:
+  - Web offline (`navigator.onLine === false`) -> `offline` + min `8000ms` retry
+  - HTTP `429` -> `rate_limited` + min `8000ms` retry
+  - HTTP `5xx` and fetch throw -> `reconnecting` + bounded retry
+- Poll loop now has a fallback guard so errors do not escape the loop.
+- Updated top status label text:
+  - `Offline`
+  - `Reconnecting...`
+  - `Retrying (rate limit)...`
+  - `Sync: Xs ago` (normal)
+- Preserved existing behavior:
+  - Authoritative timer estimation
+  - Ended -> `/(tabs)/chat-night`
+  - Match unlocked -> `/(tabs)/matches`
+  - one-time navigation guard (`didNavigateRef`)
+
+Why:
+- Remove flaky generic “Network Error” behavior and provide deterministic recovery UX that auto-recovers without refresh.
+
+How verified:
+- `cd mobile-app && npx eslint app/chat/talk-room.tsx` -> PASS (no lint errors for changed file).
+- `cd mobile-app && npx tsc --noEmit` -> FAIL due pre-existing unrelated theme token errors:
+  - `components/ui/Button.tsx` (`primaryHover`, `primaryPressed`)
+  - `components/ui/Card.tsx` (`surfaceElevated`)
+  - `components/ui/Input.tsx` (`focusRing`)
+  - No Talk Room errors surfaced in TypeScript output.
+- Expo web startup smoke:
+  - `cd mobile-app && npx expo start --web --port 18081`
+  - Process bound to port `18081` (verified via `netstat`), then terminated after smoke check.
+- Added W6-A3 backend-stop/restart and optional `429` recovery checklist block to `manual run browser check.txt`.
+
+Tag:
+- v1-w6a3-network-recovery
+
+Risks / follow-ups:
+- Full two-browser manual outage/recovery PASS should be executed interactively using the new checklist (browser interaction not executed in this shell-only run).

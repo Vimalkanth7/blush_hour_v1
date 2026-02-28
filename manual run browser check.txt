@@ -586,3 +586,20 @@ Phone: 9000000002
 Password: TestPass123!
 
 Use brand new numbers so you know exactly what data belongs to which test.
+#################################
+W6-A3 Talk Room Network Recovery Checklist (Frontend)
+
+1) Join Talk Room.
+2) Stop backend `uvicorn` for 10-15 seconds.
+   - Expect status text: `Reconnecting...` or `Offline`.
+   - Timer continues from estimated server sync and stops at `0:00`.
+3) Restart backend.
+   - Expect status text returns to `Sync: Xs ago` automatically.
+   - No browser refresh required.
+4) Optional 429 simulation.
+   - Trigger frequent poll pressure (or run fairness script in parallel).
+   - Expect status text: `Retrying (rate limit)...`.
+   - UI recovers automatically after waiting.
+5) Focus/visibility/app-active sanity.
+   - Switch tab/app focus repeatedly.
+   - Expect no duplicate alerts or duplicate navigation.

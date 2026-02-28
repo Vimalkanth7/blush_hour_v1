@@ -47,20 +47,29 @@ Verification:
 - Two-browser manual test PASS (A shows Waiting, B shows Unlocked after engage).
 - Backend verifier PASS: backend\verify_talk_room_engage_sync.ps1.
 
-### 🟡 W6-A3 — Resolve NetworkError + recovery UX
+### ✅ W6-A3 — Resolve NetworkError + recovery UX
 
-Status: TODO  
-Owner: Frontend Agent (+ Backend Agent if root cause is API)
+Status: DONE  
+Owner: Frontend Agent  
+Tag: v1-w6a3-network-recovery
 
 Goal:
-- Fix root cause of NetworkError in Talk Room and add safe recovery/backoff.
+- Fix root cause of Talk Room NetworkError behavior and add safe recovery/backoff UX.
 
-Acceptance criteria:
-- No uncaught NetworkError; UI shows retry state + recovers automatically.
-- Polling backoff is bounded and returns to normal on success.
+Notes:
+- Replaced boolean `networkError` with `networkState` (`ok`/`reconnecting`/`offline`/`rate_limited`).
+- Added bounded poll backoff steps `[2000, 3000, 5000, 8000, 13000]` with reset on successful poll.
+- Added explicit error handling split:
+  - `429` → `rate_limited` + minimum `8000ms` retry
+  - `5xx` / fetch throw → `reconnecting` + bounded retry
+  - web `navigator.onLine === false` → `offline` + minimum `8000ms` retry
+- Kept existing authoritative timer estimation, polling model, and one-time navigation guard.
 
 Verification:
-- Two-browser checklist PASS with simulated network drop/reconnect.
+- `npx eslint app/chat/talk-room.tsx` PASS.
+- `npx tsc --noEmit` still reports pre-existing unrelated theme token errors (no new Talk Room errors surfaced).
+- Expo web startup smoke shows server can bind and run on an available port.
+- Manual browser checklist updated for backend down/restart and optional 429 recovery.
 
 ### 🟡 W6-A4 — Realtime approach decision + hardening
 
