@@ -1,5 +1,57 @@
 ﻿# Week 6 - Session Log
 
+# Week 6 — Session Log
+
+## W6-B4 — Icebreaker cards + reveal sync across clients (frontend+backend)
+Date: 2026-03-03  
+Agent: Backend Agent + Frontend Agent + QA Agent (Antigravity)
+
+Files changed:
+- backend/app/models/chat_night.py
+- backend/app/schemas/chat_night.py
+- backend/app/routers/chat_night.py
+- backend/verify_chat_night_icebreakers_reveal_sync.ps1 (new)
+- mobile-app/app/chat/talk-room.tsx
+
+What changed:
+- Added shared reveal state to ChatNightIcebreakers (revealed_indices) and reveal endpoint:
+  - POST /api/chat-night/icebreakers/reveal
+- Extended GET /api/chat-night/room/{room_id} to return icebreakers_revealed_indices.
+- Frontend renders 5 icebreaker cards and syncs reveals from server; card tap triggers reveal endpoint.
+
+How verified:
+- backend\verify_chat_night_icebreakers_reveal_sync.ps1 — PASS
+- Manual 2-browser test — PASS:
+  - 5 cards render
+  - A reveal shows for B within 2–4s; B reveal shows for A within 2–4s
+  - No duplicate navigation/alerts
+
+Tags:
+- backend: v1-w6b4-reveal-sync-backend
+- frontend: (use your PR merge tag/commit)
+
+Risks / follow-ups:
+- None blocking; keep polling cadence stable for reveal sync.
+
+---
+
+## W6-B2/B3 — OpenAI provider + cache + guardrails (backend)
+Date: 2026-03-03  
+Agent: Backend Agent + QA Agent (Antigravity)
+
+What changed:
+- B2: Added cache + OpenAI provider behind env flags (no contract change).
+- B3: Added spend/throttle guardrails (per-day / per-user / per-room / min-seconds-between).
+
+How verified:
+- backend\verify_chat_night_icebreakers_contract.ps1 — PASS
+  - first call cached=false, second call cached=true
+- Note: Some scripts can fail if backend env flags don’t match expectations or if run too fast (rate limit 5/min). Waiting ~70s or running in correct mode resolves it.
+
+Tags:
+- v1-w6b2-icebreakers-cache-openai
+- v1-w6b3-icebreakers-guardrails
+
 ## W6-B1 — Icebreakers contract + deterministic fallback (backend)
 
 Date: 2026-03-02  

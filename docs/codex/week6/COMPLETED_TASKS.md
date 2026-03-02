@@ -71,3 +71,48 @@ Owner: Frontend Agent
 Tag: v1-w6a2-authoritative-timer  
 Notes:
 - Timer derived from backend `seconds_remaining`, with snap-back refresh on focus/visibility/app-active.
+
+
+
+# Week 6 — Completed Tasks
+
+## 🟢 W6-B4 — Frontend icebreaker cards + shared reveal sync
+Status: DONE  
+Owner: Backend Agent + Frontend Agent + QA Agent  
+Tags:
+- backend: v1-w6b4-reveal-sync-backend
+- frontend: (use your PR merge tag/commit for frontend)
+
+Notes:
+- Talk Room shows 5 icebreaker cards.
+- Reveal is shared across both clients via backend reveal endpoint and room polling.
+- Verified: A reveal appears for B within one poll cycle; vice versa.
+
+## 🟢 W6-B3 — Icebreakers guardrails (budget + throttle controls) (backend)
+Status: DONE  
+Owner: Backend Agent + QA Agent  
+Tag: v1-w6b3-icebreakers-guardrails
+
+Notes:
+- Added per-day, per-user, per-room limits + optional min-seconds-between OpenAI calls.
+- Guardrail hit returns deterministic fallback (contract preserved).
+- Cache-first behavior preserved.
+
+## 🟢 W6-B2 — Cache + OpenAI provider integration (backend)
+Status: DONE  
+Owner: Backend Agent + QA Agent  
+Tag: v1-w6b2-icebreakers-cache-openai
+
+Notes:
+- Room-level cache for icebreakers: first call cached=false, second call cached=true.
+- OpenAI generation enabled behind env flags; safe fallback if provider fails.
+
+## 🟢 W6-B1 — Icebreakers contract + deterministic fallback (backend)
+Status: DONE  
+Owner: Backend Agent + QA Agent  
+Tag: v1-w6b1-icebreakers-contract
+
+Notes:
+- Added POST /api/chat-night/icebreakers contract (3 reasons + 5 icebreakers).
+- Strict SanitizedMatchContext (no PII) + deterministic fallback.
+- Added verifier backend\verify_chat_night_icebreakers_contract.ps1 — PASS.

@@ -19,3 +19,5 @@ Regression guards (PASS required to merge):
 - `backend\\verify_chat_night_fifo_only.ps1`
 - `backend\\verify_chat_night_icebreakers_contract.ps1` (W6-B1: icebreakers contract — PASS required)
 - `manual run browser check.txt` (W6-A5: Talk Room “2 browsers, 1 room” checklist — PASS required)
+- `backend\\verify_chat_night_icebreakers_contract.ps1`
+- `backend\\verify_chat_night_icebreakers_reveal_sync.ps1`

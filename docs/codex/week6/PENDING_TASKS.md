@@ -60,6 +60,7 @@ Notes:
 - Added to `docs/QA/regression_checklist.md` as PASS required.
 
 ---
+
 ## 🟡 W6-B — AI-assisted matching quality (safe, controlled)
 Status: IN PROGRESS  
 Owner: Backend Agent + QA Agent + Frontend Agent (as needed)  
@@ -73,7 +74,7 @@ Goal:
 Status: DONE  
 Tag: v1-w6b1-icebreakers-contract  
 Notes:
-- Added POST /api/chat-night/icebreakers contract (3 reasons + 5 icebreakers).
+- Added POST `/api/chat-night/icebreakers` contract (3 reasons + 5 icebreakers).
 - Strict SanitizedMatchContext, PII filtering, deterministic fallback.
 
 ### ✅ W6-B2 — Cache + OpenAI provider integration (backend)
@@ -87,21 +88,45 @@ Notes:
 Status: DONE  
 Tag: v1-w6b3-icebreakers-guardrails  
 Notes:
-- Added spend/throttle controls (per-day, per-user, per-room caps + optional min-seconds-between).
+- Spend/throttle controls (per-day, per-user, per-room caps + optional min-seconds-between).
 - Guardrail hit returns deterministic fallback (no crash, contract preserved).
 
-### 🟡 W6-B4 — Frontend: show 5 icebreaker cards in Talk Room
+### 🟡 W6-B4 — Icebreakers UI + shared reveal sync in Talk Room (frontend + backend)
+Status: IN PROGRESS  
+Owner: Frontend Agent + Backend Agent  
+Goal:
+- Show 5 icebreaker cards in Talk Room.
+- Reveal actions must sync across both clients (shared state).
+
+#### ✅ W6-B4.1 — Backend reveal sync
+Status: DONE  
+Tag: v1-w6b4-reveal-sync-backend  
+Verification:
+- `backend\verify_chat_night_icebreakers_reveal_sync.ps1` — PASS
+
+#### 🟡 W6-B4.2 — Frontend cards + reveal sync wiring
 Status: TODO  
 Owner: Frontend Agent  
-Goal:
-- Fetch /icebreakers once per room and show 5 reveal-cards shared for both users.
+Acceptance criteria:
+- Cards render (5).
+- A reveals Card 2 → B shows within a poll cycle (2–4s).
+- B reveals Card 4 → A shows within a poll cycle.
+- No duplicate alerts/navigation.
+- No repeated OpenAI spend on refresh (cache-first behavior).
 Verification:
-- Manual run checklist PASS + no extra OpenAI spend from refresh.
+- Manual checklist PASS (manual run browser check.txt)
+- Backend reveal verifier PASS
 
 ### 🟡 W6-B5 — QA: safety + cost regression gate
 Status: TODO  
 Owner: QA Agent  
 Goal:
-- Add QA checks ensuring no PII, stable JSON shape, cache works, and spend caps enforce fallback.
+- Add PASS-required regression checks for icebreakers safety + spend behavior.
+Acceptance criteria:
+- Icebreakers contract verifier PASS (shape + cache + PII).
+- Reveal sync verifier PASS.
+- Existing regressions still PASS (noting some scripts require correct env flags and rate-limit spacing).
 Verification:
-- New QA script/checklist PASS + existing regressions PASS
+- Add to `docs/QA/regression_checklist.md`:
+  - `backend\verify_chat_night_icebreakers_contract.ps1`
+  - `backend\verify_chat_night_icebreakers_reveal_sync.ps1`
