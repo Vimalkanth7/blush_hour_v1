@@ -35,6 +35,7 @@ class ChatNightRoomResponse(BaseModel):
     partner_photo: Optional[str] = None
     engage_status: str # 'pending', 'accepted', 'waiting_for_partner'
     match_unlocked: bool = False
+    icebreakers_revealed_indices: List[int] = Field(default_factory=list)
 
 
 class ChatNightIcebreakersRequest(BaseModel):
@@ -47,6 +48,16 @@ class ChatNightIcebreakersResponse(BaseModel):
     icebreakers: List[str] = Field(default_factory=list)
     model: str = "none"
     cached: bool = False
+
+
+class ChatNightIcebreakersRevealRequest(BaseModel):
+    room_id: str
+    index: int = Field(..., ge=0, le=4)
+
+
+class ChatNightIcebreakersRevealResponse(BaseModel):
+    room_id: str
+    revealed_indices: List[int] = Field(default_factory=list)
 
 
 class ChatNightIcebreakerConstraints(BaseModel):

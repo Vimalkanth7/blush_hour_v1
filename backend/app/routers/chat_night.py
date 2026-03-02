@@ -1,12 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, Body
 from app.models.user import User
-from app.models.chat_night import ChatNightPass, ChatNightRoom, MatchUnlocked
+from app.models.chat_night import ChatNightPass, ChatNightRoom, MatchUnlocked, ChatNightIcebreakers
 from app.models.chat import ChatThread
 from app.schemas.chat_night import (
     ChatNightStatus,
     ChatNightRoomResponse,
     ChatNightIcebreakersRequest,
     ChatNightIcebreakersResponse,
+    ChatNightIcebreakersRevealRequest,
+    ChatNightIcebreakersRevealResponse,
 )
 from app.auth.dependencies import get_current_user
 from datetime import datetime, timedelta, timezone
@@ -141,6 +143,24 @@ def room_ends_at_utc(room: ChatNightRoom) -> datetime:
     if room.ends_at.tzinfo is None:
         return room.ends_at.replace(tzinfo=timezone.utc)
     return room.ends_at.astimezone(timezone.utc)
+
+
+def normalize_revealed_indices(raw_indices: Optional[List[int]]) -> List[int]:
+    normalized: List[int] = []
+    seen: set[int] = set()
+    for raw_value in raw_indices or []:
+        try:
+            index = int(raw_value)
+        except (TypeError, ValueError):
+            continue
+        if index < 0 or index > 4:
+            continue
+        if index in seen:
+            continue
+        seen.add(index)
+        normalized.append(index)
+    return normalized
+
 
 def room_is_expired(room: ChatNightRoom, now: Optional[datetime] = None) -> bool:
     ref = now or get_now_utc()
@@ -683,6 +703,40 @@ async def get_icebreakers(
         cached=cached,
     )
 
+
+@router.post("/icebreakers/reveal", response_model=ChatNightIcebreakersRevealResponse)
+async def reveal_icebreaker(
+    data: ChatNightIcebreakersRevealRequest,
+    current_user: User = Depends(get_current_user),
+):
+    room = await ChatNightRoom.find_one(ChatNightRoom.room_id == data.room_id)
+    if not room:
+        raise HTTPException(404, "Room not found")
+
+    uid = str(current_user.id)
+    if uid != room.male_user_id and uid != room.female_user_id:
+        raise HTTPException(403, "Not in room")
+
+    cache_doc = await ChatNightIcebreakers.find_one(ChatNightIcebreakers.room_id == data.room_id)
+    if not cache_doc:
+        raise HTTPException(409, "Icebreakers cache missing for room")
+
+    revealed_indices = normalize_revealed_indices(cache_doc.revealed_indices)
+    if data.index not in revealed_indices:
+        revealed_indices.append(data.index)
+
+    now = get_now_utc()
+    cache_doc.revealed_indices = revealed_indices
+    cache_doc.reveal_updated_at = now
+    cache_doc.updated_at = now
+    await cache_doc.save()
+
+    return ChatNightIcebreakersRevealResponse(
+        room_id=room.room_id,
+        revealed_indices=revealed_indices,
+    )
+
+
 @router.get("/room/{room_id}", response_model=ChatNightRoomResponse)
 async def get_room(room_id: str, current_user: User = Depends(get_current_user)):
     room = await ChatNightRoom.find_one(ChatNightRoom.room_id == room_id)
@@ -734,6 +788,10 @@ async def get_room(room_id: str, current_user: User = Depends(get_current_user))
     
     # Engage Status UI logic
     status_ui = build_engage_status(room, my_engage)
+    icebreakers_cache = await ChatNightIcebreakers.find_one(ChatNightIcebreakers.room_id == room.room_id)
+    revealed_indices = normalize_revealed_indices(
+        icebreakers_cache.revealed_indices if icebreakers_cache else []
+    )
             
     return ChatNightRoomResponse(
         room_id=room.room_id,
@@ -744,7 +802,8 @@ async def get_room(room_id: str, current_user: User = Depends(get_current_user))
         partner_first_name=partner_name,
         partner_photo=partner_photo,
         engage_status=status_ui,
-        match_unlocked=(room.state == "engaged")
+        match_unlocked=(room.state == "engaged"),
+        icebreakers_revealed_indices=revealed_indices,
     )
 
 @router.post("/engage")

@@ -1,4 +1,4 @@
-$baseUrl = "http://localhost:8000"
+$baseUrl = if ([string]::IsNullOrWhiteSpace($env:CHAT_NIGHT_BASE_URL)) { "http://localhost:8000" } else { $env:CHAT_NIGHT_BASE_URL.TrimEnd("/") }
 $chatNightBase = "$baseUrl/api/chat-night"
 $timestamp = Get-Date -Format "yyyyMMddHHmmss"
 $password = "ChatNightTest123!"
