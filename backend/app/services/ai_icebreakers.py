@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 import hashlib
 import json
@@ -34,7 +34,7 @@ OPENAI_CHAT_COMPLETIONS_URL = "https://api.openai.com/v1/chat/completions"
 OPENAI_PROVIDER = "openai"
 MODEL_NONE = "none"
 MODEL_FALLBACK = "fallback"
-DEFAULT_OPENAI_MODEL = "gpt-5-nano"
+DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 
 
 class _IcebreakerStructuredOutput(BaseModel):
@@ -155,6 +155,38 @@ def _openai_max_calls_per_day() -> int:
         min_value=0,
         max_value=5000,
     )
+
+
+def _openai_max_calls_per_user_per_day() -> int:
+    return _parse_int_env(
+        "CHAT_NIGHT_ICEBREAKERS_MAX_CALLS_PER_USER_PER_DAY",
+        default=20,
+        min_value=0,
+        max_value=1000,
+    )
+
+
+def _openai_max_calls_per_room() -> int:
+    return _parse_int_env(
+        "CHAT_NIGHT_ICEBREAKERS_MAX_CALLS_PER_ROOM",
+        default=1,
+        min_value=0,
+        max_value=20,
+    )
+
+
+def _openai_min_seconds_between_calls() -> int:
+    return _parse_int_env(
+        "CHAT_NIGHT_ICEBREAKERS_MIN_SECONDS_BETWEEN_OPENAI_CALLS",
+        default=3,
+        min_value=0,
+        max_value=120,
+    )
+
+
+def _utc_day_start(value: Optional[datetime] = None) -> datetime:
+    now_utc = value or datetime.now(timezone.utc)
+    return now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
 
 
 def _normalize_tag(value: str) -> str:
@@ -662,21 +694,84 @@ async def _generate_openai_payload(context: SanitizedMatchContext) -> Optional[D
     return None
 
 
-async def _openai_daily_cap_reached() -> bool:
-    max_calls = _openai_max_calls_per_day()
-    if max_calls <= 0:
-        return True
+def _normalize_user_ids(raw_user_ids: Optional[Sequence[str]]) -> List[str]:
+    if not raw_user_ids:
+        return []
 
-    day_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    normalized: List[str] = []
+    seen: set[str] = set()
+    for value in raw_user_ids:
+        user_id = _to_text(value)
+        if not user_id:
+            continue
+        if user_id in seen:
+            continue
+        seen.add(user_id)
+        normalized.append(user_id)
+    return normalized
+
+
+def _to_aware_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+async def should_call_openai(
+    room_id: str,
+    requester_user_id: Optional[str],
+) -> Tuple[bool, str]:
+    room_cap = _openai_max_calls_per_room()
+    if room_cap <= 0:
+        return False, "room_cap_reached"
+
+    day_start = _utc_day_start()
+
     try:
+        cache_doc = await ChatNightIcebreakers.find_one(ChatNightIcebreakers.room_id == room_id)
+        if cache_doc and int(getattr(cache_doc, "openai_attempt_count", 0) or 0) >= room_cap:
+            return False, "room_cap_reached"
+
+        max_calls_global = _openai_max_calls_per_day()
+        if max_calls_global <= 0:
+            return False, "global_daily_cap_reached"
+
         calls_today = await ChatNightIcebreakers.find(
             ChatNightIcebreakers.provider_requested == OPENAI_PROVIDER,
             ChatNightIcebreakers.openai_attempted_at >= day_start,
         ).count()
+        if calls_today >= max_calls_global:
+            return False, "global_daily_cap_reached"
+
+        max_calls_per_user = _openai_max_calls_per_user_per_day()
+        if max_calls_per_user <= 0:
+            return False, "per_user_daily_cap_reached"
+
+        clean_requester = _to_text(requester_user_id)
+        if clean_requester:
+            user_calls_today = await ChatNightIcebreakers.find(
+                ChatNightIcebreakers.requester_user_id == clean_requester,
+                ChatNightIcebreakers.openai_attempted_at >= day_start,
+            ).count()
+            if user_calls_today >= max_calls_per_user:
+                return False, "per_user_daily_cap_reached"
+
+        min_seconds_between_calls = _openai_min_seconds_between_calls()
+        if min_seconds_between_calls > 0:
+            latest_docs = await ChatNightIcebreakers.find(
+                ChatNightIcebreakers.provider_requested == OPENAI_PROVIDER,
+                ChatNightIcebreakers.openai_attempted_at != None,  # noqa: E711
+            ).sort(-ChatNightIcebreakers.openai_attempted_at).limit(1).to_list()
+            if latest_docs and latest_docs[0].openai_attempted_at:
+                latest_attempt = _to_aware_utc(latest_docs[0].openai_attempted_at)
+                elapsed = datetime.now(timezone.utc) - latest_attempt
+                if elapsed < timedelta(seconds=min_seconds_between_calls):
+                    return False, "global_throttle_active"
     except Exception:
-        # Fail-safe: if we cannot verify quota, avoid spend and fallback.
-        return True
-    return calls_today >= max_calls
+        # Fail-safe: if we cannot validate spend guardrails, avoid spend and fallback.
+        return False, "guardrail_check_failed"
+
+    return True, "ok"
 
 
 async def _persist_cache(
@@ -686,9 +781,14 @@ async def _persist_cache(
     payload: Dict[str, List[str]],
     model: str,
     provider_requested: str,
+    requester_user_id: Optional[str],
+    participant_user_ids: Optional[Sequence[str]],
     openai_attempted_at: Optional[datetime],
+    openai_attempted: bool,
 ) -> None:
     now = datetime.now(timezone.utc)
+    clean_requester = _to_text(requester_user_id) or None
+    normalized_participants = _normalize_user_ids(participant_user_ids)
     cache_doc = await ChatNightIcebreakers.find_one(ChatNightIcebreakers.room_id == room_id)
     if not cache_doc:
         cache_doc = ChatNightIcebreakers(
@@ -698,9 +798,12 @@ async def _persist_cache(
             model=model,
             provider_requested=provider_requested,
             context_hash=context_hash,
+            requester_user_id=clean_requester,
+            participant_user_ids=normalized_participants,
             created_at=now,
             updated_at=now,
             openai_attempted_at=openai_attempted_at,
+            openai_attempt_count=0,
         )
         try:
             await cache_doc.insert()
@@ -716,65 +819,131 @@ async def _persist_cache(
     cache_doc.provider_requested = provider_requested
     cache_doc.context_hash = context_hash
     cache_doc.updated_at = now
-    if openai_attempted_at is not None:
+    if clean_requester:
+        cache_doc.requester_user_id = clean_requester
+    if normalized_participants:
+        cache_doc.participant_user_ids = normalized_participants
+    if openai_attempted:
+        cache_doc.openai_attempt_count = int(getattr(cache_doc, "openai_attempt_count", 0) or 0) + 1
+    if openai_attempted_at is not None and openai_attempted:
         cache_doc.openai_attempted_at = openai_attempted_at
     await cache_doc.save()
 
 
+def fallback_icebreakers_response(
+    context: SanitizedMatchContext,
+    *,
+    prefer_fallback: bool,
+) -> Tuple[List[str], List[str], str, bool]:
+    payload = _safe_deterministic_payload(context)
+    model = MODEL_FALLBACK if prefer_fallback else MODEL_NONE
+    return payload["reasons"], payload["icebreakers"], model, False
+
+
 async def generate_icebreakers(
     context: SanitizedMatchContext,
+    *,
+    requester_user_id: Optional[str] = None,
+    participant_user_ids: Optional[Sequence[str]] = None,
 ) -> Tuple[List[str], List[str], str, bool]:
     """
     Provider-agnostic contract:
-    generate_icebreakers(context) -> (reasons, icebreakers, model, cached)
+    generate_icebreakers(context, requester_user_id?, participant_user_ids?)
+    -> (reasons, icebreakers, model, cached)
     """
-    context_hash = _hash_sanitized_context(context)
-    cached_doc = await ChatNightIcebreakers.find_one(ChatNightIcebreakers.room_id == context.room_id)
-    if cached_doc:
-        cached_payload = _validate_output_shape(
-            {
-                "reasons": cached_doc.reasons,
-                "icebreakers": cached_doc.icebreakers,
-            }
-        )
-        if cached_payload and _passes_safety_filters(cached_payload):
+    provider_requested = _current_provider()
+    openai_enabled = provider_requested == OPENAI_PROVIDER and bool(_openai_api_key())
+    deterministic_payload = _safe_deterministic_payload(context)
+
+    try:
+        context_hash = _hash_sanitized_context(context)
+        cached_doc = await ChatNightIcebreakers.find_one(ChatNightIcebreakers.room_id == context.room_id)
+        if cached_doc:
+            cached_payload = _validate_output_shape(
+                {
+                    "reasons": cached_doc.reasons,
+                    "icebreakers": cached_doc.icebreakers,
+                }
+            )
+            if cached_payload and _passes_safety_filters(cached_payload):
+                return (
+                    cached_payload["reasons"],
+                    cached_payload["icebreakers"],
+                    _to_text(cached_doc.model) or MODEL_NONE,
+                    True,
+                )
+
+            repaired_model = MODEL_FALLBACK if openai_enabled else MODEL_NONE
+            try:
+                await _persist_cache(
+                    room_id=context.room_id,
+                    context_hash=context_hash,
+                    payload=deterministic_payload,
+                    model=repaired_model,
+                    provider_requested=provider_requested,
+                    requester_user_id=requester_user_id or cached_doc.requester_user_id,
+                    participant_user_ids=(
+                        participant_user_ids
+                        if participant_user_ids is not None
+                        else cached_doc.participant_user_ids
+                    ),
+                    openai_attempted_at=None,
+                    openai_attempted=False,
+                )
+            except Exception:
+                pass
             return (
-                cached_payload["reasons"],
-                cached_payload["icebreakers"],
-                _to_text(cached_doc.model) or MODEL_NONE,
+                deterministic_payload["reasons"],
+                deterministic_payload["icebreakers"],
+                repaired_model,
                 True,
             )
 
-    provider_requested = _current_provider()
-    deterministic_payload = _safe_deterministic_payload(context)
-    payload = deterministic_payload
-    model = MODEL_NONE
-    openai_attempted_at: Optional[datetime] = None
+        payload = deterministic_payload
+        model = MODEL_NONE
+        openai_attempted_at: Optional[datetime] = None
+        openai_attempted = False
 
-    openai_enabled = provider_requested == OPENAI_PROVIDER and bool(_openai_api_key())
-    if openai_enabled:
-        if await _openai_daily_cap_reached():
-            model = MODEL_FALLBACK
-        else:
-            openai_attempted_at = datetime.now(timezone.utc)
-            openai_payload = await _generate_openai_payload(context)
-            if openai_payload and _passes_safety_filters(openai_payload):
-                payload = openai_payload
-                model = _openai_model()
+        if openai_enabled:
+            allow_openai, _ = await should_call_openai(
+                room_id=context.room_id,
+                requester_user_id=requester_user_id,
+            )
+            if not allow_openai:
+                model = MODEL_FALLBACK
             else:
+                openai_attempted = True
+                openai_attempted_at = datetime.now(timezone.utc)
+                openai_payload = await _generate_openai_payload(context)
+                if openai_payload and _passes_safety_filters(openai_payload):
+                    payload = openai_payload
+                    model = _openai_model()
+                else:
+                    model = MODEL_FALLBACK
+
+        if not _passes_safety_filters(payload):
+            payload = deterministic_payload
+            if openai_enabled:
                 model = MODEL_FALLBACK
 
-    if not _passes_safety_filters(payload):
-        payload = deterministic_payload
-        if openai_enabled:
-            model = MODEL_FALLBACK
+        try:
+            await _persist_cache(
+                room_id=context.room_id,
+                context_hash=context_hash,
+                payload=payload,
+                model=model,
+                provider_requested=provider_requested,
+                requester_user_id=requester_user_id,
+                participant_user_ids=participant_user_ids,
+                openai_attempted_at=openai_attempted_at,
+                openai_attempted=openai_attempted,
+            )
+        except Exception:
+            pass
 
-    await _persist_cache(
-        room_id=context.room_id,
-        context_hash=context_hash,
-        payload=payload,
-        model=model,
-        provider_requested=provider_requested,
-        openai_attempted_at=openai_attempted_at,
-    )
-    return payload["reasons"], payload["icebreakers"], model, False
+        return payload["reasons"], payload["icebreakers"], model, False
+    except Exception:
+        return fallback_icebreakers_response(
+            context,
+            prefer_fallback=openai_enabled,
+        )

@@ -20,6 +20,7 @@ from app.services.event_logger import log_event
 from app.services.chat_night_matching_v5 import rank_candidates
 from app.services.ai_icebreakers import (
     build_sanitized_match_context,
+    fallback_icebreakers_response,
     generate_icebreakers,
 )
 from app.core.config import settings
@@ -658,7 +659,22 @@ async def get_icebreakers(
     except ValueError:
         raise HTTPException(404, "Room participants not found")
 
-    reasons, icebreakers, model_name, cached = await generate_icebreakers(context)
+    try:
+        reasons, icebreakers, model_name, cached = await generate_icebreakers(
+            context,
+            requester_user_id=uid,
+            participant_user_ids=[room.male_user_id, room.female_user_id],
+        )
+    except Exception:
+        prefer_fallback = (
+            os.getenv("CHAT_NIGHT_ICEBREAKERS_PROVIDER", "none").strip().lower() == "openai"
+            and bool(os.getenv("OPENAI_API_KEY", "").strip())
+        )
+        reasons, icebreakers, model_name, cached = fallback_icebreakers_response(
+            context,
+            prefer_fallback=prefer_fallback,
+        )
+
     return ChatNightIcebreakersResponse(
         room_id=room.room_id,
         reasons=reasons,

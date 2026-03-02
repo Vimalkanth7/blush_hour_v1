@@ -13,6 +13,17 @@ Notes:
 - Strict SanitizedMatchContext (no PII: no names, photos, bio, location, IDs).
 - Added verifier: `backend\verify_chat_night_icebreakers_contract.ps1` — PASS.
 
+
+## 🟢 W6-B3 — Icebreakers guardrails (budget + throttle controls) (backend)
+Status: DONE  
+Owner: Backend Agent + QA Agent  
+Tag: v1-w6b3-icebreakers-guardrails  
+
+Notes:
+- Added per-day/per-user/per-room limits and optional min-seconds-between OpenAI calls.
+- Cache-first behavior preserved; guardrail hit returns deterministic fallback with same contract.
+- Verified OpenAI mode returns cached=True on second call.
+
 ## 🟢 W6-A5 — Checklist gate: “2 browsers, 1 room”
 Status: DONE  
 Owner: QA Agent  
