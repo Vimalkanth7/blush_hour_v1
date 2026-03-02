@@ -48,3 +48,22 @@ class MatchUnlocked(Document):
             "room_id",
             "user_ids"
         ]
+
+
+class ChatNightIcebreakers(Document):
+    room_id: str = Field(..., unique=True)
+    reasons: List[str] = Field(default_factory=list)
+    icebreakers: List[str] = Field(default_factory=list)
+    model: str = "none"
+    provider_requested: str = "none"
+    context_hash: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    openai_attempted_at: Optional[datetime] = None
+
+    class Settings:
+        name = "chat_night_icebreakers"
+        indexes = [
+            "created_at",
+            "openai_attempted_at",
+        ]

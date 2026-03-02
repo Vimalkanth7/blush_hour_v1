@@ -4,9 +4,15 @@ $timestamp = Get-Date -Format "yyyyMMddHHmmss"
 $password = "ChatNightTest123!"
 
 Write-Host "===================================================" -ForegroundColor Yellow
-Write-Host " CHAT NIGHT ICEBREAKERS CONTRACT VERIFIER (W6-B1)  " -ForegroundColor Yellow
+Write-Host " CHAT NIGHT ICEBREAKERS CONTRACT VERIFIER (W6-B2)  " -ForegroundColor Yellow
 Write-Host "===================================================" -ForegroundColor Yellow
 Write-Host "Target Base URL: $baseUrl" -ForegroundColor Cyan
+
+$provider = if ([string]::IsNullOrWhiteSpace($env:CHAT_NIGHT_ICEBREAKERS_PROVIDER)) { "none" } else { $env:CHAT_NIGHT_ICEBREAKERS_PROVIDER.ToLower() }
+$apiKeyPresent = -not [string]::IsNullOrWhiteSpace($env:OPENAI_API_KEY)
+$configuredModel = if ([string]::IsNullOrWhiteSpace($env:CHAT_NIGHT_ICEBREAKERS_MODEL)) { "gpt-5-nano" } else { $env:CHAT_NIGHT_ICEBREAKERS_MODEL }
+$expectOpenAi = ($provider -eq "openai" -and $apiKeyPresent)
+Write-Host "Expected Mode: provider=$provider api_key_present=$apiKeyPresent expected_model=$configuredModel" -ForegroundColor DarkCyan
 
 try {
     Invoke-RestMethod -Uri "$baseUrl/health" -Method Get -ErrorAction Stop | Out-Null
@@ -179,6 +185,38 @@ function Assert-NoObviousPii {
     }
 }
 
+function Assert-Icebreakers-Shape {
+    param(
+        [Parameter(Mandatory = $true)] $response,
+        [Parameter(Mandatory = $true)] [string] $label
+    )
+
+    $reasonsCount = @($response.reasons).Count
+    $icebreakersCount = @($response.icebreakers).Count
+
+    if ($reasonsCount -ne 3) {
+        Write-Error "${label}: Expected 3 reasons, got $reasonsCount"
+        exit 1
+    }
+    if ($icebreakersCount -ne 5) {
+        Write-Error "${label}: Expected 5 icebreakers, got $icebreakersCount"
+        exit 1
+    }
+    if (-not ($response.PSObject.Properties.Name -contains "model")) {
+        Write-Error "${label}: Response missing 'model' field."
+        exit 1
+    }
+    if (-not ($response.PSObject.Properties.Name -contains "cached")) {
+        Write-Error "${label}: Response missing 'cached' field."
+        exit 1
+    }
+
+    $linesToCheck = @()
+    $linesToCheck += @($response.reasons)
+    $linesToCheck += @($response.icebreakers)
+    Assert-NoObviousPii -lines $linesToCheck -fieldName "$label reasons+icebreakers"
+}
+
 $maleToken = $null
 $femaleToken = $null
 
@@ -228,36 +266,33 @@ try {
     $headers = @{ Authorization = "Bearer $maleToken" }
     $reqBody = @{ room_id = $roomId } | ConvertTo-Json
     $response = Invoke-RestMethod -Uri "$chatNightBase/icebreakers" -Method Post -Headers $headers -Body $reqBody -ContentType "application/json"
+    $responseCached = Invoke-RestMethod -Uri "$chatNightBase/icebreakers" -Method Post -Headers $headers -Body $reqBody -ContentType "application/json"
 
-    $reasonsCount = @($response.reasons).Count
-    $icebreakersCount = @($response.icebreakers).Count
+    Assert-Icebreakers-Shape -response $response -label "first_call"
+    Assert-Icebreakers-Shape -response $responseCached -label "second_call"
 
-    if ($reasonsCount -ne 3) {
-        Write-Error "Expected 3 reasons, got $reasonsCount"
-        exit 1
+    if ($expectOpenAi) {
+        if ($response.model -ne $configuredModel) {
+            Write-Error "OpenAI mode expected model '$configuredModel', got '$($response.model)'."
+            exit 1
+        }
     }
-    if ($icebreakersCount -ne 5) {
-        Write-Error "Expected 5 icebreakers, got $icebreakersCount"
-        exit 1
-    }
-
-    if (-not ($response.PSObject.Properties.Name -contains "model")) {
-        Write-Error "Response missing 'model' field."
-        exit 1
-    }
-    if (-not ($response.PSObject.Properties.Name -contains "cached")) {
-        Write-Error "Response missing 'cached' field."
-        exit 1
+    else {
+        if ($response.model -ne "none") {
+            Write-Error "Deterministic mode expected model 'none', got '$($response.model)'."
+            exit 1
+        }
     }
 
-    $linesToCheck = @()
-    $linesToCheck += @($response.reasons)
-    $linesToCheck += @($response.icebreakers)
-    Assert-NoObviousPii -lines $linesToCheck -fieldName "reasons+icebreakers"
+    if ($responseCached.cached -ne $true) {
+        Write-Error "Expected second call to be cached=true, got '$($responseCached.cached)'."
+        exit 1
+    }
 
     Write-Host "PASS: chat night icebreakers contract verified" -ForegroundColor Green
     Write-Host "Room: $roomId"
-    Write-Host "Reasons: $reasonsCount | Icebreakers: $icebreakersCount | model=$($response.model) | cached=$($response.cached)"
+    Write-Host "First call: model=$($response.model) | cached=$($response.cached)"
+    Write-Host "Second call: model=$($responseCached.model) | cached=$($responseCached.cached)"
 }
 finally {
     if ($maleToken) { Leave-ChatNight $maleToken "male" }

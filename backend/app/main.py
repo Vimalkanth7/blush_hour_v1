@@ -5,7 +5,12 @@ from beanie import init_beanie
 
 from app.core.config import settings
 from app.models.user import User
-from app.models.chat_night import ChatNightPass, ChatNightRoom, MatchUnlocked
+from app.models.chat_night import (
+    ChatNightIcebreakers,
+    ChatNightPass,
+    ChatNightRoom,
+    MatchUnlocked,
+)
 from app.models.events import AppEvent
 from app.models.chat import ChatThread, ChatMessage
 from app.models.admin import AdminAuditLog, SystemConfig
@@ -22,6 +27,7 @@ async def lifespan(app: FastAPI):
             ChatNightPass, 
             ChatNightRoom, 
             MatchUnlocked,
+            ChatNightIcebreakers,
             AppEvent,
             ChatThread,
             ChatMessage,

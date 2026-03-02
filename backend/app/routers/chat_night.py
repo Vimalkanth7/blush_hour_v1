@@ -20,7 +20,7 @@ from app.services.event_logger import log_event
 from app.services.chat_night_matching_v5 import rank_candidates
 from app.services.ai_icebreakers import (
     build_sanitized_match_context,
-    generate_deterministic_icebreakers,
+    generate_icebreakers,
 )
 from app.core.config import settings
 
@@ -658,13 +658,13 @@ async def get_icebreakers(
     except ValueError:
         raise HTTPException(404, "Room participants not found")
 
-    payload = generate_deterministic_icebreakers(context)
+    reasons, icebreakers, model_name, cached = await generate_icebreakers(context)
     return ChatNightIcebreakersResponse(
         room_id=room.room_id,
-        reasons=payload["reasons"],
-        icebreakers=payload["icebreakers"],
-        model="none",
-        cached=False,
+        reasons=reasons,
+        icebreakers=icebreakers,
+        model=model_name,
+        cached=cached,
     )
 
 @router.get("/room/{room_id}", response_model=ChatNightRoomResponse)

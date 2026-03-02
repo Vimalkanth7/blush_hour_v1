@@ -3,11 +3,15 @@ from __future__ import annotations
 from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 import hashlib
+import json
+import os
 import re
 
+import httpx
 from beanie import PydanticObjectId
+from pydantic import BaseModel, Field, ValidationError
 
-from app.models.chat_night import ChatNightRoom
+from app.models.chat_night import ChatNightIcebreakers, ChatNightRoom
 from app.models.user import User
 from app.schemas.chat_night import SanitizedMatchContext, SanitizedPersonContext
 
@@ -17,6 +21,58 @@ EMAIL_PATTERN = re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", re.IGNO
 PHONE_PATTERN = re.compile(r"(?:\+?\d[\s\-()]*){7,}")
 HANDLE_PATTERN = re.compile(r"(?<!\w)@[A-Za-z0-9_]{2,}")
 URL_PATTERN = re.compile(r"(?:https?://|www\.)", re.IGNORECASE)
+EXACT_LOCATION_PATTERN = re.compile(
+    r"\b\d{1,5}\s+[A-Za-z0-9.\- ]+\s+(?:street|st|avenue|ave|road|rd|lane|ln|drive|dr)\b",
+    re.IGNORECASE,
+)
+BANNED_TOPIC_PATTERNS = [
+    re.compile(r"\b(?:self[\s\-]?harm|suicide|kill yourself)\b", re.IGNORECASE),
+    re.compile(r"\b(?:trauma|abuse|assault|rape)\b", re.IGNORECASE),
+]
+
+OPENAI_CHAT_COMPLETIONS_URL = "https://api.openai.com/v1/chat/completions"
+OPENAI_PROVIDER = "openai"
+MODEL_NONE = "none"
+MODEL_FALLBACK = "fallback"
+DEFAULT_OPENAI_MODEL = "gpt-5-nano"
+
+
+class _IcebreakerStructuredOutput(BaseModel):
+    reasons: List[str] = Field(min_length=3, max_length=3)
+    icebreakers: List[str] = Field(min_length=5, max_length=5)
+
+
+OPENAI_ICEBREAKERS_JSON_SCHEMA: Dict[str, Any] = {
+    "name": "chat_night_icebreakers",
+    "strict": True,
+    "schema": {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["reasons", "icebreakers"],
+        "properties": {
+            "reasons": {
+                "type": "array",
+                "minItems": 3,
+                "maxItems": 3,
+                "items": {
+                    "type": "string",
+                    "minLength": 4,
+                    "maxLength": 220,
+                },
+            },
+            "icebreakers": {
+                "type": "array",
+                "minItems": 5,
+                "maxItems": 5,
+                "items": {
+                    "type": "string",
+                    "minLength": 4,
+                    "maxLength": 220,
+                },
+            },
+        },
+    },
+}
 
 
 def _to_text(value: Any) -> str:
@@ -35,6 +91,69 @@ def _contains_obvious_pii(value: str) -> bool:
         or PHONE_PATTERN.search(value)
         or HANDLE_PATTERN.search(value)
         or URL_PATTERN.search(value)
+    )
+
+
+def _contains_exact_location(value: str) -> bool:
+    if not value:
+        return False
+    return bool(EXACT_LOCATION_PATTERN.search(value))
+
+
+def _contains_banned_topic(value: str) -> bool:
+    if not value:
+        return False
+    return any(pattern.search(value) for pattern in BANNED_TOPIC_PATTERNS)
+
+
+def _clean_output_line(value: str) -> str:
+    return re.sub(r"\s+", " ", _to_text(value)).strip()
+
+
+def _parse_int_env(name: str, default: int, min_value: int, max_value: int) -> int:
+    try:
+        value = int(os.getenv(name, str(default)))
+    except ValueError:
+        value = default
+    return max(min_value, min(max_value, value))
+
+
+def _current_provider() -> str:
+    return _to_text(os.getenv("CHAT_NIGHT_ICEBREAKERS_PROVIDER", MODEL_NONE)).lower() or MODEL_NONE
+
+
+def _openai_model() -> str:
+    return _to_text(os.getenv("CHAT_NIGHT_ICEBREAKERS_MODEL", DEFAULT_OPENAI_MODEL)) or DEFAULT_OPENAI_MODEL
+
+
+def _openai_api_key() -> str:
+    return _to_text(os.getenv("OPENAI_API_KEY", ""))
+
+
+def _openai_max_output_tokens() -> int:
+    return _parse_int_env(
+        "CHAT_NIGHT_ICEBREAKERS_MAX_OUTPUT_TOKENS",
+        default=300,
+        min_value=100,
+        max_value=400,
+    )
+
+
+def _openai_timeout_seconds() -> int:
+    return _parse_int_env(
+        "CHAT_NIGHT_ICEBREAKERS_TIMEOUT_SECONDS",
+        default=15,
+        min_value=5,
+        max_value=30,
+    )
+
+
+def _openai_max_calls_per_day() -> int:
+    return _parse_int_env(
+        "CHAT_NIGHT_ICEBREAKERS_MAX_CALLS_PER_DAY",
+        default=20,
+        min_value=0,
+        max_value=5000,
     )
 
 
@@ -359,3 +478,303 @@ def generate_deterministic_icebreakers(context: SanitizedMatchContext) -> Dict[s
         "reasons": reasons[:3],
         "icebreakers": icebreakers[:5],
     }
+
+
+def _hash_sanitized_context(context: SanitizedMatchContext) -> str:
+    stable_json = json.dumps(
+        context.model_dump(mode="json", exclude_none=True),
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha1(stable_json.encode("utf-8")).hexdigest()
+
+
+def _validate_output_shape(payload: Any) -> Optional[Dict[str, List[str]]]:
+    raw_payload: Any = payload
+    if isinstance(raw_payload, str):
+        try:
+            raw_payload = json.loads(raw_payload)
+        except json.JSONDecodeError:
+            return None
+
+    try:
+        parsed = _IcebreakerStructuredOutput.model_validate(raw_payload)
+    except ValidationError:
+        return None
+
+    reasons = [_clean_output_line(item) for item in parsed.reasons]
+    icebreakers = [_clean_output_line(item) for item in parsed.icebreakers]
+
+    if any(not line for line in reasons + icebreakers):
+        return None
+
+    return {
+        "reasons": reasons[:3],
+        "icebreakers": icebreakers[:5],
+    }
+
+
+def _passes_safety_filters(payload: Dict[str, List[str]]) -> bool:
+    lines: List[str] = []
+    lines.extend(payload.get("reasons", []))
+    lines.extend(payload.get("icebreakers", []))
+    for line in lines:
+        if (
+            _contains_obvious_pii(line)
+            or _contains_exact_location(line)
+            or _contains_banned_topic(line)
+        ):
+            return False
+    return True
+
+
+def _safe_deterministic_payload(context: SanitizedMatchContext) -> Dict[str, List[str]]:
+    payload = _validate_output_shape(generate_deterministic_icebreakers(context))
+    if payload and _passes_safety_filters(payload):
+        return payload
+
+    # Last-resort static payload to guarantee contract safety if deterministic generation regresses.
+    return {
+        "reasons": [
+            "Your profiles show enough overlap to make first messages easy to start.",
+            "You both shared interests and values that can keep the chat comfortable.",
+            "The match context supports a respectful and low-pressure first conversation.",
+        ],
+        "icebreakers": [
+            "What kind of weekend plan helps you reset for the week?",
+            "What is one small routine that reliably improves your day?",
+            "What topic can you discuss for hours without getting bored?",
+            "What is one goal you are currently excited about?",
+            "What does a relaxed evening usually look like for you?",
+        ],
+    }
+
+
+def _openai_messages(context: SanitizedMatchContext) -> List[Dict[str, str]]:
+    sanitized_payload = context.model_dump(mode="json", exclude_none=True)
+    serialized_context = json.dumps(sanitized_payload, ensure_ascii=True, sort_keys=True)
+
+    return [
+        {
+            "role": "system",
+            "content": (
+                "You generate safe dating-app conversation starters. "
+                "Use only the provided sanitized context. "
+                "Never include contact info, handles, links, addresses, trauma topics, or explicit sexual content. "
+                "Return strict JSON only."
+            ),
+        },
+        {
+            "role": "user",
+            "content": (
+                "Using this sanitized match context, produce exactly 3 concise reasons and exactly 5 concise "
+                f"icebreakers as JSON.\nContext: {serialized_context}"
+            ),
+        },
+    ]
+
+
+def _extract_openai_message_content(data: Dict[str, Any]) -> Optional[Any]:
+    choices = data.get("choices")
+    if not isinstance(choices, list) or not choices:
+        return None
+
+    message = choices[0].get("message")
+    if not isinstance(message, dict):
+        return None
+
+    parsed = message.get("parsed")
+    if isinstance(parsed, dict):
+        return parsed
+
+    content = message.get("content")
+    if isinstance(content, str):
+        return content
+
+    if isinstance(content, list):
+        text_parts: List[str] = []
+        for item in content:
+            if not isinstance(item, dict):
+                continue
+            text = item.get("text")
+            if isinstance(text, str):
+                text_parts.append(text)
+        if text_parts:
+            return "".join(text_parts)
+    return None
+
+
+async def _generate_openai_payload(context: SanitizedMatchContext) -> Optional[Dict[str, List[str]]]:
+    api_key = _openai_api_key()
+    if not api_key:
+        return None
+
+    request_base: Dict[str, Any] = {
+        "model": _openai_model(),
+        "temperature": 0,
+        "messages": _openai_messages(context),
+        "response_format": {
+            "type": "json_schema",
+            "json_schema": OPENAI_ICEBREAKERS_JSON_SCHEMA,
+        },
+    }
+
+    max_output_tokens = _openai_max_output_tokens()
+    request_variants = [
+        {**request_base, "max_completion_tokens": max_output_tokens},
+        {**request_base, "max_tokens": max_output_tokens},
+    ]
+
+    timeout = httpx.Timeout(_openai_timeout_seconds())
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        for req in request_variants:
+            try:
+                response = await client.post(
+                    OPENAI_CHAT_COMPLETIONS_URL,
+                    headers=headers,
+                    json=req,
+                )
+            except httpx.HTTPError:
+                continue
+
+            if response.status_code >= 400:
+                continue
+
+            try:
+                body = response.json()
+            except ValueError:
+                continue
+
+            raw_payload = _extract_openai_message_content(body)
+            if raw_payload is None:
+                continue
+
+            payload = _validate_output_shape(raw_payload)
+            if payload is None:
+                continue
+            return payload
+
+    return None
+
+
+async def _openai_daily_cap_reached() -> bool:
+    max_calls = _openai_max_calls_per_day()
+    if max_calls <= 0:
+        return True
+
+    day_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    try:
+        calls_today = await ChatNightIcebreakers.find(
+            ChatNightIcebreakers.provider_requested == OPENAI_PROVIDER,
+            ChatNightIcebreakers.openai_attempted_at >= day_start,
+        ).count()
+    except Exception:
+        # Fail-safe: if we cannot verify quota, avoid spend and fallback.
+        return True
+    return calls_today >= max_calls
+
+
+async def _persist_cache(
+    *,
+    room_id: str,
+    context_hash: str,
+    payload: Dict[str, List[str]],
+    model: str,
+    provider_requested: str,
+    openai_attempted_at: Optional[datetime],
+) -> None:
+    now = datetime.now(timezone.utc)
+    cache_doc = await ChatNightIcebreakers.find_one(ChatNightIcebreakers.room_id == room_id)
+    if not cache_doc:
+        cache_doc = ChatNightIcebreakers(
+            room_id=room_id,
+            reasons=payload["reasons"],
+            icebreakers=payload["icebreakers"],
+            model=model,
+            provider_requested=provider_requested,
+            context_hash=context_hash,
+            created_at=now,
+            updated_at=now,
+            openai_attempted_at=openai_attempted_at,
+        )
+        try:
+            await cache_doc.insert()
+        except Exception:
+            # Handle concurrent insert race by falling back to a save path.
+            cache_doc = await ChatNightIcebreakers.find_one(ChatNightIcebreakers.room_id == room_id)
+            if not cache_doc:
+                return
+
+    cache_doc.reasons = payload["reasons"]
+    cache_doc.icebreakers = payload["icebreakers"]
+    cache_doc.model = model
+    cache_doc.provider_requested = provider_requested
+    cache_doc.context_hash = context_hash
+    cache_doc.updated_at = now
+    if openai_attempted_at is not None:
+        cache_doc.openai_attempted_at = openai_attempted_at
+    await cache_doc.save()
+
+
+async def generate_icebreakers(
+    context: SanitizedMatchContext,
+) -> Tuple[List[str], List[str], str, bool]:
+    """
+    Provider-agnostic contract:
+    generate_icebreakers(context) -> (reasons, icebreakers, model, cached)
+    """
+    context_hash = _hash_sanitized_context(context)
+    cached_doc = await ChatNightIcebreakers.find_one(ChatNightIcebreakers.room_id == context.room_id)
+    if cached_doc:
+        cached_payload = _validate_output_shape(
+            {
+                "reasons": cached_doc.reasons,
+                "icebreakers": cached_doc.icebreakers,
+            }
+        )
+        if cached_payload and _passes_safety_filters(cached_payload):
+            return (
+                cached_payload["reasons"],
+                cached_payload["icebreakers"],
+                _to_text(cached_doc.model) or MODEL_NONE,
+                True,
+            )
+
+    provider_requested = _current_provider()
+    deterministic_payload = _safe_deterministic_payload(context)
+    payload = deterministic_payload
+    model = MODEL_NONE
+    openai_attempted_at: Optional[datetime] = None
+
+    openai_enabled = provider_requested == OPENAI_PROVIDER and bool(_openai_api_key())
+    if openai_enabled:
+        if await _openai_daily_cap_reached():
+            model = MODEL_FALLBACK
+        else:
+            openai_attempted_at = datetime.now(timezone.utc)
+            openai_payload = await _generate_openai_payload(context)
+            if openai_payload and _passes_safety_filters(openai_payload):
+                payload = openai_payload
+                model = _openai_model()
+            else:
+                model = MODEL_FALLBACK
+
+    if not _passes_safety_filters(payload):
+        payload = deterministic_payload
+        if openai_enabled:
+            model = MODEL_FALLBACK
+
+    await _persist_cache(
+        room_id=context.room_id,
+        context_hash=context_hash,
+        payload=payload,
+        model=model,
+        provider_requested=provider_requested,
+        openai_attempted_at=openai_attempted_at,
+    )
+    return payload["reasons"], payload["icebreakers"], model, False
