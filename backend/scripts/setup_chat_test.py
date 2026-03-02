@@ -11,7 +11,7 @@ from app.models.user import User
 from app.models.chat_night import MatchUnlocked
 from app.models.chat import ChatThread, ChatMessage
 from app.models.events import AppEvent
-from app.models.chat_night import ChatNightPass, ChatNightRoom 
+from app.models.chat_night import ChatNightIcebreakers, ChatNightPass, ChatNightRoom 
 import uuid
 # We need passlib context for password hash? No, just use placeholders.
 from app.core.security import get_password_hash
@@ -21,7 +21,16 @@ async def setup_test_data():
     client = AsyncIOMotorClient(settings.MONGODB_URL)
     await init_beanie(
         database=client[settings.DB_NAME], 
-        document_models=[User, ChatNightPass, ChatNightRoom, MatchUnlocked, AppEvent, ChatThread, ChatMessage]
+        document_models=[
+            User,
+            ChatNightPass,
+            ChatNightRoom,
+            MatchUnlocked,
+            ChatNightIcebreakers,
+            AppEvent,
+            ChatThread,
+            ChatMessage,
+        ]
     )
     
     print("Clearing Chat Data for clean test...")

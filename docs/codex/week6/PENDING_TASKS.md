@@ -32,7 +32,7 @@ Owner: Frontend Agent
 Tag: v1-w6a1_2-engage-ui-sync  
 Notes:
 - UI reflects `engage_status` transitions reliably.
-- Guards added to prevent bad states (missing token/roomId) and duplicate navigation.
+- Guards prevent bad states (missing token/roomId) and duplicate navigation.
 
 ### ✅ W6-A3 — NetworkError + recovery UX (frontend)
 Status: DONE  
@@ -62,7 +62,7 @@ Notes:
 ---
 
 ## 🟡 W6-B — AI-assisted matching quality (safe, controlled)
-Status: TODO  
+Status: IN PROGRESS  
 Owner: Backend Agent + QA Agent + Frontend Agent (as needed)  
 Depends on: W6-A
 
@@ -70,31 +70,44 @@ Goal:
 - Add AI-generated match reasons / icebreakers (non-sensitive, safe).
 - Add frequency controls and safety validation.
 
-Acceptance criteria:
-- AI reasons/icebreakers are policy-safe (no PII, no exact location, no trauma).
-- Rate limits + frequency controls prevent spam.
-- QA checks added for safety + PII exclusion.
+### ✅ W6-B1 — Icebreakers contract + deterministic fallback (backend)
+Status: DONE  
+Owner: Backend Agent + QA Agent  
+Tag: v1-w6b1-icebreakers-contract  
+Notes:
+- Added POST `/api/chat-night/icebreakers` (participant-only).
+- Uses SanitizedMatchContext (no names/photos/bio/location/IDs).
+- Deterministic generator returns exactly: **3 reasons + 5 icebreakers**.
+- New verifier: `backend\verify_chat_night_icebreakers_contract.ps1` — PASS.
 
-Verification:
-- New QA script/checklist for safety prompts — PASS
-- Existing regression scripts (Week3/4/5) — PASS
-
-
-## 🟡 W6-B — AI-assisted matching quality (safe, controlled)
-
+### 🟡 W6-B2 — OpenAI integration + spend guardrails
 Status: TODO  
-Owner: Backend Agent + QA Agent + Frontend Agent (as needed)  
-Depends on: W6-A
-
+Owner: Backend Agent  
 Goal:
-- Add AI-generated match reasons / icebreakers (non-sensitive, safe).
-- Add frequency controls and safety validation.
-
+- Call OpenAI (JSON-only) to generate reasons + icebreakers from SanitizedMatchContext.
+- Enforce strict budget controls (daily cap, per-room cap, request timeout).
 Acceptance criteria:
-- AI reasons/icebreakers are policy-safe (no PII, no exact location, no trauma).
-- Rate limits + frequency controls prevent spam.
-- QA checks added for safety + PII exclusion.
+- Never exceeds configured spend caps.
+- Fallback to deterministic generator on any failure.
 
-Verification:
-- New QA script/checklist for safety prompts — PASS
-- Existing regression scripts — PASS
+### 🟡 W6-B3 — Safety filter + caching
+Status: TODO  
+Owner: Backend Agent + QA Agent  
+Goal:
+- Post-filter AI output (PII + sensitive content) and return safe fallback if violated.
+- Cache per-room result (avoid repeat charges; rate/frequency controls).
+Acceptance criteria:
+- Output never contains PII (phone/email/handles/locations) or disallowed topics.
+- Cached results reused; no spammy repeated calls.
+
+### 🟡 W6-B4 — QA safety gate (scripts/checklist)
+Status: TODO  
+Owner: QA Agent  
+Goal:
+- Add QA script(s) to validate:
+  - output shape (3 reasons, 5 icebreakers)
+  - PII exclusion
+  - caching behavior
+  - spend guardrails behavior (dry-run / forced fallback)
+Acceptance criteria:
+- New QA checks PASS; existing regression scripts PASS.
