@@ -120,3 +120,57 @@ Tag:
 
 Risks / follow-ups:
 - A narrow simultaneous `/engage` race remains possible without a DB-level unique guard on unlock records.
+
+
+# Week 6 — Session Log
+
+## W6-A5 — Checklist-only regression gate
+Date: 2026-02-28  
+Agent: QA Agent (Antigravity)
+
+Files changed:
+- docs/QA/regression_checklist.md
+- docs/codex/week6/PENDING_TASKS.md
+- docs/codex/week6/COMPLETED_TASKS.md
+- docs/codex/week6/SESSION_LOG.md
+
+What changed:
+- Added `manual run browser check.txt` as PASS-required checklist reference in `docs/QA/regression_checklist.md`.
+- Updated Week 6 tracking: W6-A5 moved to DONE and recorded in completed tasks.
+
+How verified:
+- `git show --name-only --oneline HEAD` confirms docs-only change set.
+- `git status` clean after commit.
+
+Tag:
+- v1-w6a5-checklist-gate
+
+Risks / follow-ups:
+- None (docs-only change).
+
+---
+
+## W6-A4 — Polling-only realtime decision + hardening (docs-first)
+Date: 2026-02-28  
+Agent: Lead Agent + Backend Agent + Frontend Agent (Antigravity)
+
+Files changed:
+- docs/codex/week6/PENDING_TASKS.md
+- docs/codex/week6/COMPLETED_TASKS.md
+- docs/codex/week6/SESSION_LOG.md
+- manual run browser check.txt
+
+What changed:
+- Locked realtime decision for v1:
+  - Polling-only chosen
+  - WebSockets deferred
+- Documented hardening rules:
+  - Source of truth: `/api/chat-night/room/{room_id}`
+  - Poll cadence: foreground 2000ms, background 4000ms, error backoff 5000ms
+  - Immediate poll on app active / tab visibility / focus
+  - Guard against duplicate alerts/navigation
+  - 429 behavior: throttled/retry messaging + bounded backoff
+- Updated PASS-required “2 browsers, 1 room” checklist.
+
+Tag:
+- v1-w6a4-polling-only-decision

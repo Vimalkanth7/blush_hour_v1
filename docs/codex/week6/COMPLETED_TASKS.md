@@ -1,54 +1,49 @@
-﻿# Week 6 - Completed Tasks
+﻿# Week 6 — Completed Tasks
 
-## W6-A5 — Checklist gate: "2 browsers, 1 room"
-
+## 🟢 W6-A5 — Checklist gate: “2 browsers, 1 room”
 Status: DONE  
 Owner: QA Agent  
-Tag: v1-w6a5-checklist-gate
-
+Tag: v1-w6a5-checklist-gate  
 Notes:
 - Added `manual run browser check.txt` to PASS-required regression gate list in `docs/QA/regression_checklist.md`.
-- Week 6 tracking updated.
 
-## W6-A4 - Realtime approach decision + hardening (docs-first)
-
+## 🟢 W6-A4 — Realtime approach decision + hardening (docs-first)
 Status: DONE  
 Owner: Lead Agent + Backend Agent + Frontend Agent  
-Tag: v1-w6a4-polling-only-decision
-
+Tag: v1-w6a4-polling-only-decision  
 Notes:
 - Polling-only chosen for v1 realtime behavior in Talk Room.
 - WebSockets deferred to post-Week-6 scope.
-- Source of truth documented as `GET /api/chat-night/room/{room_id}`.
-- Polling hardening documented with explicit cadence/trigger rules:
-  - Foreground poll `2000ms`
-  - Background poll `4000ms`
-  - Error backoff `5000ms`
-  - Immediate poll on app-active, tab visibility return, and window focus
-- Expected guardrails documented: no duplicate alerts/navigation during unlock/end transitions.
-- `429` behavior documented: show throttled/retry messaging and keep bounded backoff.
-- PASS-required manual checklist expanded for "2 browsers, 1 room" including A3 recovery + A4 decision confirmation.
+- Hardening rules + deterministic manual checklist documented.
 
-## W6-A2 - Authoritative Talk Room timer (server-based)
-
+## 🟢 W6-A3 — Network recovery + bounded backoff (frontend)
 Status: DONE  
 Owner: Frontend Agent  
-Tag: v1-w6a2-authoritative-timer
-
+Tag: v1-w6a3-network-recovery  
 Notes:
-- Talk Room countdown is derived from backend-provided `seconds_remaining` (poll-synced) instead of pure client decrement.
-- Added snap-back refresh on focus/visibility/app-active so backgrounding does not drift.
-- Polling kept (no websockets) with controlled intervals/backoff.
-- Verified two-client drift stayed about 0-1s and snapped back after background.
+- Network state machine + bounded retry backoff.
+- Offline / 429 / 5xx handling.
 
-## W6-A1.1 - Engage sync + stale-room expiry normalization (backend)
+## 🟢 W6-A1.2 — Engage UI sync (frontend)
+Status: DONE  
+Owner: Frontend Agent  
+Tag: v1-w6a1_2-engage-ui-sync  
+Notes:
+- Engage status transitions reflected reliably.
+- No duplicate navigation/alerts.
 
+## 🟢 W6-A1.1 — Engage sync + stale-room expiry normalization (backend)
 Status: DONE  
 Owner: Backend Agent  
-Tag: v1-w6a1_1-engage-sync
-
+Tag: v1-w6a1_1-engage-sync  
 Notes:
-- Added shared room-state helpers to normalize expiry + compute `engage_status` consistently.
-- `/my-room` and `/room/{room_id}` now return consistent remaining time + engage state.
-- `/engage` made idempotent and safer (repeat engage does not duplicate side effects).
-- Added deterministic verifier: `backend\verify_talk_room_engage_sync.ps1` - PASS.
+- Shared room-state helpers normalize expiry + compute `engage_status`.
+- `/engage` idempotent; endpoints consistent.
+- Added verifier: `backend\verify_talk_room_engage_sync.ps1` — PASS.
+
+## 🟢 W6-A2 — Authoritative Talk Room timer (server-based)
+Status: DONE  
+Owner: Frontend Agent  
+Tag: v1-w6a2-authoritative-timer  
+Notes:
+- Timer derived from backend `seconds_remaining`, with snap-back refresh on focus/visibility/app-active.
