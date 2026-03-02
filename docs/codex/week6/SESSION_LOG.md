@@ -216,3 +216,32 @@ What changed:
 
 Tag:
 - v1-w6a4-polling-only-decision
+
+
+
+## W6-B3 — Icebreakers guardrails (budget + throttle) (backend)
+Date: 2026-03-03  
+Agent: Backend Agent + QA Agent (Antigravity)
+
+Files changed:
+- backend/app/services/ai_icebreakers.py
+- backend/app/models/chat_night.py
+- backend/app/routers/chat_night.py
+- backend/verify_chat_night_icebreakers_contract.ps1
+
+What changed:
+- Added spend/throttle guardrails (per-day, per-user, per-room, optional min-seconds-between).
+- Guardrail hit returns deterministic fallback; API contract unchanged (3 reasons + 5 icebreakers).
+- Cache-first remains: first call cached=false, second cached=true.
+
+How verified:
+- backend/verify_chat_night_v5_only.ps1 — PASS
+- backend/verify_chat_night_icebreakers_contract.ps1 (OpenAI) — PASS:
+  - First call model=gpt-4o-mini cached=False
+  - Second call model=gpt-4o-mini cached=True
+
+Tag:
+- v1-w6b3-icebreakers-guardrails
+
+Risks / follow-ups:
+- Keep production caps low to protect budget; verifier uses higher caps only for testing.

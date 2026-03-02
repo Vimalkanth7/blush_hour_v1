@@ -60,7 +60,6 @@ Notes:
 - Added to `docs/QA/regression_checklist.md` as PASS required.
 
 ---
-
 ## 🟡 W6-B — AI-assisted matching quality (safe, controlled)
 Status: IN PROGRESS  
 Owner: Backend Agent + QA Agent + Frontend Agent (as needed)  
@@ -72,42 +71,37 @@ Goal:
 
 ### ✅ W6-B1 — Icebreakers contract + deterministic fallback (backend)
 Status: DONE  
-Owner: Backend Agent + QA Agent  
 Tag: v1-w6b1-icebreakers-contract  
 Notes:
-- Added POST `/api/chat-night/icebreakers` (participant-only).
-- Uses SanitizedMatchContext (no names/photos/bio/location/IDs).
-- Deterministic generator returns exactly: **3 reasons + 5 icebreakers**.
-- New verifier: `backend\verify_chat_night_icebreakers_contract.ps1` — PASS.
+- Added POST /api/chat-night/icebreakers contract (3 reasons + 5 icebreakers).
+- Strict SanitizedMatchContext, PII filtering, deterministic fallback.
 
-### 🟡 W6-B2 — OpenAI integration + spend guardrails
+### ✅ W6-B2 — Cache + OpenAI provider integration (backend)
+Status: DONE  
+Tag: v1-w6b2-icebreakers-cache-openai  
+Notes:
+- Room-level caching so repeated calls are cached=true.
+- OpenAI-enabled generation with safe fallback if OpenAI fails.
+
+### ✅ W6-B3 — Guardrails (budget + throttle controls) (backend)
+Status: DONE  
+Tag: v1-w6b3-icebreakers-guardrails  
+Notes:
+- Added spend/throttle controls (per-day, per-user, per-room caps + optional min-seconds-between).
+- Guardrail hit returns deterministic fallback (no crash, contract preserved).
+
+### 🟡 W6-B4 — Frontend: show 5 icebreaker cards in Talk Room
 Status: TODO  
-Owner: Backend Agent  
+Owner: Frontend Agent  
 Goal:
-- Call OpenAI (JSON-only) to generate reasons + icebreakers from SanitizedMatchContext.
-- Enforce strict budget controls (daily cap, per-room cap, request timeout).
-Acceptance criteria:
-- Never exceeds configured spend caps.
-- Fallback to deterministic generator on any failure.
+- Fetch /icebreakers once per room and show 5 reveal-cards shared for both users.
+Verification:
+- Manual run checklist PASS + no extra OpenAI spend from refresh.
 
-### 🟡 W6-B3 — Safety filter + caching
-Status: TODO  
-Owner: Backend Agent + QA Agent  
-Goal:
-- Post-filter AI output (PII + sensitive content) and return safe fallback if violated.
-- Cache per-room result (avoid repeat charges; rate/frequency controls).
-Acceptance criteria:
-- Output never contains PII (phone/email/handles/locations) or disallowed topics.
-- Cached results reused; no spammy repeated calls.
-
-### 🟡 W6-B4 — QA safety gate (scripts/checklist)
+### 🟡 W6-B5 — QA: safety + cost regression gate
 Status: TODO  
 Owner: QA Agent  
 Goal:
-- Add QA script(s) to validate:
-  - output shape (3 reasons, 5 icebreakers)
-  - PII exclusion
-  - caching behavior
-  - spend guardrails behavior (dry-run / forced fallback)
-Acceptance criteria:
-- New QA checks PASS; existing regression scripts PASS.
+- Add QA checks ensuring no PII, stable JSON shape, cache works, and spend caps enforce fallback.
+Verification:
+- New QA script/checklist PASS + existing regressions PASS
