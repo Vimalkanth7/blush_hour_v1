@@ -57,13 +57,19 @@ class ChatNightIcebreakers(Document):
     model: str = "none"
     provider_requested: str = "none"
     context_hash: Optional[str] = None
+    requester_user_id: Optional[str] = None
+    participant_user_ids: List[str] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     openai_attempted_at: Optional[datetime] = None
+    openai_attempt_count: int = 0
 
     class Settings:
         name = "chat_night_icebreakers"
         indexes = [
             "created_at",
+            "updated_at",
             "openai_attempted_at",
+            [("provider_requested", 1), ("openai_attempted_at", -1)],
+            [("requester_user_id", 1), ("openai_attempted_at", -1)],
         ]

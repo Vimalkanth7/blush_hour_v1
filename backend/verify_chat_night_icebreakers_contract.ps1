@@ -4,15 +4,42 @@ $timestamp = Get-Date -Format "yyyyMMddHHmmss"
 $password = "ChatNightTest123!"
 
 Write-Host "===================================================" -ForegroundColor Yellow
-Write-Host " CHAT NIGHT ICEBREAKERS CONTRACT VERIFIER (W6-B2)  " -ForegroundColor Yellow
+Write-Host " CHAT NIGHT ICEBREAKERS CONTRACT VERIFIER (W6-B3)  " -ForegroundColor Yellow
 Write-Host "===================================================" -ForegroundColor Yellow
 Write-Host "Target Base URL: $baseUrl" -ForegroundColor Cyan
 
 $provider = if ([string]::IsNullOrWhiteSpace($env:CHAT_NIGHT_ICEBREAKERS_PROVIDER)) { "none" } else { $env:CHAT_NIGHT_ICEBREAKERS_PROVIDER.ToLower() }
 $apiKeyPresent = -not [string]::IsNullOrWhiteSpace($env:OPENAI_API_KEY)
-$configuredModel = if ([string]::IsNullOrWhiteSpace($env:CHAT_NIGHT_ICEBREAKERS_MODEL)) { "gpt-5-nano" } else { $env:CHAT_NIGHT_ICEBREAKERS_MODEL }
+$configuredModel = if ([string]::IsNullOrWhiteSpace($env:CHAT_NIGHT_ICEBREAKERS_MODEL)) { "gpt-4o-mini" } else { $env:CHAT_NIGHT_ICEBREAKERS_MODEL }
 $expectOpenAi = ($provider -eq "openai" -and $apiKeyPresent)
+
+function Get-EnvIntOrDefault {
+    param(
+        [Parameter(Mandatory = $true)] [string] $name,
+        [Parameter(Mandatory = $true)] [int] $defaultValue
+    )
+    $raw = [System.Environment]::GetEnvironmentVariable($name)
+    if ([string]::IsNullOrWhiteSpace($raw)) {
+        return $defaultValue
+    }
+    $parsed = 0
+    if ([int]::TryParse($raw, [ref]$parsed)) {
+        return $parsed
+    }
+    return $defaultValue
+}
+
+$maxCallsPerDay = Get-EnvIntOrDefault -name "CHAT_NIGHT_ICEBREAKERS_MAX_CALLS_PER_DAY" -defaultValue 20
+$maxCallsPerUserPerDay = Get-EnvIntOrDefault -name "CHAT_NIGHT_ICEBREAKERS_MAX_CALLS_PER_USER_PER_DAY" -defaultValue 20
+$maxCallsPerRoom = Get-EnvIntOrDefault -name "CHAT_NIGHT_ICEBREAKERS_MAX_CALLS_PER_ROOM" -defaultValue 1
+$minSecondsBetweenCalls = Get-EnvIntOrDefault -name "CHAT_NIGHT_ICEBREAKERS_MIN_SECONDS_BETWEEN_OPENAI_CALLS" -defaultValue 3
+$guardrailDailyCapMode = ($expectOpenAi -and $maxCallsPerDay -le 0)
+
 Write-Host "Expected Mode: provider=$provider api_key_present=$apiKeyPresent expected_model=$configuredModel" -ForegroundColor DarkCyan
+Write-Host "Guardrails: max_calls_day=$maxCallsPerDay max_calls_user_day=$maxCallsPerUserPerDay max_calls_room=$maxCallsPerRoom min_seconds_between=$minSecondsBetweenCalls" -ForegroundColor DarkCyan
+if ($guardrailDailyCapMode) {
+    Write-Host "Guardrail Scenario: DAILY CAP BLOCK (expect fallback/none on first call, cached=false)." -ForegroundColor Yellow
+}
 
 try {
     Invoke-RestMethod -Uri "$baseUrl/health" -Method Get -ErrorAction Stop | Out-Null
@@ -271,7 +298,17 @@ try {
     Assert-Icebreakers-Shape -response $response -label "first_call"
     Assert-Icebreakers-Shape -response $responseCached -label "second_call"
 
-    if ($expectOpenAi) {
+    if ($guardrailDailyCapMode) {
+        if (($response.model -ne "fallback") -and ($response.model -ne "none")) {
+            Write-Error "Guardrail mode expected model 'fallback' or 'none', got '$($response.model)'."
+            exit 1
+        }
+        if ($response.cached -ne $false) {
+            Write-Error "Guardrail mode expected first call cached=false, got '$($response.cached)'."
+            exit 1
+        }
+    }
+    elseif ($expectOpenAi) {
         if ($response.model -ne $configuredModel) {
             Write-Error "OpenAI mode expected model '$configuredModel', got '$($response.model)'."
             exit 1
@@ -289,7 +326,7 @@ try {
         exit 1
     }
 
-    Write-Host "PASS: chat night icebreakers contract verified" -ForegroundColor Green
+    Write-Host "PASS: chat night icebreakers contract verified (W6-B3)" -ForegroundColor Green
     Write-Host "Room: $roomId"
     Write-Host "First call: model=$($response.model) | cached=$($response.cached)"
     Write-Host "Second call: model=$($responseCached.model) | cached=$($responseCached.cached)"
