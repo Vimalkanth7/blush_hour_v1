@@ -1,5 +1,18 @@
 ﻿# Week 6 — Completed Tasks
 
+## 🟢 W6-B1 — Icebreakers contract + deterministic fallback (backend)
+Status: DONE  
+Owner: Backend Agent + QA Agent  
+Tag: v1-w6b1-icebreakers-contract  
+Notes:
+- Added POST `/api/chat-night/icebreakers` returning:
+  - `reasons` (3)
+  - `icebreakers` (5)
+  - `model` (none for now)
+  - `cached` (false for now)
+- Strict SanitizedMatchContext (no PII: no names, photos, bio, location, IDs).
+- Added verifier: `backend\verify_chat_night_icebreakers_contract.ps1` — PASS.
+
 ## 🟢 W6-A5 — Checklist gate: “2 browsers, 1 room”
 Status: DONE  
 Owner: QA Agent  

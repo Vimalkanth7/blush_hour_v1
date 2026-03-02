@@ -2,7 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, Body
 from app.models.user import User
 from app.models.chat_night import ChatNightPass, ChatNightRoom, MatchUnlocked
 from app.models.chat import ChatThread
-from app.schemas.chat_night import ChatNightStatus, ChatNightRoomResponse
+from app.schemas.chat_night import (
+    ChatNightStatus,
+    ChatNightRoomResponse,
+    ChatNightIcebreakersRequest,
+    ChatNightIcebreakersResponse,
+)
 from app.auth.dependencies import get_current_user
 from datetime import datetime, timedelta, timezone
 from typing import Optional, List, Dict
@@ -13,6 +18,10 @@ import uuid
 import re
 from app.services.event_logger import log_event
 from app.services.chat_night_matching_v5 import rank_candidates
+from app.services.ai_icebreakers import (
+    build_sanitized_match_context,
+    generate_deterministic_icebreakers,
+)
 from app.core.config import settings
 
 router = APIRouter()
@@ -629,6 +638,34 @@ async def leave_pool(current_user: User = Depends(get_current_user)):
     if uid in women_queue: women_queue.remove(uid)
     queue_wait_since.pop(uid, None)
     return {"status": "left"}
+
+
+@router.post("/icebreakers", response_model=ChatNightIcebreakersResponse)
+async def get_icebreakers(
+    data: ChatNightIcebreakersRequest,
+    current_user: User = Depends(get_current_user),
+):
+    room = await ChatNightRoom.find_one(ChatNightRoom.room_id == data.room_id)
+    if not room:
+        raise HTTPException(404, "Room not found")
+
+    uid = str(current_user.id)
+    if uid != room.male_user_id and uid != room.female_user_id:
+        raise HTTPException(403, "Not in room")
+
+    try:
+        context = await build_sanitized_match_context(room)
+    except ValueError:
+        raise HTTPException(404, "Room participants not found")
+
+    payload = generate_deterministic_icebreakers(context)
+    return ChatNightIcebreakersResponse(
+        room_id=room.room_id,
+        reasons=payload["reasons"],
+        icebreakers=payload["icebreakers"],
+        model="none",
+        cached=False,
+    )
 
 @router.get("/room/{room_id}", response_model=ChatNightRoomResponse)
 async def get_room(room_id: str, current_user: User = Depends(get_current_user)):

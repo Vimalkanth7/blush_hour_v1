@@ -1,5 +1,47 @@
 ﻿# Week 6 - Session Log
 
+## W6-B1 — Icebreakers contract + deterministic fallback (backend)
+
+Date: 2026-03-02  
+Agent: Backend Agent + QA Agent (Antigravity)
+
+Files changed:
+- backend/app/schemas/chat_night.py
+- backend/app/services/ai_icebreakers.py (new)
+- backend/app/routers/chat_night.py
+- backend/verify_chat_night_icebreakers_contract.ps1 (new)
+
+What changed:
+- Added POST `/api/chat-night/icebreakers` (participant-only) with stable request/response contract.
+- Implemented SanitizedMatchContext builder using only safe fields:
+  - age_bucket, interests, values, languages, whitelisted habits, optional intentions, prompt_topics (question-only).
+- Implemented deterministic generator (no OpenAI yet) returning exactly:
+  - 3 reasons + 5 icebreakers
+  - response includes `model="none"` and `cached=false`.
+- Added verifier `backend\verify_chat_night_icebreakers_contract.ps1` to assert:
+  - shape (3 reasons, 5 icebreakers)
+  - auth/404 behavior
+  - basic PII regex guardrails.
+
+Why:
+- Establish the stable API contract + safe sanitization layer first, so OpenAI integration can be added later without changing the endpoint.
+
+How verified:
+- Health: `Invoke-RestMethod http://localhost:8000/health` → healthy/connected
+- Regression guards:
+  - `backend\verify_profile_completion.ps1` — PASS
+  - `backend\verify_profile_strength_contract.ps1` — PASS
+  - `backend\verify_languages_habits_contract.ps1` — PASS
+  - `backend\verify_chat_night_v5_only.ps1` — PASS
+- New verifier:
+  - `backend\verify_chat_night_icebreakers_contract.ps1` — PASS
+
+Tag:
+- v1-w6b1-icebreakers-contract
+
+Risks / follow-ups:
+- W6-B2 will add OpenAI + spend caps; W6-B3 adds safety filter + caching; W6-B4 adds QA safety gate for AI output.
+
 ## W6-A5 — Checklist-only regression gate
 
 Date: 2026-02-28  
