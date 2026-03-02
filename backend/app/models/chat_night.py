@@ -54,6 +54,7 @@ class ChatNightIcebreakers(Document):
     room_id: str = Field(..., unique=True)
     reasons: List[str] = Field(default_factory=list)
     icebreakers: List[str] = Field(default_factory=list)
+    revealed_indices: List[int] = Field(default_factory=list)
     model: str = "none"
     provider_requested: str = "none"
     context_hash: Optional[str] = None
@@ -61,6 +62,7 @@ class ChatNightIcebreakers(Document):
     participant_user_ids: List[str] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
+    reveal_updated_at: Optional[datetime] = None
     openai_attempted_at: Optional[datetime] = None
     openai_attempt_count: int = 0
 
