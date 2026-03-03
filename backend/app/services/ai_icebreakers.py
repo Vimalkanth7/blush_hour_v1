@@ -1,26 +1,33 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from functools import lru_cache
+from typing import Annotated, Any, Dict, List, Optional, Sequence, Tuple, TypedDict
 import hashlib
 import json
 import os
 import re
 
-import httpx
 from beanie import PydanticObjectId
-from pydantic import BaseModel, Field, ValidationError
+from langchain_openai import ChatOpenAI
+from langgraph.graph import END, StateGraph
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, ValidationError
 
 from app.models.chat_night import ChatNightIcebreakers, ChatNightRoom
 from app.models.user import User
 from app.schemas.chat_night import SanitizedMatchContext, SanitizedPersonContext
 
 
+OUTPUT_REASON_COUNT = 3
+OUTPUT_ICEBREAKER_COUNT = 5
+OUTPUT_LINE_MIN_LEN = 4
+OUTPUT_LINE_MAX_LEN = 220
 ALLOWED_HABIT_KEYS = ("drinking", "smoking", "exercise", "kids")
 EMAIL_PATTERN = re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", re.IGNORECASE)
 PHONE_PATTERN = re.compile(r"(?:\+?\d[\s\-()]*){7,}")
 HANDLE_PATTERN = re.compile(r"(?<!\w)@[A-Za-z0-9_]{2,}")
 URL_PATTERN = re.compile(r"(?:https?://|www\.)", re.IGNORECASE)
+EMOJI_PATTERN = re.compile(r"[\U0001F300-\U0001FAFF\U00002600-\U000026FF\U00002700-\U000027BF]")
 EXACT_LOCATION_PATTERN = re.compile(
     r"\b\d{1,5}\s+[A-Za-z0-9.\- ]+\s+(?:street|st|avenue|ave|road|rd|lane|ln|drive|dr)\b",
     re.IGNORECASE,
@@ -29,50 +36,56 @@ BANNED_TOPIC_PATTERNS = [
     re.compile(r"\b(?:self[\s\-]?harm|suicide|kill yourself)\b", re.IGNORECASE),
     re.compile(r"\b(?:trauma|abuse|assault|rape)\b", re.IGNORECASE),
 ]
+BANNED_OUTPUT_PATTERNS = [
+    re.compile(r"\b(?:dm me|text me|call me)\b", re.IGNORECASE),
+]
 
-OPENAI_CHAT_COMPLETIONS_URL = "https://api.openai.com/v1/chat/completions"
 OPENAI_PROVIDER = "openai"
 MODEL_NONE = "none"
 MODEL_FALLBACK = "fallback"
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
+LANGSMITH_TRACING_FLAGS = ("LANGSMITH_TRACING", "LANGCHAIN_TRACING_V2")
+
+
+OutputLine = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True,
+        min_length=OUTPUT_LINE_MIN_LEN,
+        max_length=OUTPUT_LINE_MAX_LEN,
+    ),
+]
 
 
 class _IcebreakerStructuredOutput(BaseModel):
-    reasons: List[str] = Field(min_length=3, max_length=3)
-    icebreakers: List[str] = Field(min_length=5, max_length=5)
+    model_config = ConfigDict(extra="forbid")
+    reasons: List[OutputLine] = Field(
+        min_length=OUTPUT_REASON_COUNT,
+        max_length=OUTPUT_REASON_COUNT,
+    )
+    icebreakers: List[OutputLine] = Field(
+        min_length=OUTPUT_ICEBREAKER_COUNT,
+        max_length=OUTPUT_ICEBREAKER_COUNT,
+    )
 
 
-OPENAI_ICEBREAKERS_JSON_SCHEMA: Dict[str, Any] = {
-    "name": "chat_night_icebreakers",
-    "strict": True,
-    "schema": {
-        "type": "object",
-        "additionalProperties": False,
-        "required": ["reasons", "icebreakers"],
-        "properties": {
-            "reasons": {
-                "type": "array",
-                "minItems": 3,
-                "maxItems": 3,
-                "items": {
-                    "type": "string",
-                    "minLength": 4,
-                    "maxLength": 220,
-                },
-            },
-            "icebreakers": {
-                "type": "array",
-                "minItems": 5,
-                "maxItems": 5,
-                "items": {
-                    "type": "string",
-                    "minLength": 4,
-                    "maxLength": 220,
-                },
-            },
-        },
-    },
-}
+class _IcebreakerFlowState(TypedDict, total=False):
+    context: SanitizedMatchContext
+    requester_user_id: Optional[str]
+    participant_user_ids: Optional[List[str]]
+    provider_requested: str
+    openai_enabled: bool
+    context_hash: str
+    deterministic_payload: Dict[str, List[str]]
+    payload: Dict[str, List[str]]
+    model: str
+    cached: bool
+    openai_attempted_at: Optional[datetime]
+    openai_attempted: bool
+    should_call_llm: bool
+    should_persist: bool
+    persist_requester_user_id: Optional[str]
+    persist_participant_user_ids: Optional[List[str]]
 
 
 def _to_text(value: Any) -> str:
@@ -106,8 +119,42 @@ def _contains_banned_topic(value: str) -> bool:
     return any(pattern.search(value) for pattern in BANNED_TOPIC_PATTERNS)
 
 
+def _contains_banned_output_phrase(value: str) -> bool:
+    if not value:
+        return False
+    return any(pattern.search(value) for pattern in BANNED_OUTPUT_PATTERNS)
+
+
+def _contains_emoji(value: str) -> bool:
+    if not value:
+        return False
+    return bool(EMOJI_PATTERN.search(value))
+
+
 def _clean_output_line(value: str) -> str:
     return re.sub(r"\s+", " ", _to_text(value)).strip()
+
+
+def _is_valid_output_line(value: str) -> bool:
+    if not value:
+        return False
+    if len(value) < OUTPUT_LINE_MIN_LEN or len(value) > OUTPUT_LINE_MAX_LEN:
+        return False
+    if _contains_emoji(value):
+        return False
+    return True
+
+
+def _langsmith_tracing_enabled() -> bool:
+    for env_name in LANGSMITH_TRACING_FLAGS:
+        raw_value = _to_text(os.getenv(env_name, "")).lower()
+        if raw_value in {"1", "true", "yes", "on"}:
+            return True
+    return False
+
+
+def _hash_trace_value(value: str) -> str:
+    return hashlib.sha1(_to_text(value).encode("utf-8")).hexdigest()[:16]
 
 
 def _parse_int_env(name: str, default: int, min_value: int, max_value: int) -> int:
@@ -530,19 +577,30 @@ def _validate_output_shape(payload: Any) -> Optional[Dict[str, List[str]]]:
             return None
 
     try:
-        parsed = _IcebreakerStructuredOutput.model_validate(raw_payload)
+        parsed = (
+            raw_payload
+            if isinstance(raw_payload, _IcebreakerStructuredOutput)
+            else _IcebreakerStructuredOutput.model_validate(raw_payload)
+        )
     except ValidationError:
         return None
 
     reasons = [_clean_output_line(item) for item in parsed.reasons]
     icebreakers = [_clean_output_line(item) for item in parsed.icebreakers]
 
-    if any(not line for line in reasons + icebreakers):
+    if len(reasons) != OUTPUT_REASON_COUNT or len(icebreakers) != OUTPUT_ICEBREAKER_COUNT:
+        return None
+
+    normalized_lines = [line.lower() for line in reasons + icebreakers]
+    if len(set(normalized_lines)) != len(normalized_lines):
+        return None
+
+    if any(not _is_valid_output_line(line) for line in reasons + icebreakers):
         return None
 
     return {
-        "reasons": reasons[:3],
-        "icebreakers": icebreakers[:5],
+        "reasons": reasons[:OUTPUT_REASON_COUNT],
+        "icebreakers": icebreakers[:OUTPUT_ICEBREAKER_COUNT],
     }
 
 
@@ -555,6 +613,8 @@ def _passes_safety_filters(payload: Dict[str, List[str]]) -> bool:
             _contains_obvious_pii(line)
             or _contains_exact_location(line)
             or _contains_banned_topic(line)
+            or _contains_emoji(line)
+            or _contains_banned_output_phrase(line)
         ):
             return False
     return True
@@ -582,116 +642,90 @@ def _safe_deterministic_payload(context: SanitizedMatchContext) -> Dict[str, Lis
     }
 
 
-def _openai_messages(context: SanitizedMatchContext) -> List[Dict[str, str]]:
+def _openai_messages(context: SanitizedMatchContext) -> List[Tuple[str, str]]:
     sanitized_payload = context.model_dump(mode="json", exclude_none=True)
     serialized_context = json.dumps(sanitized_payload, ensure_ascii=True, sort_keys=True)
 
     return [
-        {
-            "role": "system",
-            "content": (
+        (
+            "system",
+            (
                 "You generate safe dating-app conversation starters. "
                 "Use only the provided sanitized context. "
-                "Never include contact info, handles, links, addresses, trauma topics, or explicit sexual content. "
-                "Return strict JSON only."
+                "Never include contact info, handles, links, addresses, trauma topics, explicit sexual content, "
+                "or emojis. Keep each line concise and under 220 characters."
             ),
-        },
-        {
-            "role": "user",
-            "content": (
+        ),
+        (
+            "human",
+            (
                 "Using this sanitized match context, produce exactly 3 concise reasons and exactly 5 concise "
-                f"icebreakers as JSON.\nContext: {serialized_context}"
+                f"icebreakers as strict JSON.\nContext: {serialized_context}"
             ),
-        },
+        ),
     ]
 
 
-def _extract_openai_message_content(data: Dict[str, Any]) -> Optional[Any]:
-    choices = data.get("choices")
-    if not isinstance(choices, list) or not choices:
-        return None
-
-    message = choices[0].get("message")
-    if not isinstance(message, dict):
-        return None
-
-    parsed = message.get("parsed")
-    if isinstance(parsed, dict):
-        return parsed
-
-    content = message.get("content")
-    if isinstance(content, str):
-        return content
-
-    if isinstance(content, list):
-        text_parts: List[str] = []
-        for item in content:
-            if not isinstance(item, dict):
-                continue
-            text = item.get("text")
-            if isinstance(text, str):
-                text_parts.append(text)
-        if text_parts:
-            return "".join(text_parts)
-    return None
+def _langsmith_invoke_config(
+    *,
+    run_name: str,
+    context: SanitizedMatchContext,
+    context_hash: str,
+) -> Dict[str, Any]:
+    metadata = {
+        "room_id_hash": _hash_trace_value(context.room_id),
+        "context_hash": context_hash,
+    }
+    config: Dict[str, Any] = {
+        "run_name": run_name,
+        "metadata": metadata,
+        "tags": ["chat-night", "icebreakers"],
+    }
+    if _langsmith_tracing_enabled():
+        config["metadata"]["langsmith_tracing"] = "enabled"
+    return config
 
 
-async def _generate_openai_payload(context: SanitizedMatchContext) -> Optional[Dict[str, List[str]]]:
+def _build_structured_openai_runnable(api_key: str) -> Any:
+    llm = ChatOpenAI(
+        model=_openai_model(),
+        api_key=api_key,
+        temperature=0,
+        timeout=_openai_timeout_seconds(),
+        max_retries=0,
+        max_completion_tokens=_openai_max_output_tokens(),
+    )
+    return llm.with_structured_output(
+        _IcebreakerStructuredOutput,
+        method="json_schema",
+        strict=True,
+    )
+
+
+async def _generate_openai_payload(
+    context: SanitizedMatchContext,
+    *,
+    context_hash: str,
+) -> Optional[Dict[str, List[str]]]:
     api_key = _openai_api_key()
     if not api_key:
         return None
 
-    request_base: Dict[str, Any] = {
-        "model": _openai_model(),
-        "temperature": 0,
-        "messages": _openai_messages(context),
-        "response_format": {
-            "type": "json_schema",
-            "json_schema": OPENAI_ICEBREAKERS_JSON_SCHEMA,
-        },
-    }
+    try:
+        structured_runnable = _build_structured_openai_runnable(api_key)
+        run_config = _langsmith_invoke_config(
+            run_name="chat-night-icebreakers-llm",
+            context=context,
+            context_hash=context_hash,
+        )
+        result = await structured_runnable.ainvoke(
+            _openai_messages(context),
+            config=run_config,
+        )
+    except Exception:
+        return None
 
-    max_output_tokens = _openai_max_output_tokens()
-    request_variants = [
-        {**request_base, "max_completion_tokens": max_output_tokens},
-        {**request_base, "max_tokens": max_output_tokens},
-    ]
-
-    timeout = httpx.Timeout(_openai_timeout_seconds())
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
-    }
-
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        for req in request_variants:
-            try:
-                response = await client.post(
-                    OPENAI_CHAT_COMPLETIONS_URL,
-                    headers=headers,
-                    json=req,
-                )
-            except httpx.HTTPError:
-                continue
-
-            if response.status_code >= 400:
-                continue
-
-            try:
-                body = response.json()
-            except ValueError:
-                continue
-
-            raw_payload = _extract_openai_message_content(body)
-            if raw_payload is None:
-                continue
-
-            payload = _validate_output_shape(raw_payload)
-            if payload is None:
-                continue
-            return payload
-
-    return None
+    return _validate_output_shape(result)
 
 
 def _normalize_user_ids(raw_user_ids: Optional[Sequence[str]]) -> List[str]:
@@ -840,6 +874,203 @@ def fallback_icebreakers_response(
     return payload["reasons"], payload["icebreakers"], model, False
 
 
+def _graph_build_context(state: _IcebreakerFlowState) -> _IcebreakerFlowState:
+    context = state["context"]
+    participant_user_ids = state.get("participant_user_ids")
+    participant_list = list(participant_user_ids) if participant_user_ids is not None else None
+    provider_requested = _current_provider()
+    openai_enabled = provider_requested == OPENAI_PROVIDER and bool(_openai_api_key())
+
+    return {
+        "provider_requested": provider_requested,
+        "openai_enabled": openai_enabled,
+        "context_hash": _hash_sanitized_context(context),
+        "deterministic_payload": _safe_deterministic_payload(context),
+        "payload": {},
+        "model": MODEL_NONE,
+        "cached": False,
+        "openai_attempted_at": None,
+        "openai_attempted": False,
+        "should_call_llm": False,
+        "should_persist": False,
+        "persist_requester_user_id": state.get("requester_user_id"),
+        "persist_participant_user_ids": participant_list,
+    }
+
+
+async def _graph_check_cache(state: _IcebreakerFlowState) -> _IcebreakerFlowState:
+    context = state["context"]
+    deterministic_payload = state["deterministic_payload"]
+    cached_doc = await ChatNightIcebreakers.find_one(ChatNightIcebreakers.room_id == context.room_id)
+
+    if not cached_doc:
+        return {
+            "payload": deterministic_payload,
+            "model": MODEL_NONE,
+            "cached": False,
+            "should_call_llm": True,
+            "should_persist": True,
+        }
+
+    cached_payload = _validate_output_shape(
+        {
+            "reasons": cached_doc.reasons,
+            "icebreakers": cached_doc.icebreakers,
+        }
+    )
+    if cached_payload and _passes_safety_filters(cached_payload):
+        return {
+            "payload": cached_payload,
+            "model": _to_text(cached_doc.model) or MODEL_NONE,
+            "cached": True,
+            "should_call_llm": False,
+            "should_persist": False,
+        }
+
+    participant_user_ids = state.get("persist_participant_user_ids")
+    repaired_model = MODEL_FALLBACK if state.get("openai_enabled", False) else MODEL_NONE
+    return {
+        "payload": deterministic_payload,
+        "model": repaired_model,
+        "cached": True,
+        "should_call_llm": False,
+        "should_persist": True,
+        "persist_requester_user_id": state.get("requester_user_id") or cached_doc.requester_user_id,
+        "persist_participant_user_ids": (
+            participant_user_ids
+            if participant_user_ids is not None
+            else list(cached_doc.participant_user_ids or [])
+        ),
+        "openai_attempted": False,
+        "openai_attempted_at": None,
+    }
+
+
+def _graph_route_after_cache(state: _IcebreakerFlowState) -> str:
+    if state.get("should_call_llm"):
+        return "call_llm_langchain"
+    if state.get("should_persist"):
+        return "persist_cache"
+    return "return"
+
+
+async def _graph_call_llm_langchain(state: _IcebreakerFlowState) -> _IcebreakerFlowState:
+    payload = state.get("payload") or state["deterministic_payload"]
+    if not state.get("openai_enabled", False):
+        return {
+            "payload": payload,
+            "model": MODEL_NONE,
+            "openai_attempted": False,
+            "openai_attempted_at": None,
+        }
+
+    allow_openai, _ = await should_call_openai(
+        room_id=state["context"].room_id,
+        requester_user_id=state.get("requester_user_id"),
+    )
+    if not allow_openai:
+        return {
+            "payload": payload,
+            "model": MODEL_FALLBACK,
+            "openai_attempted": False,
+            "openai_attempted_at": None,
+        }
+
+    openai_attempted_at = datetime.now(timezone.utc)
+    openai_payload = await _generate_openai_payload(
+        state["context"],
+        context_hash=state["context_hash"],
+    )
+    if not openai_payload:
+        return {
+            "payload": payload,
+            "model": MODEL_FALLBACK,
+            "openai_attempted": True,
+            "openai_attempted_at": openai_attempted_at,
+        }
+
+    return {
+        "payload": openai_payload,
+        "model": _openai_model(),
+        "openai_attempted": True,
+        "openai_attempted_at": openai_attempted_at,
+    }
+
+
+def _graph_validate_and_filter(state: _IcebreakerFlowState) -> _IcebreakerFlowState:
+    deterministic_payload = state["deterministic_payload"]
+    payload = _validate_output_shape(state.get("payload"))
+    model = _to_text(state.get("model")) or MODEL_NONE
+    openai_enabled = state.get("openai_enabled", False)
+
+    if payload is None:
+        payload = deterministic_payload
+        model = MODEL_FALLBACK if openai_enabled else MODEL_NONE
+
+    if not _passes_safety_filters(payload):
+        payload = deterministic_payload
+        model = MODEL_FALLBACK if openai_enabled else MODEL_NONE
+
+    return {
+        "payload": payload,
+        "model": model,
+    }
+
+
+async def _graph_persist_cache(state: _IcebreakerFlowState) -> _IcebreakerFlowState:
+    if not state.get("should_persist", False):
+        return {}
+
+    try:
+        await _persist_cache(
+            room_id=state["context"].room_id,
+            context_hash=state["context_hash"],
+            payload=state["payload"],
+            model=state["model"],
+            provider_requested=state["provider_requested"],
+            requester_user_id=state.get("persist_requester_user_id"),
+            participant_user_ids=state.get("persist_participant_user_ids"),
+            openai_attempted_at=state.get("openai_attempted_at"),
+            openai_attempted=bool(state.get("openai_attempted", False)),
+        )
+    except Exception:
+        pass
+    return {}
+
+
+def _graph_return(state: _IcebreakerFlowState) -> _IcebreakerFlowState:
+    return state
+
+
+@lru_cache(maxsize=1)
+def _icebreaker_graph():
+    graph = StateGraph(_IcebreakerFlowState)
+    graph.add_node("build_context", _graph_build_context)
+    graph.add_node("check_cache", _graph_check_cache)
+    graph.add_node("call_llm_langchain", _graph_call_llm_langchain)
+    graph.add_node("validate_and_filter", _graph_validate_and_filter)
+    graph.add_node("persist_cache", _graph_persist_cache)
+    graph.add_node("return", _graph_return)
+
+    graph.set_entry_point("build_context")
+    graph.add_edge("build_context", "check_cache")
+    graph.add_conditional_edges(
+        "check_cache",
+        _graph_route_after_cache,
+        {
+            "call_llm_langchain": "call_llm_langchain",
+            "persist_cache": "persist_cache",
+            "return": "return",
+        },
+    )
+    graph.add_edge("call_llm_langchain", "validate_and_filter")
+    graph.add_edge("validate_and_filter", "persist_cache")
+    graph.add_edge("persist_cache", "return")
+    graph.add_edge("return", END)
+
+    return graph.compile()
+
+
 async def generate_icebreakers(
     context: SanitizedMatchContext,
     *,
@@ -851,97 +1082,33 @@ async def generate_icebreakers(
     generate_icebreakers(context, requester_user_id?, participant_user_ids?)
     -> (reasons, icebreakers, model, cached)
     """
-    provider_requested = _current_provider()
-    openai_enabled = provider_requested == OPENAI_PROVIDER and bool(_openai_api_key())
-    deterministic_payload = _safe_deterministic_payload(context)
+    openai_enabled = _current_provider() == OPENAI_PROVIDER and bool(_openai_api_key())
+    context_hash = _hash_sanitized_context(context)
+    participant_list = list(participant_user_ids) if participant_user_ids is not None else None
 
     try:
-        context_hash = _hash_sanitized_context(context)
-        cached_doc = await ChatNightIcebreakers.find_one(ChatNightIcebreakers.room_id == context.room_id)
-        if cached_doc:
-            cached_payload = _validate_output_shape(
-                {
-                    "reasons": cached_doc.reasons,
-                    "icebreakers": cached_doc.icebreakers,
-                }
-            )
-            if cached_payload and _passes_safety_filters(cached_payload):
-                return (
-                    cached_payload["reasons"],
-                    cached_payload["icebreakers"],
-                    _to_text(cached_doc.model) or MODEL_NONE,
-                    True,
-                )
+        graph_state: _IcebreakerFlowState = {
+            "context": context,
+            "requester_user_id": requester_user_id,
+            "participant_user_ids": participant_list,
+        }
+        invoke_config = _langsmith_invoke_config(
+            run_name="chat-night-icebreakers-graph",
+            context=context,
+            context_hash=context_hash,
+        )
+        final_state = await _icebreaker_graph().ainvoke(graph_state, config=invoke_config)
 
-            repaired_model = MODEL_FALLBACK if openai_enabled else MODEL_NONE
-            try:
-                await _persist_cache(
-                    room_id=context.room_id,
-                    context_hash=context_hash,
-                    payload=deterministic_payload,
-                    model=repaired_model,
-                    provider_requested=provider_requested,
-                    requester_user_id=requester_user_id or cached_doc.requester_user_id,
-                    participant_user_ids=(
-                        participant_user_ids
-                        if participant_user_ids is not None
-                        else cached_doc.participant_user_ids
-                    ),
-                    openai_attempted_at=None,
-                    openai_attempted=False,
-                )
-            except Exception:
-                pass
-            return (
-                deterministic_payload["reasons"],
-                deterministic_payload["icebreakers"],
-                repaired_model,
-                True,
+        payload = _validate_output_shape(final_state.get("payload"))
+        if not payload or not _passes_safety_filters(payload):
+            return fallback_icebreakers_response(
+                context,
+                prefer_fallback=openai_enabled,
             )
 
-        payload = deterministic_payload
-        model = MODEL_NONE
-        openai_attempted_at: Optional[datetime] = None
-        openai_attempted = False
-
-        if openai_enabled:
-            allow_openai, _ = await should_call_openai(
-                room_id=context.room_id,
-                requester_user_id=requester_user_id,
-            )
-            if not allow_openai:
-                model = MODEL_FALLBACK
-            else:
-                openai_attempted = True
-                openai_attempted_at = datetime.now(timezone.utc)
-                openai_payload = await _generate_openai_payload(context)
-                if openai_payload and _passes_safety_filters(openai_payload):
-                    payload = openai_payload
-                    model = _openai_model()
-                else:
-                    model = MODEL_FALLBACK
-
-        if not _passes_safety_filters(payload):
-            payload = deterministic_payload
-            if openai_enabled:
-                model = MODEL_FALLBACK
-
-        try:
-            await _persist_cache(
-                room_id=context.room_id,
-                context_hash=context_hash,
-                payload=payload,
-                model=model,
-                provider_requested=provider_requested,
-                requester_user_id=requester_user_id,
-                participant_user_ids=participant_user_ids,
-                openai_attempted_at=openai_attempted_at,
-                openai_attempted=openai_attempted,
-            )
-        except Exception:
-            pass
-
-        return payload["reasons"], payload["icebreakers"], model, False
+        model_name = _to_text(final_state.get("model")) or MODEL_NONE
+        cached = bool(final_state.get("cached", False))
+        return payload["reasons"], payload["icebreakers"], model_name, cached
     except Exception:
         return fallback_icebreakers_response(
             context,
