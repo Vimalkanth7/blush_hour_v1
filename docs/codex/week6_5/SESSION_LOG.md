@@ -3,6 +3,9 @@
 ## W6.5-B — LangChain/LangGraph/LangSmith internals (backend)
 Date: 2026-03-03  
 Agent: Backend Agent + QA Agent (Antigravity)
+## W6.5-A — Spec + Week 6.5 tracking initialized
+Date: 2026-03-03  
+Agent: Lead/Docs Agent (Antigravity)
 
 Files changed:
 - backend/app/services/ai_icebreakers.py
@@ -23,3 +26,16 @@ How verified:
 
 Follow-ups:
 - Manual Mode 2 (OpenAI key path) must PASS before marking W6.5-B fully DONE.
+- Initialized Week 6.5 tracking files.
+- Locked Week 6.5 scope as an INTERNAL upgrade:
+  - LangChain/LangGraph/LangSmith integration
+  - No API contract changes
+  - No frontend rework
+
+How verified:
+- git status --short
+- git diff --name-only (scoped to docs/codex/week6_5/**)
+
+Risks / follow-ups:
+- Keep LangSmith OFF by default; enable only in dev.
+- Keep caps low to protect the $4.64 credit.
