@@ -297,3 +297,51 @@ Tag:
 
 Risks / follow-ups:
 - Keep production caps low to protect budget; verifier uses higher caps only for testing.
+
+
+
+############################
+
+# Week 6 — Session Log
+
+## Week 6 Close-out
+Date: 2026-03-03  
+Tag: v1-w6b-close  
+Summary:
+- Week 6-A completed: Talk Room timer, engage sync, network recovery, polling-only hardening, and regression gate checklist.
+- Week 6-B completed: icebreakers contract → OpenAI+cache → guardrails → shared reveal sync → frontend UI + QA gating.
+
+Known reality checks:
+- Some verification scripts require specific backend env flags (match_meta on/off) to pass.
+- Some scripts require spacing (~70s) due to rate-limit 5/min.
+
+---
+
+## W6-B4 — Icebreakers UI + shared reveal sync (frontend+backend)
+Date: 2026-03-03  
+Files:
+- backend: added reveal indices to cache + reveal endpoint + reveal sync verifier
+- frontend: Talk Room renders 5 cards, fetches /icebreakers once per room, and syncs revealed indices from server
+Verification:
+- backend\verify_chat_night_icebreakers_contract.ps1 — PASS
+- backend\verify_chat_night_icebreakers_reveal_sync.ps1 — PASS
+- manual run browser check.txt — PASS (2 browsers; reveals sync both ways)
+
+---
+
+## W6-B2/W6-B3 — OpenAI provider + cache + guardrails (backend)
+Date: 2026-03-03  
+Notes:
+- Cache-first behavior prevents repeat OpenAI spend.
+- Guardrails enforce spend caps + throttle; failure falls back safely without breaking contract.
+
+---
+
+## W6-A — Realtime stabilization summary
+Date: 2026-02-23 to 2026-02-28  
+Notes:
+- Timer derived from backend seconds_remaining with snap-back on focus/visibility/app-active.
+- Engage state made consistent across endpoints and UI.
+- Network recovery state machine added with bounded backoff.
+- Polling-only locked for v1.
+- Manual PASS checklist introduced as regression gate.
