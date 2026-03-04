@@ -1,0 +1,302 @@
+[
+  {
+    "case_id": "case_01_balanced_routines",
+    "context": {
+      "room_id": "fixture-room-placeholder",
+      "person_a": {
+        "age_bucket": "bucket_25_29",
+        "interests": ["sunrise-walks", "small-batch-coffee", "playlist-sharing"],
+        "values": ["kindness", "consistency"],
+        "languages": ["lang_alpha", "lang_beta"],
+        "habits": { "drinking": "rarely", "smoking": "never", "exercise": "regular", "kids": "undecided" },
+        "intentions": "intent_connection",
+        "prompt_topics": ["weekend-routine", "favorite-snack", "music-discovery"]
+      },
+      "person_b": {
+        "age_bucket": "bucket_27_31",
+        "interests": ["trail-walks", "tea-experiments", "vinyl-sessions"],
+        "values": ["growth", "humor"],
+        "languages": ["lang_alpha"],
+        "habits": { "drinking": "sometimes", "smoking": "never", "exercise": "regular", "kids": "undecided" },
+        "intentions": "intent_connection",
+        "prompt_topics": ["morning-energy", "comfort-food", "live-music"]
+      },
+      "constraints": { "no_pii": true, "no_exact_location": true, "no_trauma_content": true }
+    }
+  },
+  {
+    "case_id": "case_02_creative_indoor",
+    "context": {
+      "room_id": "fixture-room-placeholder",
+      "person_a": {
+        "age_bucket": "bucket_23_27",
+        "interests": ["sketching", "board-games", "home-baking"],
+        "values": ["curiosity", "patience"],
+        "languages": ["lang_gamma"],
+        "habits": { "drinking": "never", "smoking": "never", "exercise": "light", "kids": "open" },
+        "intentions": "intent_relationship",
+        "prompt_topics": ["creative-hobbies", "favorite-board-game", "cozy-evening"]
+      },
+      "person_b": {
+        "age_bucket": "bucket_24_28",
+        "interests": ["puzzle-nights", "dessert-making", "indie-movies"],
+        "values": ["empathy", "playfulness"],
+        "languages": ["lang_gamma", "lang_delta"],
+        "habits": { "drinking": "rarely", "smoking": "never", "exercise": "light", "kids": "open" },
+        "intentions": "intent_relationship",
+        "prompt_topics": ["movie-picks", "kitchen-experiments", "quiet-weekend"]
+      },
+      "constraints": { "no_pii": true, "no_exact_location": true, "no_trauma_content": true }
+    }
+  },
+  {
+    "case_id": "case_03_language_exchange",
+    "context": {
+      "room_id": "fixture-room-placeholder",
+      "person_a": {
+        "age_bucket": "bucket_29_33",
+        "interests": ["conversation-clubs", "audio-books", "street-photography"],
+        "values": ["learning", "respect"],
+        "languages": ["lang_alpha", "lang_epsilon"],
+        "habits": { "drinking": "sometimes", "smoking": "never", "exercise": "moderate", "kids": "undecided" },
+        "intentions": "intent_friendship_plus",
+        "prompt_topics": ["new-phrases", "storytelling", "photo-walks"]
+      },
+      "person_b": {
+        "age_bucket": "bucket_30_34",
+        "interests": ["word-games", "museum-days", "podcast-swaps"],
+        "values": ["clarity", "humor"],
+        "languages": ["lang_beta", "lang_epsilon"],
+        "habits": { "drinking": "rarely", "smoking": "never", "exercise": "moderate", "kids": "undecided" },
+        "intentions": "intent_friendship_plus",
+        "prompt_topics": ["favorite-phrases", "weekend-learning", "creative-conversations"]
+      },
+      "constraints": { "no_pii": true, "no_exact_location": true, "no_trauma_content": true }
+    }
+  },
+  {
+    "case_id": "case_04_early_late_balance",
+    "context": {
+      "room_id": "fixture-room-placeholder",
+      "person_a": {
+        "age_bucket": "bucket_26_30",
+        "interests": ["sunrise-journaling", "farmers-market-style", "yoga-flow"],
+        "values": ["discipline", "optimism"],
+        "languages": ["lang_alpha"],
+        "habits": { "drinking": "never", "smoking": "never", "exercise": "high", "kids": "undecided" },
+        "intentions": "intent_connection",
+        "prompt_topics": ["morning-ritual", "goal-tracking", "healthy-snacks"]
+      },
+      "person_b": {
+        "age_bucket": "bucket_27_31",
+        "interests": ["late-night-reading", "ambient-music", "city-walks-style"],
+        "values": ["creativity", "calm"],
+        "languages": ["lang_alpha", "lang_theta"],
+        "habits": { "drinking": "sometimes", "smoking": "never", "exercise": "moderate", "kids": "open" },
+        "intentions": "intent_connection",
+        "prompt_topics": ["night-routine", "book-recommendations", "wind-down-habits"]
+      },
+      "constraints": { "no_pii": true, "no_exact_location": true, "no_trauma_content": true }
+    }
+  },
+  {
+    "case_id": "case_05_outdoor_food_mix",
+    "context": {
+      "room_id": "fixture-room-placeholder",
+      "person_a": {
+        "age_bucket": "bucket_28_32",
+        "interests": ["trail-running", "street-food-style", "weekend-picnics"],
+        "values": ["adventure", "kindness"],
+        "languages": ["lang_delta"],
+        "habits": { "drinking": "sometimes", "smoking": "never", "exercise": "high", "kids": "open" },
+        "intentions": "intent_relationship",
+        "prompt_topics": ["favorite-flavors", "outdoor-plans", "active-date-ideas"]
+      },
+      "person_b": {
+        "age_bucket": "bucket_29_33",
+        "interests": ["camp-cooking", "photo-walks", "weekend-markets-style"],
+        "values": ["warmth", "spontaneity"],
+        "languages": ["lang_delta", "lang_iota"],
+        "habits": { "drinking": "rarely", "smoking": "never", "exercise": "moderate", "kids": "open" },
+        "intentions": "intent_relationship",
+        "prompt_topics": ["recipe-swaps", "sunset-plans", "favorite-outdoor-snacks"]
+      },
+      "constraints": { "no_pii": true, "no_exact_location": true, "no_trauma_content": true }
+    }
+  },
+  {
+    "case_id": "case_06_sparse_profile",
+    "context": {
+      "room_id": "fixture-room-placeholder",
+      "person_a": {
+        "age_bucket": "bucket_unknown",
+        "interests": [],
+        "values": ["kindness"],
+        "languages": [],
+        "habits": { "drinking": "unknown", "smoking": "unknown", "exercise": "unknown", "kids": "unknown" },
+        "intentions": "intent_connection",
+        "prompt_topics": []
+      },
+      "person_b": {
+        "age_bucket": "bucket_unknown",
+        "interests": ["quiet-cafes-style"],
+        "values": [],
+        "languages": ["lang_lambda"],
+        "habits": { "drinking": "unknown", "smoking": "unknown", "exercise": "unknown", "kids": "unknown" },
+        "intentions": "intent_connection",
+        "prompt_topics": ["easy-openers"]
+      },
+      "constraints": { "no_pii": true, "no_exact_location": true, "no_trauma_content": true }
+    }
+  },
+  {
+    "case_id": "case_07_values_alignment",
+    "context": {
+      "room_id": "fixture-room-placeholder",
+      "person_a": {
+        "age_bucket": "bucket_31_35",
+        "interests": ["book-clubs", "volunteer-projects-style", "long-walks"],
+        "values": ["integrity", "community"],
+        "languages": ["lang_mu"],
+        "habits": { "drinking": "rarely", "smoking": "never", "exercise": "moderate", "kids": "open" },
+        "intentions": "intent_relationship",
+        "prompt_topics": ["values-in-action", "ideal-weekend", "group-activities"]
+      },
+      "person_b": {
+        "age_bucket": "bucket_30_34",
+        "interests": ["reading-nooks", "community-gardens-style", "coffee-chats"],
+        "values": ["community", "honesty"],
+        "languages": ["lang_mu", "lang_nu"],
+        "habits": { "drinking": "never", "smoking": "never", "exercise": "moderate", "kids": "open" },
+        "intentions": "intent_relationship",
+        "prompt_topics": ["meaningful-conversations", "small-rituals", "future-goals"]
+      },
+      "constraints": { "no_pii": true, "no_exact_location": true, "no_trauma_content": true }
+    }
+  },
+  {
+    "case_id": "case_08_humor_overlap",
+    "context": {
+      "room_id": "fixture-room-placeholder",
+      "person_a": {
+        "age_bucket": "bucket_24_28",
+        "interests": ["improv-games", "meme-culture-style", "short-video-edits"],
+        "values": ["playfulness", "authenticity"],
+        "languages": ["lang_xi"],
+        "habits": { "drinking": "sometimes", "smoking": "never", "exercise": "light", "kids": "undecided" },
+        "intentions": "intent_connection",
+        "prompt_topics": ["funny-moments", "low-stakes-challenges", "weeknight-fun"]
+      },
+      "person_b": {
+        "age_bucket": "bucket_25_29",
+        "interests": ["standup-clips", "party-games", "voice-note-jokes"],
+        "values": ["humor", "kindness"],
+        "languages": ["lang_xi", "lang_omicron"],
+        "habits": { "drinking": "sometimes", "smoking": "never", "exercise": "light", "kids": "undecided" },
+        "intentions": "intent_connection",
+        "prompt_topics": ["best-joke-format", "friendly-competitions", "comfort-shows"]
+      },
+      "constraints": { "no_pii": true, "no_exact_location": true, "no_trauma_content": true }
+    }
+  },
+  {
+    "case_id": "case_09_habit_contrast",
+    "context": {
+      "room_id": "fixture-room-placeholder",
+      "person_a": {
+        "age_bucket": "bucket_33_37",
+        "interests": ["distance-cycling", "meal-prep", "calendar-planning"],
+        "values": ["discipline", "stability"],
+        "languages": ["lang_pi"],
+        "habits": { "drinking": "never", "smoking": "never", "exercise": "high", "kids": "open" },
+        "intentions": "intent_relationship",
+        "prompt_topics": ["structured-week", "habit-building", "consistent-routines"]
+      },
+      "person_b": {
+        "age_bucket": "bucket_32_36",
+        "interests": ["spontaneous-roadtrips-style", "new-cafes-style", "live-events"],
+        "values": ["freedom", "curiosity"],
+        "languages": ["lang_pi", "lang_rho"],
+        "habits": { "drinking": "sometimes", "smoking": "rarely", "exercise": "moderate", "kids": "open" },
+        "intentions": "intent_relationship",
+        "prompt_topics": ["balanced-routines", "spontaneous-plans", "new-experiences"]
+      },
+      "constraints": { "no_pii": true, "no_exact_location": true, "no_trauma_content": true }
+    }
+  },
+  {
+    "case_id": "case_10_learning_curiosity",
+    "context": {
+      "room_id": "fixture-room-placeholder",
+      "person_a": {
+        "age_bucket": "bucket_27_31",
+        "interests": ["micro-courses", "language-drills", "science-podcasts"],
+        "values": ["curiosity", "focus"],
+        "languages": ["lang_sigma"],
+        "habits": { "drinking": "rarely", "smoking": "never", "exercise": "moderate", "kids": "undecided" },
+        "intentions": "intent_friendship_plus",
+        "prompt_topics": ["recent-learning", "favorite-topics", "nerdy-fun-facts"]
+      },
+      "person_b": {
+        "age_bucket": "bucket_28_32",
+        "interests": ["maker-projects", "nonfiction-reading", "skill-swaps"],
+        "values": ["growth", "kindness"],
+        "languages": ["lang_sigma", "lang_tau"],
+        "habits": { "drinking": "never", "smoking": "never", "exercise": "moderate", "kids": "undecided" },
+        "intentions": "intent_friendship_plus",
+        "prompt_topics": ["new-skills", "hands-on-projects", "curious-questions"]
+      },
+      "constraints": { "no_pii": true, "no_exact_location": true, "no_trauma_content": true }
+    }
+  },
+  {
+    "case_id": "case_11_storytelling_travel_style",
+    "context": {
+      "room_id": "fixture-room-placeholder",
+      "person_a": {
+        "age_bucket": "bucket_29_33",
+        "interests": ["storytelling", "photo-diaries", "food-trails-style"],
+        "values": ["openness", "joy"],
+        "languages": ["lang_upsilon"],
+        "habits": { "drinking": "sometimes", "smoking": "never", "exercise": "moderate", "kids": "open" },
+        "intentions": "intent_connection",
+        "prompt_topics": ["best-trip-memory-style", "unexpected-moments", "favorite-flavors"]
+      },
+      "person_b": {
+        "age_bucket": "bucket_30_34",
+        "interests": ["journal-writing", "street-photography", "culture-podcasts-style"],
+        "values": ["curiosity", "warmth"],
+        "languages": ["lang_upsilon", "lang_phi"],
+        "habits": { "drinking": "rarely", "smoking": "never", "exercise": "light", "kids": "open" },
+        "intentions": "intent_connection",
+        "prompt_topics": ["memorable-adventures-style", "travel-routines-style", "conversation-starters"]
+      },
+      "constraints": { "no_pii": true, "no_exact_location": true, "no_trauma_content": true }
+    }
+  },
+  {
+    "case_id": "case_12_active_chill_mix",
+    "context": {
+      "room_id": "fixture-room-placeholder",
+      "person_a": {
+        "age_bucket": "bucket_26_30",
+        "interests": ["climbing-gym-style", "brunch-cooking", "weekend-runs"],
+        "values": ["energy", "humor"],
+        "languages": ["lang_chi"],
+        "habits": { "drinking": "sometimes", "smoking": "never", "exercise": "high", "kids": "undecided" },
+        "intentions": "intent_connection",
+        "prompt_topics": ["active-plans", "post-workout-snacks", "favorite-weekend-rhythm"]
+      },
+      "person_b": {
+        "age_bucket": "bucket_27_31",
+        "interests": ["slow-mornings", "tea-time", "movie-marathons"],
+        "values": ["calm", "kindness"],
+        "languages": ["lang_chi", "lang_psi"],
+        "habits": { "drinking": "rarely", "smoking": "never", "exercise": "light", "kids": "undecided" },
+        "intentions": "intent_connection",
+        "prompt_topics": ["cozy-evenings", "favorite-comfort-ritual", "chill-weekend-ideas"]
+      },
+      "constraints": { "no_pii": true, "no_exact_location": true, "no_trauma_content": true }
+    }
+  }
+]
