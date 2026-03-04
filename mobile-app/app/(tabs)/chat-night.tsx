@@ -12,7 +12,8 @@ import Animated, {
     withRepeat,
     withTiming,
     withSequence,
-    Easing
+    Easing,
+    FadeIn
 } from 'react-native-reanimated';
 
 import { API_BASE_URL } from '../../constants/Api';
@@ -305,9 +306,20 @@ export default function ChatNightScreen() {
             <View style={styles.content}>
                 {status === 'closed' ? (
                     <View style={styles.closedState}>
-                        <Ionicons name="moon" size={80} color={COLORS.secondaryText} />
+                        <View pointerEvents="none" style={styles.nightBackdrop}>
+                            <View style={styles.moonAura} />
+                            <Animated.View entering={FadeIn.duration(900).delay(80)} style={[styles.star, styles.starOne]} />
+                            <Animated.View entering={FadeIn.duration(1100).delay(180)} style={[styles.star, styles.starTwo]} />
+                            <Animated.View entering={FadeIn.duration(1300).delay(300)} style={[styles.star, styles.starThree]} />
+                            <Animated.View entering={FadeIn.duration(950).delay(420)} style={[styles.star, styles.starFour]} />
+                            <Animated.View entering={FadeIn.duration(1200).delay(560)} style={[styles.star, styles.starFive]} />
+                            <Animated.View entering={FadeIn.duration(1000).delay(700)} style={[styles.star, styles.starSix]} />
+                        </View>
+                        <View style={styles.moonShell}>
+                            <Ionicons name="moon" size={72} color={COLORS.primary} />
+                        </View>
                         <Text style={styles.heroText}>Chat Night is Closed</Text>
-                        <Text style={styles.subText}>Next session starts at {nextSession}</Text>
+                        <Text style={styles.closedSubText}>Next session starts at {nextSession}</Text>
                         <Text style={styles.descText}>
                             Every night at 8 PM, join the live voice chat pool to meet people instantly.
                         </Text>
@@ -390,18 +402,65 @@ const styles = StyleSheet.create({
     },
     passContainer: {
         flexDirection: 'row', alignItems: 'center',
-        backgroundColor: COLORS.surface,
+        backgroundColor: 'rgba(255,107,157,0.15)',
         padding: SPACING.sm, borderRadius: RADIUS.pill,
-        borderWidth: 1, borderColor: COLORS.border // Optional polish
+        borderWidth: 1, borderColor: COLORS.primary
     },
     passText: {
         marginLeft: SPACING.xs,
         fontWeight: 'bold',
-        color: COLORS.primaryText,
+        color: COLORS.primary,
         fontSize: 14
     },
     content: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: SPACING.section },
-    closedState: { alignItems: 'center' },
+    closedState: {
+        alignItems: 'center',
+        position: 'relative',
+        width: '100%',
+        overflow: 'visible'
+    },
+    nightBackdrop: {
+        position: 'absolute',
+        width: 320,
+        height: 320,
+        alignItems: 'center',
+        justifyContent: 'center',
+        top: -120
+    },
+    moonAura: {
+        position: 'absolute',
+        width: 300,
+        height: 300,
+        borderRadius: 999,
+        backgroundColor: 'rgba(255,107,157,0.08)'
+    },
+    moonShell: {
+        borderRadius: RADIUS.round,
+        padding: SPACING.md,
+        backgroundColor: 'rgba(255,107,157,0.08)',
+        shadowColor: COLORS.primary,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.5,
+        shadowRadius: 30,
+        elevation: 10
+    },
+    star: {
+        position: 'absolute',
+        width: 4,
+        height: 4,
+        borderRadius: RADIUS.round,
+        backgroundColor: '#F5F0FF',
+        shadowColor: '#F5F0FF',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.7,
+        shadowRadius: 6
+    },
+    starOne: { top: 60, left: 36, opacity: 0.7 },
+    starTwo: { top: 30, right: 44, opacity: 0.9 },
+    starThree: { top: 110, right: 12, opacity: 0.6 },
+    starFour: { top: 150, left: 22, opacity: 0.8 },
+    starFive: { top: 84, left: 150, opacity: 0.6 },
+    starSix: { top: 42, left: 212, opacity: 0.75 },
     searchingState: { alignItems: 'center' },
     openState: { alignItems: 'center' },
     heroText: {
@@ -413,6 +472,12 @@ const styles = StyleSheet.create({
     subText: {
         ...TYPOGRAPHY.h2,
         color: COLORS.secondaryText,
+        marginBottom: SPACING.sm
+    },
+    closedSubText: {
+        ...TYPOGRAPHY.h2,
+        color: COLORS.primary,
+        fontWeight: '600',
         marginBottom: SPACING.sm
     },
     descText: {
@@ -449,7 +514,11 @@ const styles = StyleSheet.create({
     gatedCard: {
         alignItems: 'center',
         marginTop: SPACING.lg,
-        width: '90%'
+        width: '90%',
+        backgroundColor: COLORS.surface,
+        borderColor: COLORS.border,
+        borderWidth: 1,
+        borderRadius: RADIUS.lg
     },
     gatedTitle: {
         ...TYPOGRAPHY.h2,

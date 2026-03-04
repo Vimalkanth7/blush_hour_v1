@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, Dimensions, Image, TouchableOpacity, Text } from 'react-native';
+import React from 'react';
+import { View, StyleSheet, Dimensions, Image, TouchableOpacity } from 'react-native';
 // import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 // import Animated, { ... } from 'react-native-reanimated'; 
 import { GestureHandlerRootView } from 'react-native-gesture-handler'; // Keep RootView if needed for other components? actually PhotoGrid uses it.
 // Wait, PhotoGrid uses `GestureHandlerRootView`. So keep line 3 partially.
 // But lines 4-9 must go.
 import { Ionicons } from '@expo/vector-icons';
+import { COLORS, RADIUS } from '../constants/Theme';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SPACING = 10;
@@ -56,7 +57,7 @@ const PhotoTile = ({
                 </>
             ) : (
                 <TouchableOpacity style={styles.emptyTile} onPress={onAdd}>
-                    <Ionicons name="add" size={30} color="#ccc" />
+                    <Ionicons name="add" size={30} color={COLORS.secondaryText} />
                 </TouchableOpacity>
             )}
         </View>
@@ -112,8 +113,10 @@ const styles = StyleSheet.create({
     tileContainer: {
         width: '100%',
         height: '100%',
-        borderRadius: 10,
-        backgroundColor: '#f0f0f0',
+        borderRadius: RADIUS.md,
+        backgroundColor: COLORS.surface,
+        borderWidth: 1,
+        borderColor: COLORS.border,
         overflow: 'hidden',
     },
     image: {
@@ -125,16 +128,17 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        borderWidth: 2,
-        borderColor: '#e0e0e0',
+        backgroundColor: COLORS.surface,
+        borderWidth: 1,
+        borderColor: COLORS.border,
         borderStyle: 'dashed',
-        borderRadius: 10,
+        borderRadius: RADIUS.md,
     },
     deleteButton: {
         position: 'absolute',
         top: 5,
         right: 5,
-        backgroundColor: 'rgba(0,0,0,0.5)',
+        backgroundColor: COLORS.border,
         borderRadius: 12,
         padding: 4,
     }

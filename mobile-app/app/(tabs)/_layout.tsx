@@ -1,21 +1,30 @@
 import { COLORS, SPACING, SHADOWS } from '../../constants/Theme';
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { Tabs, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function TabLayout() {
   const router = useRouter();
+  const renderTabIcon =
+    (name: React.ComponentProps<typeof Ionicons>['name']) =>
+    ({ color, focused }: { color: string; focused: boolean }) => (
+      <View style={styles.iconContainer}>
+        <View style={[styles.activeIndicator, !focused && styles.activeIndicatorHidden]} />
+        <Ionicons name={name} size={28} color={color} />
+      </View>
+    );
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: COLORS.secondaryText,
+        tabBarInactiveTintColor: COLORS.disabledText,
         tabBarStyle: {
-          backgroundColor: COLORS.surface,
-          borderTopWidth: 0,
+          backgroundColor: COLORS.background,
+          borderTopWidth: 1,
+          borderTopColor: COLORS.border,
           height: 90,
           paddingTop: SPACING.sm,
           ...SHADOWS.card, // Nice shadow for tab bar
@@ -31,14 +40,14 @@ export default function TabLayout() {
         name="discovery"
         options={{
           title: 'Discovery',
-          tabBarIcon: ({ color }) => <Ionicons name="albums" size={28} color={color} />,
+          tabBarIcon: renderTabIcon('albums'),
         }}
       />
       <Tabs.Screen
         name="chat-night"
         options={{
           title: 'Chat Night',
-          tabBarIcon: ({ color }) => <Ionicons name="moon" size={28} color={color} />,
+          tabBarIcon: renderTabIcon('moon'),
           tabBarLabel: 'Chat Night'
         }}
       />
@@ -46,17 +55,39 @@ export default function TabLayout() {
         name="matches"
         options={{
           title: 'Matches',
-          tabBarIcon: ({ color }) => <Ionicons name="chatbubbles" size={28} color={color} />,
+          tabBarIcon: renderTabIcon('chatbubbles'),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color }) => <Ionicons name="person" size={28} color={color} />,
+          tabBarIcon: renderTabIcon('person'),
         }}
       />
     </Tabs>
   );
 }
 
+const styles = StyleSheet.create({
+  iconContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activeIndicator: {
+    width: 18,
+    height: 6,
+    borderRadius: 999,
+    marginBottom: 6,
+    backgroundColor: COLORS.primary,
+    opacity: 0.15,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.45,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  activeIndicatorHidden: {
+    opacity: 0,
+  },
+});

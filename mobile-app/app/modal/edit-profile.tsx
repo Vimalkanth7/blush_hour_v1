@@ -1,4 +1,4 @@
-import { COLORS, TYPOGRAPHY, SPACING, RADIUS, SHADOWS } from '../../constants/Theme';
+import { COLORS, TYPOGRAPHY, SPACING, RADIUS } from '../../constants/Theme';
 import React, { useState } from 'react';
 import { View, ScrollView, Text, TextInput, Dimensions, TouchableOpacity, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -218,7 +218,7 @@ export default function EditProfileScreen() {
 
     return (
         <View style={styles.container}>
-            <StatusBar style="dark" />
+            <StatusBar style="light" />
 
             {/* Header */}
             <View style={styles.header}>
@@ -250,7 +250,7 @@ export default function EditProfileScreen() {
                                 <Text style={styles.strengthTitle}>Profile Strength</Text>
                                 <Text style={styles.strengthSub}>Complete to get more matches</Text>
                             </View>
-                            <Ionicons name="chevron-down" size={20} color={COLORS.secondaryText} />
+                            <Ionicons name="chevron-down" size={20} color={COLORS.primary} />
                         </View>
                     </View>
 
@@ -391,10 +391,10 @@ export default function EditProfileScreen() {
 
                     <TouchableOpacity onPress={handleAddPrompt} style={{
                         alignItems: 'center', padding: SPACING.md, backgroundColor: COLORS.surface,
-                        borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.brandBase,
+                        borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.primary,
                         marginHorizontal: SPACING.screen, borderStyle: 'dashed'
                     }}>
-                        <Text style={{ color: COLORS.brandBase, fontWeight: '600' }}>+ Add Another Prompt</Text>
+                        <Text style={{ color: COLORS.primary, fontWeight: '600' }}>+ Add Another Prompt</Text>
                     </TouchableOpacity>
 
                     <View style={{ height: 50 }} />
@@ -419,9 +419,9 @@ const ProfileRow = ({ label, value, onChange, placeholder, editable = true, last
                     textAlign="right"
                 />
             ) : (
-                <Text style={[styles.input, { color: COLORS.disabledText }]}>{value}</Text>
+                <Text style={styles.input}>{value}</Text>
             )}
-            {editable && <Ionicons name="chevron-forward" size={18} color={COLORS.border} style={{ marginLeft: SPACING.sm }} />}
+            {editable && <Ionicons name="chevron-forward" size={18} color={COLORS.primary} style={{ marginLeft: SPACING.sm }} />}
         </View>
     </TouchableOpacity>
 );
@@ -453,7 +453,7 @@ const getColorForCompletion = (val: number) => {
 };
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: COLORS.surface },
+    container: { flex: 1, backgroundColor: COLORS.background },
     header: {
         flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
         paddingTop: 50, paddingHorizontal: SPACING.screen, paddingBottom: SPACING.md, backgroundColor: COLORS.background,
@@ -464,37 +464,59 @@ const styles = StyleSheet.create({
     doneText: { ...TYPOGRAPHY.bodyBase, fontWeight: '600', color: COLORS.primary },
     content: { paddingBottom: 50 },
 
-    strengthContainer: { backgroundColor: COLORS.background, padding: SPACING.screen, marginBottom: SPACING.md, borderBottomWidth: 1, borderColor: COLORS.border },
+    strengthContainer: {
+        backgroundColor: COLORS.surface,
+        padding: SPACING.lg,
+        marginHorizontal: SPACING.screen,
+        marginTop: SPACING.lg,
+        marginBottom: SPACING.md,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        borderRadius: RADIUS.lg
+    },
     strengthRow: { flexDirection: 'row', alignItems: 'center' },
     strengthRing: { width: 50, height: 50, borderRadius: 25, borderWidth: 3, justifyContent: 'center', alignItems: 'center' },
     strengthText: { fontSize: 12, fontWeight: '700', color: COLORS.primaryText },
     strengthTitle: { ...TYPOGRAPHY.h2, fontSize: 16, color: COLORS.primaryText },
     strengthSub: { ...TYPOGRAPHY.bodyBase, fontSize: 13, color: COLORS.secondaryText },
 
-    sectionHeader: { fontSize: 13, fontWeight: '600', color: COLORS.secondaryText, marginLeft: SPACING.screen, marginTop: SPACING.xl, marginBottom: SPACING.sm, textTransform: 'uppercase' },
-    subsectionTitle: { fontSize: 13, color: COLORS.disabledText, marginBottom: SPACING.sm },
-    photoSection: { paddingHorizontal: SPACING.screen },
-    mainLabelContainer: { position: 'absolute', top: 6, left: 6, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: RADIUS.sm },
-    mainLabelText: { color: 'white', fontSize: 10, fontWeight: '700' }, // Keep white for overlay label
+    sectionHeader: { fontSize: 13, fontWeight: '600', color: COLORS.primaryText, marginLeft: SPACING.screen, marginTop: SPACING.xl, marginBottom: SPACING.sm, textTransform: 'uppercase' },
+    subsectionTitle: { fontSize: 13, color: COLORS.secondaryText, marginBottom: SPACING.sm },
+    photoSection: {
+        paddingHorizontal: SPACING.screen,
+        paddingVertical: SPACING.lg,
+        marginHorizontal: SPACING.screen,
+        backgroundColor: COLORS.surface,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        borderRadius: RADIUS.lg
+    },
+    mainLabelContainer: { position: 'absolute', top: 6, left: 6, backgroundColor: COLORS.border, paddingHorizontal: 8, paddingVertical: 2, borderRadius: RADIUS.sm },
+    mainLabelText: { color: COLORS.secondaryText, fontSize: 10, fontWeight: '700' },
 
-    sectionContainer: { backgroundColor: COLORS.background, borderTopWidth: 1, borderBottomWidth: 1, borderColor: COLORS.border },
+    sectionContainer: {
+        backgroundColor: COLORS.surface,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        borderRadius: RADIUS.lg,
+        marginHorizontal: SPACING.screen
+    },
 
     bioInput: { padding: SPACING.screen, fontSize: 16, minHeight: 100, textAlignVertical: 'top', color: COLORS.primaryText },
 
     row: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-        paddingVertical: SPACING.md, paddingHorizontal: SPACING.screen, marginLeft: SPACING.screen,
+        paddingVertical: SPACING.md, paddingHorizontal: SPACING.lg,
         borderBottomWidth: 1, borderBottomColor: COLORS.border, paddingRight: 32
     },
     lastRow: { borderBottomWidth: 0 },
 
-    label: { fontSize: 16, color: COLORS.primaryText },
-    input: { flex: 1, fontSize: 16, color: COLORS.secondaryText, marginLeft: 10 },
+    label: { fontSize: 16, color: COLORS.secondaryText },
+    input: { flex: 1, fontSize: 16, color: COLORS.primaryText, marginLeft: 10 },
 
     habitRow: {
         paddingVertical: SPACING.md,
-        paddingHorizontal: SPACING.screen,
-        marginLeft: SPACING.screen,
+        paddingHorizontal: SPACING.lg,
         borderBottomWidth: 1,
         borderBottomColor: COLORS.border
     },
@@ -512,7 +534,7 @@ const styles = StyleSheet.create({
     chipText: { fontSize: 13, color: COLORS.secondaryText },
     chipTextActive: { color: COLORS.background, fontWeight: '600' },
 
-    helperText: { marginLeft: SPACING.screen, marginTop: 6, fontSize: 12, color: COLORS.disabledText },
+    helperText: { marginLeft: SPACING.screen, marginTop: 6, fontSize: 12, color: COLORS.secondaryText },
 
     promptRow: { padding: SPACING.screen, borderBottomWidth: 1, borderBottomColor: COLORS.border },
     promptLabel: { fontSize: 12, color: COLORS.disabledText, marginBottom: 4, textTransform: 'uppercase' },

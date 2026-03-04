@@ -109,7 +109,7 @@ export default function MatchesScreen() {
             <View style={styles.header}>
                 <Text style={styles.title}>Matches</Text>
                 <TouchableOpacity>
-                    <Ionicons name="search" size={24} color={COLORS.primaryText} />
+                    <Ionicons name="search" size={24} color={COLORS.secondaryText} />
                 </TouchableOpacity>
             </View>
 
@@ -120,7 +120,7 @@ export default function MatchesScreen() {
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.queueContainer}>
                         {/* Premium 'Who Likes You' Card */}
                         <View style={styles.goldCard}>
-                            <View style={[styles.goldCircle, { borderColor: COLORS.primary }]}>
+                            <View style={styles.goldCircle}>
                                 <BlurView intensity={20} style={StyleSheet.absoluteFill} />
                                 <Text style={styles.goldCount}>5</Text>
                             </View>
@@ -129,7 +129,7 @@ export default function MatchesScreen() {
 
                         {MATCH_QUEUE.map((match) => (
                             <TouchableOpacity key={match.id} style={styles.matchItem}>
-                                <View style={styles.imageWrapper}>
+                                <View style={[styles.imageWrapper, match.expires && styles.imageWrapperActive]}>
                                     <Image source={{ uri: match.photo }} style={styles.matchImage} />
                                     {match.isBlurred && (
                                         <BlurView intensity={40} style={[StyleSheet.absoluteFill, styles.blur]} />
@@ -192,19 +192,38 @@ const styles = StyleSheet.create({
         ...TYPOGRAPHY.h2,
         fontSize: 18,
         color: COLORS.secondaryText,
+        letterSpacing: 0.5,
+        textTransform: 'uppercase',
         marginLeft: SPACING.screen,
         marginBottom: SPACING.md
     },
     queueContainer: { paddingHorizontal: SPACING.screen, gap: SPACING.lg },
     goldCard: { alignItems: 'center', width: 70 },
     goldCircle: {
-        width: 70, height: 70, borderRadius: 35, borderWidth: 2,
+        width: 70, height: 70, borderRadius: 35, borderWidth: 1,
+        borderColor: COLORS.primary,
         alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-        marginBottom: SPACING.sm, backgroundColor: COLORS.surface
+        marginBottom: SPACING.sm, backgroundColor: 'rgba(255,107,157,0.15)'
     },
     goldCount: { fontSize: 20, fontWeight: '700', color: COLORS.primary },
     matchItem: { alignItems: 'center', width: 70 },
-    imageWrapper: { width: 70, height: 70, borderRadius: 35, overflow: 'hidden', marginBottom: SPACING.sm },
+    imageWrapper: {
+        width: 70,
+        height: 70,
+        borderRadius: 35,
+        overflow: 'hidden',
+        marginBottom: SPACING.sm,
+        borderWidth: 2,
+        borderColor: COLORS.border
+    },
+    imageWrapperActive: {
+        borderColor: COLORS.primary,
+        shadowColor: COLORS.primary,
+        shadowOpacity: 0.4,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 0 },
+        elevation: 6
+    },
     matchImage: { width: '100%', height: '100%' },
     blur: { backgroundColor: 'rgba(255,255,0,0.2)' },
     queueName: {
@@ -214,11 +233,19 @@ const styles = StyleSheet.create({
     timerBadge: {
         position: 'absolute', top: 0, right: 0,
         backgroundColor: COLORS.primary, paddingHorizontal: 6, paddingVertical: 2,
-        borderRadius: 10, borderWidth: 1, borderColor: 'white'
+        borderRadius: RADIUS.pill
     },
-    timerText: { fontSize: 10, fontWeight: '700', color: COLORS.brandBase },
+    timerText: { fontSize: 10, fontWeight: '700', color: COLORS.primaryText },
     chatSection: { paddingHorizontal: SPACING.screen },
-    chatRow: { flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.xl },
+    chatRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: SPACING.xl,
+        backgroundColor: COLORS.surface,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        borderRadius: RADIUS.lg
+    },
     chatImage: { width: 60, height: 60, borderRadius: 30, marginRight: SPACING.md },
     chatContent: { flex: 1, paddingRight: 10 },
     chatHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
