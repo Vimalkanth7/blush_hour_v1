@@ -86,3 +86,31 @@ Runtime notes:
 - Endpoint gating: 404 unless `CHAT_NIGHT_TEST_MODE=true` and `BH_INTERNAL_EVALS_ENABLED=true`
 - Prompt version: `w6.5c-2026-03-04` in internal meta + LangSmith metadata/tags (when enabled)
 - Tracing PII guard disables tracing for a run if email/phone-like patterns are detected
+
+---
+
+## W6.5-D — Ops runbook documented (DEV/PROD presets + budget protections)
+Date: 2026-03-05  
+Agent: Docs Agent (Antigravity)
+
+Files changed:
+- docs/codex/week6_5/week6_5_detailed_docs/W6_5D_OPS_RUNBOOK_DEV_PROD_PRESETS.md
+- docs/codex/week6_5/PENDING_TASKS.md
+- docs/codex/week6_5/COMPLETED_TASKS.md
+- docs/codex/week6_5/SESSION_LOG.md
+
+What documented:
+- `DEV_SAFE` preset (deterministic, tracing off, internal evals off, no OpenAI key, zero-spend caps).
+- `DEV_TEST` preset (explicit temporary OpenAI enable, optional tracing, temporary higher caps, reset guidance).
+- `PROD` preset (strict lowest caps, tracing off, eval endpoint disabled, kill switch steps).
+- LangSmith tracing env vars and privacy controls (hashed metadata only, no PII).
+- Internal eval endpoint gating requirements.
+- Cache-hit confirmation paths (`verify_chat_night_icebreakers_contract.ps1`, internal eval second-call `meta.cached=true`, harness second-call requirement).
+- Eval harness run steps and expected outputs.
+- Spend protection preflight checklist before temporary OpenAI-mode tests.
+
+Key commands documented:
+- `venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000`
+- `backend\verify_chat_night_icebreakers_contract.ps1`
+- `backend\verify_icebreakers_eval_harness.ps1`
+- `POST /api/internal/evals/icebreakers` (gated by `CHAT_NIGHT_TEST_MODE=true` + `BH_INTERNAL_EVALS_ENABLED=true`)

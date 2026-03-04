@@ -4,7 +4,7 @@
 - W6.5-A ✅ DONE (spec)
 - W6.5-B ✅ DONE (backend internals upgrade merged + verifiers PASS)
 - W6.5-C ✅ DONE (LLMOps / LangSmith tracing + eval harness)
-- W6.5-D ⏳ TODO (Ops runbook: safe env presets + budget protection)
+- W6.5-D ✅ DONE (Ops runbook: safe env presets + budget protection)
 
 ---
 
@@ -53,8 +53,8 @@ Closeout evidence:
 
 ---
 
-## ⏳ W6.5-D — Ops runbook: dev/prod presets + budget protection
-Status: TODO  
+## ✅ W6.5-D — Ops runbook: dev/prod presets + budget protection
+Status: DONE  
 Owner: Lead + Backend Agent  
 Scope: docs only
 
@@ -68,4 +68,4 @@ Goal:
 
 Verification:
 - Docs updated and reviewed
-- One end-to-end run confirms cache-hit behavior
+- Runbook created: `docs/codex/week6_5/week6_5_detailed_docs/W6_5D_OPS_RUNBOOK_DEV_PROD_PRESETS.md`
