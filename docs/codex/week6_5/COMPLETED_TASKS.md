@@ -71,3 +71,16 @@ Notes:
 
 Deliverable:
 - `docs/codex/week6_5/week6_5_detailed_docs/W6_5D_OPS_RUNBOOK_DEV_PROD_PRESETS.md`
+
+---
+
+## ✅ W6.5-OBS - LangSmith observability closeout (LS-1 + LS-3 + LS-2)
+Status: DONE  
+
+Notes:
+- LS-1 API root tracing naming is documented and in use: `api {METHOD} {PATH}`.
+- LS-3 smoke verification flow is documented for repeatable trace checks.
+- LS-2 runbook added for safe enablement, UI filters, and troubleshooting.
+
+Deliverable:
+- `docs/codex/week6_5/week6_5_detailed_docs/LS_RUNBOOK_LANGSMITH_TRACING.md`
