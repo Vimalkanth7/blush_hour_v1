@@ -3,7 +3,7 @@
 ## Status
 - W6.5-A ✅ DONE (spec)
 - W6.5-B ✅ DONE (backend internals upgrade merged + verifiers PASS)
-- W6.5-C ⏳ TODO (LLMOps / LangSmith tracing + eval harness)
+- W6.5-C ✅ DONE (LLMOps / LangSmith tracing + eval harness)
 - W6.5-D ⏳ TODO (Ops runbook: safe env presets + budget protection)
 
 ---
@@ -39,29 +39,17 @@ Verification (PASS required):
 
 ---
 
-## ⏳ W6.5-C — LLMOps: LangSmith tracing + evaluation harness
-Status: TODO  
+## ✅ W6.5-C — LLMOps: LangSmith tracing + evaluation harness
+Status: DONE  
 Owner: QA Agent + Backend Agent  
 Scope: backend + qa scripts (no frontend)
 
-Goal:
-- Add a small, repeatable evaluation harness to validate icebreaker output quality + safety.
-- Make LangSmith tracing easy to toggle in dev, with privacy guarantees.
-
-Deliverables:
-- Eval harness that runs 10–20 synthetic SanitizedMatchContext cases.
-- Validations: strict JSON, correct counts (reasons + icebreakers), length limits, banned patterns / PII.
-- Baseline deterministic run requires zero OpenAI spend.
-- Optional OpenAI run mode (explicitly enabled) for spot-checks.
-
-Acceptance criteria:
-- Deterministic harness run PASS with $0 spend.
-- When tracing enabled, traces contain NO PII (hashed ids only) and are OFF by default.
-- Harness runnable via a single command/script documented in Week 6.5 docs.
-
-Verification:
-- New harness script — PASS (deterministic baseline)
-- (Optional) OpenAI mode sanity — PASS (explicitly enabled)
+Closeout evidence:
+- C1 merge commit: `b5f41bd`
+- C2 commit: `e928627`
+- Harness PASS: `Summary: total=12 pass=12 fail=0` and `PASS: icebreakers eval harness` (exit 0)
+- Deterministic mode enforced (`meta.mode == deterministic`) and cache second-call required.
+- Reference: `docs/codex/week6_5/week6_5_detailed_docs/W6_5C_LLMOPS_LANGSMITH_EVAL_HARNESS.md`
 
 ---
 
