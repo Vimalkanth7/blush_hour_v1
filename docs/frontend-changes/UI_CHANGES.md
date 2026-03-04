@@ -54,3 +54,23 @@ npm run web
 - Route names, hrefs, tab order
 - Icon components or icon names
 - Any navigation logic
+
+## Packet UI-03 — Chat Night Screen
+**Status:** Done
+**File:** `mobile-app/app/(tabs)/chat-night.tsx`
+
+### What Changed
+- Background -> #0D0A14
+- Moon icon -> rose pink #FF6B9D, size increased, glow added
+- Heading color -> #F5F0FF
+- Subtext color -> #FF6B9D
+- Description -> #A89BC2
+- Pass badge -> rose tinted with border
+- Surface cards -> #1A1425 with dark border
+
+### What Was NOT Changed
+- Open/closed state logic
+- Timer or countdown logic
+- API calls or polling
+- Pass count data source
+- Any useEffect or useState
