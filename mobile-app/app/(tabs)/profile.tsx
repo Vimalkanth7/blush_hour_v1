@@ -140,7 +140,7 @@ export default function ProfileHubScreen() {
             <View style={styles.topBar}>
                 <Text style={styles.headerTitle}>Profile</Text>
                 <TouchableOpacity onPress={signOut} style={{ padding: SPACING.sm }}>
-                    <Ionicons name="settings-outline" size={24} color={COLORS.primaryText} />
+                    <Ionicons name="settings-outline" size={24} color={COLORS.secondaryText} />
                 </TouchableOpacity>
             </View>
 
@@ -152,13 +152,13 @@ export default function ProfileHubScreen() {
                         <View style={styles.strengthHeader}>
                             <Text style={styles.strengthTitle}>Profile Strength</Text>
                             <View style={[styles.tierBadge, { backgroundColor: tier === 'Gold' ? '#FFD700' : tier === 'Silver' ? '#C0C0C0' : '#CD7F32' }]}>
-                                <Text style={styles.tierText}>{tier}</Text>
+                                <Text style={[styles.tierText, tier === 'Gold' && { color: '#0D0A14' }]}>{tier}</Text>
                             </View>
                         </View>
 
                         <View style={styles.progressContainer}>
                             <View style={styles.progressBarBg}>
-                                <View style={[styles.progressBarFill, { width: `${completionPercent!}%`, backgroundColor: tier === 'Gold' ? '#DAA520' : COLORS.primary }]} />
+                                <View style={[styles.progressBarFill, { width: `${completionPercent!}%`, backgroundColor: '#FF6B9D' }]} />
                             </View>
                             <Text style={styles.progressText}>{completionPercent!}% complete</Text>
                         </View>
@@ -174,7 +174,7 @@ export default function ProfileHubScreen() {
                                             onPress={() => handleFixField(field)}
                                         >
                                             <Text style={styles.missingChipText}>{getFieldLabel(field)}</Text>
-                                            <Ionicons name="arrow-forward" size={12} color={COLORS.brandBase} />
+                                            <Ionicons name="arrow-forward" size={12} color={COLORS.primary} />
                                         </TouchableOpacity>
                                     ))}
                                 </View>
@@ -201,7 +201,7 @@ export default function ProfileHubScreen() {
                         activeOpacity={0.7}
                     >
                         <View style={styles.iconCircle}>
-                            <Ionicons name="pencil" size={24} color={COLORS.primaryText} />
+                            <Ionicons name="pencil" size={24} color={COLORS.primary} />
                         </View>
                         <Text style={styles.actionLabel}>Edit</Text>
                     </TouchableOpacity>
@@ -212,7 +212,7 @@ export default function ProfileHubScreen() {
                         activeOpacity={0.7}
                     >
                         <View style={styles.iconCircle}>
-                            <Ionicons name="eye-outline" size={24} color={COLORS.primaryText} />
+                            <Ionicons name="eye-outline" size={24} color={COLORS.primary} />
                         </View>
                         <Text style={styles.actionLabel}>Preview</Text>
                     </TouchableOpacity>
@@ -287,7 +287,7 @@ export default function ProfileHubScreen() {
                     <View style={{ height: SPACING.md }} />
 
                     <LinearGradient
-                        colors={[COLORS.surface, COLORS.primary]}
+                        colors={['#C44569', '#FF6B9D']}
                         start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                         style={[styles.upsellCard, { opacity: 0.9 }]}
                     >
@@ -298,8 +298,8 @@ export default function ProfileHubScreen() {
                             <Text style={[styles.upsellTitle, { color: COLORS.primaryText }]}>Premium</Text>
                             <Text style={[styles.upsellSub, { color: COLORS.primaryText }]}>See who likes you.</Text>
                         </View>
-                        <TouchableOpacity style={[styles.upsellButton, { backgroundColor: COLORS.background }]}>
-                            <Text style={[styles.upsellButtonText, { color: COLORS.primaryText }]}>Upgrade</Text>
+                        <TouchableOpacity style={[styles.upsellButton, { backgroundColor: '#F5F0FF' }]}>
+                            <Text style={[styles.upsellButtonText, { color: '#C44569' }]}>Upgrade</Text>
                         </TouchableOpacity>
                     </LinearGradient>
                 </View>
@@ -321,8 +321,11 @@ const styles = StyleSheet.create({
     // Hero
     heroSection: { alignItems: 'center', marginTop: SPACING.lg, marginBottom: SPACING.section },
     avatarContainer: { width: 160, height: 160, justifyContent: 'center', alignItems: 'center', marginBottom: SPACING.lg },
-    ringBack: { position: 'absolute', width: 160, height: 160, borderRadius: 80, borderWidth: 1, borderColor: COLORS.border },
-    ringGradient: { position: 'absolute', width: 150, height: 150, borderRadius: 75, borderWidth: 4, borderColor: 'transparent' },
+    ringBack: {
+        position: 'absolute', width: 160, height: 160, borderRadius: 80, borderWidth: 3, borderColor: '#FF6B9D',
+        shadowColor: '#FF6B9D', shadowOpacity: 0.5, shadowRadius: 12, shadowOffset: { width: 0, height: 0 }, elevation: 6
+    },
+    ringGradient: { position: 'absolute', width: 154, height: 154, borderRadius: 77, borderWidth: 2, borderColor: '#FF6B9D' },
     imageContainer: { width: 140, height: 140, borderRadius: 70, overflow: 'hidden', backgroundColor: COLORS.surface, elevation: 5 },
     avatarImage: { width: '100%', height: '100%' },
     placeholderAvatar: { flex: 1, justifyContent: 'center', alignItems: 'center' },
@@ -335,21 +338,24 @@ const styles = StyleSheet.create({
     nameText: { ...TYPOGRAPHY.h1, color: COLORS.primaryText },
 
     // Actions
-    actionRow: { flexDirection: 'row', justifyContent: 'center', marginBottom: SPACING.xl },
-    actionButton: { alignItems: 'center', marginHorizontal: SPACING.xxl },
+    actionRow: { flexDirection: 'row', justifyContent: 'center', marginBottom: SPACING.xl, gap: SPACING.md },
+    actionButton: {
+        alignItems: 'center', justifyContent: 'center',
+        backgroundColor: COLORS.surface, borderWidth: 1, borderColor: '#2D2440', borderRadius: RADIUS.pill,
+        paddingHorizontal: SPACING.xl, paddingVertical: SPACING.md, minWidth: 130
+    },
     iconCircle: {
-        width: 60, height: 60, borderRadius: 30, backgroundColor: COLORS.surface,
-        justifyContent: 'center', alignItems: 'center', marginBottom: SPACING.sm,
-        ...SHADOWS.small
+        width: 34, height: 34, borderRadius: 17, backgroundColor: 'transparent',
+        justifyContent: 'center', alignItems: 'center', marginBottom: SPACING.xs
     },
     actionLabel: { ...TYPOGRAPHY.bodyBase, color: COLORS.secondaryText, fontSize: 14 },
 
     // Languages & Habits
     detailsSection: { paddingHorizontal: SPACING.screen, gap: SPACING.md, marginBottom: SPACING.xl },
-    detailCard: { },
+    detailCard: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: '#2D2440', borderRadius: RADIUS.lg },
     sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.sm },
-    sectionTitle: { ...TYPOGRAPHY.h2, fontSize: 16, color: COLORS.primaryText },
-    sectionAction: { fontSize: 13, color: COLORS.brandBase, fontWeight: '600' },
+    sectionTitle: { ...TYPOGRAPHY.h2, fontSize: 16, color: COLORS.primaryText, fontWeight: '600' },
+    sectionAction: { fontSize: 13, color: COLORS.primary, fontWeight: '600' },
     chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     chip: {
         paddingHorizontal: 10,
@@ -363,46 +369,50 @@ const styles = StyleSheet.create({
     habitList: { gap: 8 },
     habitRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     habitLabel: { fontSize: 13, color: COLORS.secondaryText },
-    habitValue: { fontSize: 13, color: COLORS.primaryText, fontWeight: '600' },
+    habitValue: { fontSize: 13, color: COLORS.secondaryText },
     emptyText: { fontSize: 13, color: COLORS.disabledText },
 
     // Upsell
     upsellContainer: { paddingHorizontal: SPACING.screen },
     upsellCard: {
-        flexDirection: 'row', alignItems: 'center', padding: SPACING.card, borderRadius: RADIUS.md,
-        borderWidth: 1, borderColor: COLORS.border
+        flexDirection: 'row', alignItems: 'center', padding: SPACING.card, borderRadius: RADIUS.lg,
+        borderWidth: 1, borderColor: '#2D2440'
     },
     upsellIcon: { marginRight: SPACING.lg },
     upsellText: { flex: 1 },
     upsellTitle: { ...TYPOGRAPHY.h2, fontSize: 16, color: COLORS.primaryText },
     upsellSub: { ...TYPOGRAPHY.bodyBase, fontSize: 13, color: COLORS.secondaryText },
     upsellButton: {
-        backgroundColor: COLORS.primaryText, paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm, borderRadius: RADIUS.pill
+        backgroundColor: '#FF6B9D', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm, borderRadius: RADIUS.pill
     },
-    upsellButtonText: { color: COLORS.background, fontWeight: 'bold', fontSize: 12 },
+    upsellButtonText: { color: '#F5F0FF', fontWeight: 'bold', fontSize: 12 },
 
     // Profile Strength
     strengthCard: {
         marginHorizontal: SPACING.screen,
         marginTop: SPACING.md,
-        marginBottom: SPACING.lg
+        marginBottom: SPACING.lg,
+        backgroundColor: COLORS.surface,
+        borderWidth: 1,
+        borderColor: '#2D2440',
+        borderRadius: RADIUS.lg
     },
     strengthHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.md },
     strengthTitle: { ...TYPOGRAPHY.h2, fontSize: 18, color: COLORS.primaryText },
     tierBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
     tierText: { color: '#FFF', fontWeight: 'bold', fontSize: 12 },
     progressContainer: { marginBottom: SPACING.md },
-    progressBarBg: { height: 8, backgroundColor: COLORS.border, borderRadius: 4, overflow: 'hidden' },
+    progressBarBg: { height: 8, backgroundColor: '#2D2440', borderRadius: 4, overflow: 'hidden' },
     progressBarFill: { height: '100%', borderRadius: 4 },
     progressText: { marginTop: 4, fontSize: 12, color: COLORS.secondaryText, textAlign: 'right' },
     missingFieldsContainer: { marginTop: SPACING.sm },
     missingTitle: { fontSize: 14, fontWeight: '600', color: COLORS.secondaryText, marginBottom: 8 },
     chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     missingChip: {
-        flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surface,
+        flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,107,157,0.10)',
         paddingHorizontal: 10, paddingVertical: 6, borderRadius: RADIUS.pill,
-        borderWidth: 1, borderColor: COLORS.brandBase, gap: 4
+        borderWidth: 1, borderColor: '#2D2440', gap: 4
     },
-    missingChipText: { fontSize: 12, color: COLORS.brandBase, fontWeight: '500' },
+    missingChipText: { fontSize: 12, color: COLORS.primaryText, fontWeight: '500' },
     warningText: { marginTop: SPACING.lg, color: COLORS.destructive, fontSize: 13, fontWeight: '600', textAlign: 'center' }
 });

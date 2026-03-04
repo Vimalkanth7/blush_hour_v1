@@ -95,3 +95,25 @@ npm run web
 - Time badge calculation
 - Search functionality
 - Any useState or useEffect
+
+## Packet UI-05 — Profile Screen
+**Status:** Done
+**File:** `mobile-app/app/(tabs)/profile.tsx`
+
+### What Changed
+- Background -> #0D0A14
+- Avatar -> rose glow ring border + shadow
+- Strength bar -> rose filled, dark unfilled
+- Gold badge -> gold background dark text
+- Action chips -> rose tinted subtle
+- Edit/Preview buttons -> dark surface rose icon
+- Section cards -> dark surface with border
+- Spotlight card -> dark with rose CTA
+- Premium card -> rose gradient
+
+### What Was NOT Changed
+- Strength percentage calculation
+- Edit/Preview navigation
+- Spotlight/Premium tap handlers
+- All fetch, useState, useEffect
+- Gold tier logic
