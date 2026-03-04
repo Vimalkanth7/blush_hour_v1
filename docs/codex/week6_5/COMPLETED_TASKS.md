@@ -32,3 +32,27 @@ Verification (PASS required):
 - backend\verify_chat_night_fifo_only.ps1 — PASS (FIFO selects first-queued)
 - backend\verify_chat_night_icebreakers_contract.ps1 — PASS (cached=false then cached=true; model=gpt-4o-mini)
 - backend\verify_chat_night_icebreakers_reveal_sync.ps1 — PASS
+
+---
+
+## ✅ W6.5-C — LLMOps + LangSmith eval harness closeout
+Status: DONE  
+Merge / commits:
+- C1 merge commit: `b5f41bd`
+- C2 commit: `e928627`
+
+Notes:
+- Internal eval endpoint added: `POST /api/internal/evals/icebreakers`.
+- Endpoint is gated and returns 404 unless `CHAT_NIGHT_TEST_MODE=true` and `BH_INTERNAL_EVALS_ENABLED=true`.
+- Prompt version `w6.5c-2026-03-04` is included in internal meta and in LangSmith metadata/tags (when enabled).
+- Tracing PII guard disables tracing for a run when email/phone-like patterns are detected.
+- Reference doc: `docs/codex/week6_5/week6_5_detailed_docs/W6_5C_LLMOPS_LANGSMITH_EVAL_HARNESS.md`
+
+Verification:
+- Script: `backend\verify_icebreakers_eval_harness.ps1`
+- Fixtures: `backend/evals/icebreakers_eval_cases.json` (12 cases)
+- Harness result: `Summary: total=12 pass=12 fail=0`
+- Harness result: `PASS: icebreakers eval harness` (exit 0)
+- Deterministic mode enforced (`meta.mode == deterministic`) and cache second-call required.
+- Post-merge regression spot-check: `backend\verify_chat_night_icebreakers_contract.ps1` — PASS
+- Post-merge regression spot-check: `backend\verify_chat_night_icebreakers_reveal_sync.ps1` — PASS

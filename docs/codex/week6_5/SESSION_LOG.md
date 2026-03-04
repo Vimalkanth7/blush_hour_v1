@@ -58,3 +58,31 @@ Runtime notes:
   - CHAT_NIGHT_V5_MATCHING_ENABLED=true/false (to validate both match algorithms)
   - CHAT_NIGHT_INCLUDE_MATCH_META=true/false (match_meta expectation)
   - CHAT_NIGHT_FORCE_OPEN=true and CHAT_NIGHT_TEST_MODE=true (verifier-safe)
+
+---
+
+## W6.5-C — Closeout recorded (LLMOps + eval harness)
+Date: 2026-03-05  
+Agent: Docs Agent (Antigravity)
+
+Reference doc:
+- docs/codex/week6_5/week6_5_detailed_docs/W6_5C_LLMOPS_LANGSMITH_EVAL_HARNESS.md
+
+Evidence captured:
+- C1 merge commit: `b5f41bd` (internal eval endpoint + tracing hardening)
+- C2 commit: `e928627` (QA harness + fixtures)
+
+How verified:
+- Harness verifier: `backend\verify_icebreakers_eval_harness.ps1`
+- Fixtures used: `backend/evals/icebreakers_eval_cases.json` (12 cases)
+- Key output: `Summary: total=12 pass=12 fail=0`
+- Key output: `PASS: icebreakers eval harness` (exit 0)
+- Deterministic mode enforced (`meta.mode == deterministic`) and cache second-call required.
+- Post-merge regression: `backend\verify_chat_night_icebreakers_contract.ps1` — PASS
+- Post-merge regression: `backend\verify_chat_night_icebreakers_reveal_sync.ps1` — PASS
+
+Runtime notes:
+- Internal endpoint: `POST /api/internal/evals/icebreakers`
+- Endpoint gating: 404 unless `CHAT_NIGHT_TEST_MODE=true` and `BH_INTERNAL_EVALS_ENABLED=true`
+- Prompt version: `w6.5c-2026-03-04` in internal meta + LangSmith metadata/tags (when enabled)
+- Tracing PII guard disables tracing for a run if email/phone-like patterns are detected
