@@ -38,3 +38,19 @@ cd mobile-app
 npm run web
 # Confirm: app loads, no import errors, no crash
 ```
+
+## Packet UI-02 — Bottom Navigation Bar
+**Status:** Done
+**File:** `mobile-app/app/(tabs)/_layout.tsx`
+
+### What Changed
+- Tab bar background -> #0D0A14
+- Top border -> #2D2440
+- Active tint -> #FF6B9D
+- Inactive tint -> #5C5175
+- Active indicator pill added
+
+### What Was NOT Changed
+- Route names, hrefs, tab order
+- Icon components or icon names
+- Any navigation logic
