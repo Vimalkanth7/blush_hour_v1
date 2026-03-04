@@ -2,19 +2,11 @@
 
 ## Status
 - W6.5-A ✅ DONE (spec)
-- W6.5-B 🟡 IN PROGRESS (backend LangChain/LangGraph/LangSmith internals)
-- W6.5-C ⏳ TODO (frontend refinements if needed)
-- W6.5-D ⏳ TODO (QA gate + spend monitoring)
+- W6.5-B ✅ DONE (backend internals upgrade merged + verifiers PASS)
+- W6.5-C ⏳ TODO (LLMOps / LangSmith tracing + eval harness)
+- W6.5-D ⏳ TODO (Ops runbook: safe env presets + budget protection)
 
 ---
-
-## ✅ W6.5-A — Docs/spec (single source of truth)
-# Week 6.5 — LangChain/LangGraph/LangSmith Upgrade (Icebreakers Internals)
-
-Status: IN PROGRESS  
-Owner: Lead Agent + Backend Agent + QA Agent  
-Depends on: Week 6 complete  
-Budget: $4.64 credit (must be spend-safe)
 
 ## ✅ W6.5-A — Docs/spec: single source of truth
 Status: DONE  
@@ -23,85 +15,57 @@ Deliverable:
 
 ---
 
-## 🟡 W6.5-B — Backend internals upgrade (LangChain + LangGraph + LangSmith)
-Status: IN PROGRESS  
+## ✅ W6.5-B — Backend internals upgrade (LangChain + LangGraph + LangSmith)
+Status: DONE  
 Owner: Backend Agent + QA Agent  
 Goal:
-- Keep the existing icebreakers API contract stable while upgrading internals to LangChain + LangGraph and enabling optional LangSmith traces.
-
-Subtasks:
-- [x] B1 Add LangChain/LangGraph/LangSmith dependencies
-- [x] B2 Replace low-level OpenAI call with LangChain structured output
-- [x] B3 Add minimal LangGraph flow (build→cache→call→validate→persist→return)
-- [x] B4 Add optional LangSmith tracing (env-driven; hashed metadata only)
-- [ ] B5 Manual verification (Mode 2 OpenAI key path) PASS
+- Keep existing icebreakers API contract stable while upgrading internals to LangChain + LangGraph and enabling optional LangSmith traces.
 
 Acceptance criteria:
 - No contract change for /api/chat-night/icebreakers
 - Cache-first behavior preserved (2nd call cached=true)
 - Safety filters preserved (PII/banned topics/format)
 - OpenAI mode produces model=<configured> when enabled; otherwise deterministic mode
+- LangSmith tracing OFF by default; can be enabled via env in dev; hashed metadata only (no PII)
+
+Verification (PASS required):
+- backend\verify_profile_completion.ps1
+- backend\verify_profile_strength_contract.ps1
+- backend\verify_languages_habits_contract.ps1
+- backend\verify_chat_night_v5_only.ps1
+- backend\verify_chat_night_fifo_only.ps1
+- backend\verify_chat_night_icebreakers_contract.ps1
+- backend\verify_chat_night_icebreakers_reveal_sync.ps1
 
 ---
 
-## ⏳ W6.5-C — Frontend (optional refinements)
-Status: TODO  
-Owner: Frontend Agent + QA Agent  
-Goal:
-- Only if needed: improve card UX, loading/error states, and cost-safe fetch behavior.
-
----
-
-## ⏳ W6.5-D — QA gate + spend monitoring
-Status: TODO  
-Owner: QA Agent  
-Goal:
-- Add PASS-required checks for “OpenAI mode works + caching + no PII output + guardrails”
-## 🟡 W6.5-B — Backend internal refactor (LangChain + LangGraph + LangSmith + OpenAI)
-Status: TODO  
-Owner: Backend Agent + QA Agent  
-Scope: backend only
-
-Goal:
-- Replace the *internal* OpenAI generation path with a LangGraph pipeline (LangChain output parsing + validations).
-- Add LangSmith tracing support (OFF by default; enabled only via env in dev).
-- Keep the API contract unchanged:
-  - POST /api/chat-night/icebreakers
-  - POST /api/chat-night/icebreakers/reveal
-  - GET /api/chat-night/room/{room_id} (reveal indices)
-
-Acceptance criteria:
-- No API response shape changes.
-- Cache-first preserved (no repeated spend per room).
-- Guardrails preserved (per-day/per-user/per-room + min-seconds-between).
-- Safety preserved (no PII in input/output; fallback on violation).
-- LangSmith traces exist when enabled, with NO PII logged.
-
-Verification:
-- backend\verify_chat_night_icebreakers_contract.ps1 — PASS
-- backend\verify_chat_night_icebreakers_reveal_sync.ps1 — PASS
-- Existing Week 6 regressions — PASS
-
----
-
-## 🟡 W6.5-C — QA / evaluation harness (prompt quality + safety regression)
+## ⏳ W6.5-C — LLMOps: LangSmith tracing + evaluation harness
 Status: TODO  
 Owner: QA Agent + Backend Agent  
-Scope: backend + docs/scripts only
+Scope: backend + qa scripts (no frontend)
 
 Goal:
-- Add a small offline “prompt evaluation harness”:
-  - runs 10–20 synthetic SanitizedMatchContext cases
-  - validates strict JSON, counts (2–3 reasons, 5 icebreakers), length limits, banned patterns
-  - can run in deterministic mode with zero spend
+- Add a small, repeatable evaluation harness to validate icebreaker output quality + safety.
+- Make LangSmith tracing easy to toggle in dev, with privacy guarantees.
+
+Deliverables:
+- Eval harness that runs 10–20 synthetic SanitizedMatchContext cases.
+- Validations: strict JSON, correct counts (reasons + icebreakers), length limits, banned patterns / PII.
+- Baseline deterministic run requires zero OpenAI spend.
+- Optional OpenAI run mode (explicitly enabled) for spot-checks.
+
+Acceptance criteria:
+- Deterministic harness run PASS with $0 spend.
+- When tracing enabled, traces contain NO PII (hashed ids only) and are OFF by default.
+- Harness runnable via a single command/script documented in Week 6.5 docs.
 
 Verification:
-- New harness script — PASS
-- No OpenAI spend required for baseline run
+- New harness script — PASS (deterministic baseline)
+- (Optional) OpenAI mode sanity — PASS (explicitly enabled)
 
 ---
 
-## 🟡 W6.5-D — Ops runbook: dev/prod presets + budget protection
+## ⏳ W6.5-D — Ops runbook: dev/prod presets + budget protection
 Status: TODO  
 Owner: Lead + Backend Agent  
 Scope: docs only
@@ -111,7 +75,9 @@ Goal:
   - DEV_SAFE (very low caps)
   - DEV_TEST (temporary higher caps)
   - PROD (lowest caps + kill switch default)
-- Document how to confirm “cache-hit” and that no extra OpenAI calls occur.
+- Document how to confirm cache-hit behavior (no repeated OpenAI calls per room).
+- Document tracing toggles and privacy constraints.
 
 Verification:
-- Docs updated, and a single end-to-end run confirms cache-hit behavior.
+- Docs updated and reviewed
+- One end-to-end run confirms cache-hit behavior
