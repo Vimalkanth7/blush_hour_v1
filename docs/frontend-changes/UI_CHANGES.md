@@ -117,3 +117,24 @@ npm run web
 - Spotlight/Premium tap handlers
 - All fetch, useState, useEffect
 - Gold tier logic
+
+## Packet UI-06 — Profile Preview & Detail Screens
+**Status:** Done
+**Files:** `mobile-app/app/modal/preview-profile.tsx`, `mobile-app/app/modal/edit-profile.tsx`, `mobile-app/components/PhotoGrid.tsx`
+
+### What Changed
+- Background -> #0D0A14
+- Top bar and back chevron -> dark palette
+- Profile strength card -> dark surface
+- Photos section -> dark surface + dashed placeholder
+- All row items -> dark bg, rose chevrons, muted labels
+- Section headers -> soft white bold
+- "Not specified" -> muted disabled color
+- "Add" links -> rose accent
+
+### What Was NOT Changed
+- Row tap handlers
+- Photo upload/picker logic
+- Field value rendering
+- All fetch, useState, useEffect
+- Navigation handlers

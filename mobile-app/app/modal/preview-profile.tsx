@@ -1,4 +1,4 @@
-import { COLORS, TYPOGRAPHY, SPACING, RADIUS, SHADOWS } from '../../constants/Theme';
+import { COLORS, TYPOGRAPHY, SPACING, RADIUS } from '../../constants/Theme';
 import React, { useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -65,7 +65,7 @@ export default function PreviewProfileScreen() {
             {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <Ionicons name="chevron-down" size={30} color={COLORS.primaryText} />
+                    <Ionicons name="chevron-down" size={30} color={COLORS.secondaryText} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Preview</Text>
                 <View style={{ width: 40 }} />
@@ -80,31 +80,33 @@ export default function PreviewProfileScreen() {
                     </View>
                     <View style={styles.strengthBarContainer}>
                         <Text style={styles.strengthPercent}>{completion}% complete</Text>
-                        <Ionicons name="chevron-forward" size={16} color={COLORS.primaryText} />
+                        <Ionicons name="chevron-forward" size={16} color={COLORS.primary} />
                     </View>
                 </View>
 
                 {/* Section 2: Photos (3x2 Grid) */}
-                <Text style={styles.sectionTitle}>Photos and videos</Text>
-                <Text style={styles.sectionSubtitle}>Pick some that show the true you.</Text>
+                <View style={styles.photoSectionCard}>
+                    <Text style={styles.photoSectionTitle}>Photos and videos</Text>
+                    <Text style={styles.photoSectionSubtitle}>Pick some that show the true you.</Text>
 
-                <View style={styles.photoGrid}>
-                    {photos.map((uri, index) => (
-                        <View key={index} style={[styles.photoSlot, { width: PHOTO_SIZE, height: PHOTO_SIZE * 1.2 }]}>
-                            {uri ? (
-                                <Image source={{ uri }} style={styles.photoImage} />
-                            ) : (
-                                <View style={styles.emptySlot}>
-                                    <Text style={styles.emptySlotText}>{index + 1}</Text>
-                                </View>
-                            )}
-                            {index === 0 && uri && (
-                                <View style={styles.mainBadge}>
-                                    <Text style={styles.mainBadgeText}>Main</Text>
-                                </View>
-                            )}
-                        </View>
-                    ))}
+                    <View style={styles.photoGrid}>
+                        {photos.map((uri, index) => (
+                            <View key={index} style={[styles.photoSlot, { width: PHOTO_SIZE, height: PHOTO_SIZE * 1.2 }]}>
+                                {uri ? (
+                                    <Image source={{ uri }} style={styles.photoImage} />
+                                ) : (
+                                    <View style={styles.emptySlot}>
+                                        <Text style={styles.emptySlotText}>{index + 1}</Text>
+                                    </View>
+                                )}
+                                {index === 0 && uri && (
+                                    <View style={styles.mainBadge}>
+                                        <Text style={styles.mainBadgeText}>Main</Text>
+                                    </View>
+                                )}
+                            </View>
+                        ))}
+                    </View>
                 </View>
 
                 {/* Section 3: Bio */}
@@ -193,10 +195,10 @@ const InfoRow = ({ icon, label, value }: { icon: any, label: string, value: stri
             <Text style={styles.rowLabel}>{label}</Text>
         </View>
         <View style={styles.rowRight}>
-            <Text style={[styles.rowValue, !value && styles.placeholderValue]}>
+            <Text style={[styles.rowValue, !value && styles.addValue]}>
                 {value || "Add"}
             </Text>
-            <Ionicons name="chevron-forward" size={16} color={COLORS.disabledText} style={{ marginLeft: SPACING.sm }} />
+            <Ionicons name="chevron-forward" size={16} color={COLORS.primary} style={{ marginLeft: SPACING.sm }} />
         </View>
     </View>
 );
@@ -215,7 +217,7 @@ const InfoRowWithFallback = ({ icon, label, value, emptyLabel = "Not specified" 
                 <Text style={[styles.rowValue, isMissing && styles.placeholderValue]}>
                     {displayValue}
                 </Text>
-                <Ionicons name="chevron-forward" size={16} color={COLORS.disabledText} style={{ marginLeft: SPACING.sm }} />
+                <Ionicons name="chevron-forward" size={16} color={COLORS.primary} style={{ marginLeft: SPACING.sm }} />
             </View>
         </View>
     );
@@ -255,44 +257,72 @@ const styles = StyleSheet.create({
 
     // Strength
     strengthCard: {
-        margin: SPACING.screen, padding: SPACING.lg, backgroundColor: COLORS.background,
-        borderRadius: RADIUS.lg, borderWidth: 1, borderColor: COLORS.border,
-        ...SHADOWS.small
+        margin: SPACING.screen,
+        padding: SPACING.lg,
+        backgroundColor: COLORS.surface,
+        borderRadius: RADIUS.lg,
+        borderWidth: 1,
+        borderColor: COLORS.border
     },
     strengthRow: { marginBottom: SPACING.sm },
     strengthTitle: { ...TYPOGRAPHY.h2, fontSize: 16, color: COLORS.primaryText },
     strengthBarContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    strengthPercent: { fontSize: 14, color: COLORS.primaryText, fontWeight: '500' },
+    strengthPercent: { fontSize: 14, color: COLORS.secondaryText, fontWeight: '500' },
 
     // Section Headers
-    sectionTitle: { ...TYPOGRAPHY.h2, fontSize: 18, color: COLORS.primaryText, marginLeft: SPACING.screen, marginTop: SPACING.xl, marginBottom: 4 },
+    sectionTitle: { ...TYPOGRAPHY.h2, fontSize: 18, color: COLORS.primaryText, fontWeight: '600', marginLeft: SPACING.screen, marginTop: SPACING.xl, marginBottom: 4 },
     sectionSubtitle: { ...TYPOGRAPHY.bodyBase, fontSize: 14, color: COLORS.secondaryText, marginLeft: SPACING.screen, marginBottom: SPACING.lg },
 
     // Photos
-    photoGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: SPACING.screen, gap: GAP },
+    photoSectionCard: {
+        marginHorizontal: SPACING.screen,
+        marginTop: SPACING.xl,
+        padding: SPACING.lg,
+        backgroundColor: COLORS.surface,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        borderRadius: RADIUS.lg
+    },
+    photoSectionTitle: { ...TYPOGRAPHY.h2, fontSize: 18, color: COLORS.primaryText, fontWeight: '600', marginBottom: 4 },
+    photoSectionSubtitle: { ...TYPOGRAPHY.bodyBase, fontSize: 14, color: COLORS.secondaryText, marginBottom: SPACING.lg },
+    photoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: GAP },
     photoSlot: { borderRadius: RADIUS.sm, overflow: 'hidden', backgroundColor: COLORS.surface, position: 'relative' },
     photoImage: { width: '100%', height: '100%', resizeMode: 'cover' },
-    emptySlot: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: RADIUS.sm },
+    emptySlot: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: COLORS.surface,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        borderStyle: 'dashed',
+        borderRadius: RADIUS.sm
+    },
     emptySlotText: { fontSize: 24, color: COLORS.disabledText, fontWeight: '700' },
-    mainBadge: { position: 'absolute', bottom: 8, left: 8, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: RADIUS.sm },
-    mainBadgeText: { color: 'white', fontSize: 10, fontWeight: '600' },
+    mainBadge: { position: 'absolute', bottom: 8, left: 8, backgroundColor: COLORS.border, paddingHorizontal: 8, paddingVertical: 4, borderRadius: RADIUS.sm },
+    mainBadgeText: { color: COLORS.secondaryText, fontSize: 10, fontWeight: '600' },
 
     // Bio & Cards
-    card: { marginHorizontal: SPACING.screen, padding: SPACING.lg, borderWidth: 1, borderColor: COLORS.border, borderRadius: RADIUS.lg, marginTop: SPACING.sm },
+    card: { marginHorizontal: SPACING.screen, padding: SPACING.lg, borderWidth: 1, borderColor: COLORS.border, borderRadius: RADIUS.lg, marginTop: SPACING.sm, backgroundColor: COLORS.surface },
     bioText: { ...TYPOGRAPHY.bodyBase, color: COLORS.primaryText },
     placeholderText: { ...TYPOGRAPHY.bodyBase, color: COLORS.disabledText, fontStyle: 'italic' },
 
     // Info Rows
-    infoList: { marginTop: SPACING.sm },
+    infoList: { marginTop: SPACING.sm, marginHorizontal: SPACING.screen },
     row: {
-        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-        paddingVertical: 14, paddingHorizontal: SPACING.screen
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 14,
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.border
     },
     rowLeft: { flexDirection: 'row', alignItems: 'center' },
-    rowLabel: { fontSize: 16, color: COLORS.primaryText },
+    rowLabel: { fontSize: 16, color: COLORS.secondaryText },
     rowRight: { flexDirection: 'row', alignItems: 'center' },
     rowValue: { fontSize: 16, color: COLORS.primaryText, maxWidth: 150, textAlign: 'right' },
     placeholderValue: { color: COLORS.disabledText },
+    addValue: { color: COLORS.primary, fontWeight: '600' },
 
     // Chips
     chipContainer: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: SPACING.screen, marginTop: SPACING.sm, gap: SPACING.sm },
