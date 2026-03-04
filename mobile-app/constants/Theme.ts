@@ -18,7 +18,7 @@
 
 export const COLORS = {
   // Brand Colors
-  primary: '#FFBF00', // Safety Amber
+  primary: '#FF6B9D', // Safety Amber
   brandBase: '#0F172A', // Midnight Blue
 
   // Functional Colors
@@ -26,20 +26,20 @@ export const COLORS = {
   success: '#10B981', // Success Green
 
   // App Colors (Light Mode)
-  background: '#FFFFFF',
-  surface: '#F8FAFC',
-  primaryText: '#0F172A',
-  secondaryText: '#64748B',
-  border: '#E2E8F0',
-  disabled: '#E2E8F0',
-  disabledText: '#94A3B8',
+  background: '#0D0A14',
+  surface: '#1A1425',
+  primaryText: '#F5F0FF',
+  secondaryText: '#A89BC2',
+  border: '#2D2440',
+  disabled: '#2D2440',
+  disabledText: '#5C5175',
 
   // Dark Mode (Future Ready - Placeholder)
   dark: {
-    background: '#0F172A',
-    surface: '#1E293B',
-    primaryText: '#F8FAFC',
-    secondaryText: '#94A3B8',
+    background: '#0D0A14',
+    surface: '#1A1425',
+    primaryText: '#F5F0FF',
+    secondaryText: '#A89BC2',
   }
 } as const;
 
@@ -108,19 +108,27 @@ export const RADIUS = {
 
 export const SHADOWS = {
   card: {
-    shadowColor: '#000',
+    shadowColor: '#FF6B9D',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4, // Android
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 8, // Android
   },
   small: {
-    shadowColor: '#000',
+    shadowColor: '#FF6B9D',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   }
+} as const;
+
+export const GRADIENTS = {
+  primary: ['#FF6B9D', '#C44569'],
+  background: ['#0D0A14', '#1A1025'],
+  card: ['rgba(255,255,255,0.07)', 'rgba(255,255,255,0.03)'],
+  gold: ['#FFD700', '#FF8C00'],
+  glow: ['rgba(255,107,157,0.3)', 'rgba(255,107,157,0)'],
 } as const;
 
 // Compatibility for existing template hooks
