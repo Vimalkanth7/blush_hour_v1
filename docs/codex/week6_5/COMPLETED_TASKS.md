@@ -56,3 +56,18 @@ Verification:
 - Deterministic mode enforced (`meta.mode == deterministic`) and cache second-call required.
 - Post-merge regression spot-check: `backend\verify_chat_night_icebreakers_contract.ps1` — PASS
 - Post-merge regression spot-check: `backend\verify_chat_night_icebreakers_reveal_sync.ps1` — PASS
+
+---
+
+## ✅ W6.5-D — Ops runbook for env presets + budget protection (docs)
+Status: DONE  
+
+Notes:
+- Added copy/paste runbook for `DEV_SAFE`, `DEV_TEST`, and `PROD` presets.
+- Added LangSmith tracing toggles (`LANGCHAIN_TRACING_V2`) and privacy rules (hashed metadata only, no PII).
+- Documented internal eval endpoint gating (`CHAT_NIGHT_TEST_MODE=true` and `BH_INTERNAL_EVALS_ENABLED=true`).
+- Documented cache-hit confirmation expectations (`cached=false` then `cached=true`).
+- Documented deterministic eval harness usage and spend-protection preflight checklist.
+
+Deliverable:
+- `docs/codex/week6_5/week6_5_detailed_docs/W6_5D_OPS_RUNBOOK_DEV_PROD_PRESETS.md`
