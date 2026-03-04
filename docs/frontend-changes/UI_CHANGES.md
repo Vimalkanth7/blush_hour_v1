@@ -74,3 +74,24 @@ npm run web
 - API calls or polling
 - Pass count data source
 - Any useEffect or useState
+
+## Packet UI-04 — Matches Screen
+**Status:** Done
+**File:** `mobile-app/app/(tabs)/matches.tsx`
+
+### What Changed
+- Background -> #0D0A14
+- Section headers -> uppercase muted lavender
+- Avatar rings -> dark border default, rose glow for active
+- Likes bubble -> rose tinted
+- Time badge -> rose pink pill
+- Conversation cards -> dark surface with border
+- Header title -> soft white
+
+### What Was NOT Changed
+- Avatar blur/unblur logic
+- Match data fetching
+- Conversation list logic
+- Time badge calculation
+- Search functionality
+- Any useState or useEffect
