@@ -11,3 +11,5 @@ node_modules/
 *.log
 *.apk
 mobile-app/*.apk
+
+.env
