@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import nullcontext
 from datetime import date, datetime, timedelta, timezone
 from functools import lru_cache
 from typing import Annotated, Any, Dict, List, Optional, Sequence, Tuple, TypedDict
@@ -11,6 +12,7 @@ import re
 from beanie import PydanticObjectId
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph
+from langsmith.run_helpers import tracing_context
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, ValidationError
 
 from app.models.chat_night import ChatNightIcebreakers, ChatNightRoom
@@ -44,6 +46,11 @@ OPENAI_PROVIDER = "openai"
 MODEL_NONE = "none"
 MODEL_FALLBACK = "fallback"
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
+DEFAULT_ICEBREAKERS_PROMPT_VERSION = "w6.5c-2026-03-04"
+ICEBREAKERS_PROMPT_VERSION = (
+    os.getenv("ICEBREAKERS_PROMPT_VERSION", DEFAULT_ICEBREAKERS_PROMPT_VERSION)
+    or DEFAULT_ICEBREAKERS_PROMPT_VERSION
+).strip() or DEFAULT_ICEBREAKERS_PROMPT_VERSION
 LANGSMITH_TRACING_FLAGS = ("LANGSMITH_TRACING", "LANGCHAIN_TRACING_V2")
 
 
@@ -105,6 +112,47 @@ def _contains_obvious_pii(value: str) -> bool:
         or HANDLE_PATTERN.search(value)
         or URL_PATTERN.search(value)
     )
+
+
+def contains_pii(text: str) -> bool:
+    value = _to_text(text)
+    if not value:
+        return False
+    return bool(EMAIL_PATTERN.search(value) or PHONE_PATTERN.search(value))
+
+
+def _env_flag_enabled(name: str) -> bool:
+    return _to_text(os.getenv(name, "")).lower() in {"1", "true", "yes", "on"}
+
+
+def _chat_night_test_mode_enabled() -> bool:
+    return _env_flag_enabled("CHAT_NIGHT_TEST_MODE")
+
+
+def _log_trace_skip_warning(reason: str) -> None:
+    if _chat_night_test_mode_enabled():
+        print(f"[chat-night][icebreakers] tracing skipped: {reason}")
+
+
+def _trace_payload_has_pii(payload: Any) -> bool:
+    try:
+        serialized = json.dumps(payload, ensure_ascii=True, sort_keys=True, default=str)
+    except Exception:
+        serialized = _to_text(payload)
+    return contains_pii(serialized)
+
+
+def _trace_allowed_for_context(
+    context: SanitizedMatchContext,
+    *,
+    stage: str,
+) -> bool:
+    if not _langsmith_tracing_enabled():
+        return False
+    if _trace_payload_has_pii(context.model_dump(mode="json", exclude_none=True)):
+        _log_trace_skip_warning(f"{stage} payload contains possible PII")
+        return False
+    return True
 
 
 def _contains_exact_location(value: str) -> bool:
@@ -568,6 +616,10 @@ def _hash_sanitized_context(context: SanitizedMatchContext) -> str:
     return hashlib.sha1(stable_json.encode("utf-8")).hexdigest()
 
 
+def get_icebreakers_prompt_version() -> str:
+    return ICEBREAKERS_PROMPT_VERSION
+
+
 def _validate_output_shape(payload: Any) -> Optional[Dict[str, List[str]]]:
     raw_payload: Any = payload
     if isinstance(raw_payload, str):
@@ -602,6 +654,13 @@ def _validate_output_shape(payload: Any) -> Optional[Dict[str, List[str]]]:
         "reasons": reasons[:OUTPUT_REASON_COUNT],
         "icebreakers": icebreakers[:OUTPUT_ICEBREAKER_COUNT],
     }
+
+
+def validate_icebreakers_payload(payload: Any) -> Dict[str, List[str]]:
+    validated = _validate_output_shape(payload)
+    if validated is None:
+        raise ValueError("Invalid icebreakers payload shape")
+    return validated
 
 
 def _passes_safety_filters(payload: Dict[str, List[str]]) -> bool:
@@ -675,15 +734,19 @@ def _langsmith_invoke_config(
     metadata = {
         "room_id_hash": _hash_trace_value(context.room_id),
         "context_hash": context_hash,
+        "prompt_version": get_icebreakers_prompt_version(),
+        "trace_payload_sanitized": "true",
+        "langsmith_tracing": "enabled",
     }
-    config: Dict[str, Any] = {
+    return {
         "run_name": run_name,
         "metadata": metadata,
-        "tags": ["chat-night", "icebreakers"],
+        "tags": [
+            "chat-night",
+            "icebreakers",
+            f"prompt-version:{get_icebreakers_prompt_version()}",
+        ],
     }
-    if _langsmith_tracing_enabled():
-        config["metadata"]["langsmith_tracing"] = "enabled"
-    return config
 
 
 def _build_structured_openai_runnable(api_key: str) -> Any:
@@ -713,15 +776,25 @@ async def _generate_openai_payload(
 
     try:
         structured_runnable = _build_structured_openai_runnable(api_key)
-        run_config = _langsmith_invoke_config(
-            run_name="chat-night-icebreakers-llm",
-            context=context,
-            context_hash=context_hash,
+        trace_allowed = _trace_allowed_for_context(context, stage="llm")
+        invoke_kwargs: Dict[str, Any] = {}
+        if trace_allowed:
+            invoke_kwargs["config"] = _langsmith_invoke_config(
+                run_name="chat-night-icebreakers-llm",
+                context=context,
+                context_hash=context_hash,
+            )
+
+        trace_ctx = (
+            tracing_context(enabled=False)
+            if _langsmith_tracing_enabled() and not trace_allowed
+            else nullcontext()
         )
-        result = await structured_runnable.ainvoke(
-            _openai_messages(context),
-            config=run_config,
-        )
+        with trace_ctx:
+            result = await structured_runnable.ainvoke(
+                _openai_messages(context),
+                **invoke_kwargs,
+            )
     except Exception:
         return None
 
@@ -1092,12 +1165,22 @@ async def generate_icebreakers(
             "requester_user_id": requester_user_id,
             "participant_user_ids": participant_list,
         }
-        invoke_config = _langsmith_invoke_config(
-            run_name="chat-night-icebreakers-graph",
-            context=context,
-            context_hash=context_hash,
+        trace_allowed = _trace_allowed_for_context(context, stage="graph")
+        invoke_kwargs: Dict[str, Any] = {}
+        if trace_allowed:
+            invoke_kwargs["config"] = _langsmith_invoke_config(
+                run_name="chat-night-icebreakers-graph",
+                context=context,
+                context_hash=context_hash,
+            )
+
+        trace_ctx = (
+            tracing_context(enabled=False)
+            if _langsmith_tracing_enabled() and not trace_allowed
+            else nullcontext()
         )
-        final_state = await _icebreaker_graph().ainvoke(graph_state, config=invoke_config)
+        with trace_ctx:
+            final_state = await _icebreaker_graph().ainvoke(graph_state, **invoke_kwargs)
 
         payload = _validate_output_shape(final_state.get("payload"))
         if not payload or not _passes_safety_filters(payload):
