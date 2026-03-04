@@ -114,3 +114,31 @@ Key commands documented:
 - `backend\verify_chat_night_icebreakers_contract.ps1`
 - `backend\verify_icebreakers_eval_harness.ps1`
 - `POST /api/internal/evals/icebreakers` (gated by `CHAT_NIGHT_TEST_MODE=true` + `BH_INTERNAL_EVALS_ENABLED=true`)
+
+---
+
+## W6.5-LS-2 - LangSmith tracing runbook documented (docs-only)
+Date: 2026-03-05  
+Agent: Docs Agent (Antigravity)
+
+Files changed:
+- docs/codex/week6_5/week6_5_detailed_docs/LS_RUNBOOK_LANGSMITH_TRACING.md
+- docs/codex/week6_5/COMPLETED_TASKS.md
+- docs/codex/week6_5/SESSION_LOG.md
+
+What documented:
+- Safe LangSmith tracing enablement for Blush Hour with placeholder-only env setup.
+- LS-1 API root naming convention and UI filters for:
+  - `api POST /api/chat-night/icebreakers`
+  - `api POST /api/chat-night/icebreakers/reveal`
+- LS-3 smoke flow and expected PASS signal.
+- "0 traces" and "fallback model" troubleshooting checklists.
+- Safety constraints: no key leaks, no `.env` commits, allowlist-only tracing, PII-safe metadata checks.
+
+Key commands referenced:
+- `git check-ignore -v .env`
+- `Get-Content .env | ForEach-Object { ... [Environment]::SetEnvironmentVariable(..., "Process") }`
+- `cd backend`
+- `venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000`
+- `backend\verify_chat_night_icebreakers_contract.ps1`
+- `backend\verify_langsmith_api_tracing_smoke.ps1 -BaseUrl "http://localhost:8000"`
