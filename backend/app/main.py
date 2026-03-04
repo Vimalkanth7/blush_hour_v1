@@ -48,6 +48,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from app.core.limiter import limiter
+from app.middleware.langsmith_api_tracing import LangSmithApiTracingMiddleware
 
 app = FastAPI(title="Blush Hour Backend", lifespan=lifespan)
 app.state.limiter = limiter
@@ -82,6 +83,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(LangSmithApiTracingMiddleware)
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(users.router, prefix="/api/users", tags=["users"])
