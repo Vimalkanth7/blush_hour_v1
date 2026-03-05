@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from motor.motor_asyncio import AsyncIOMotorClient
 from beanie import init_beanie
+import logging
 
 from app.core.config import settings
 from app.models.user import User
@@ -50,6 +51,8 @@ from starlette.responses import JSONResponse
 from app.core.limiter import limiter
 from app.middleware.langsmith_api_tracing import LangSmithApiTracingMiddleware
 
+logger = logging.getLogger(__name__)
+
 app = FastAPI(title="Blush Hour Backend", lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -58,12 +61,14 @@ app.add_middleware(SlowAPIMiddleware)
 # Global Exception Handler
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    import traceback
-    print(f"Global Error: {exc}")
-    traceback.print_exc()
+    logger.error(
+        "Unhandled application error at %s",
+        request.url.path,
+        exc_info=(type(exc), exc, exc.__traceback__),
+    )
     return JSONResponse(
         status_code=500,
-        content={"message": "Internal Server Error", "detail": str(exc)},
+        content={"message": "Internal Server Error"},
     )
 
 from fastapi.middleware.cors import CORSMiddleware
@@ -103,8 +108,9 @@ async def health_check():
     try:
         await User.find_one(User.phone_number == "0000000000")
         db_status = "connected"
-    except Exception as e:
-        db_status = f"error: {str(e)}"
+    except Exception:
+        logger.exception("Health check database probe failed.")
+        db_status = "error"
         
     return {"status": "healthy", "database": db_status}
 

@@ -25,8 +25,25 @@ def _env_flag_enabled(name: str) -> bool:
     return (os.getenv(name, "").strip().lower() in {"1", "true", "yes", "on"})
 
 
+def _is_production_environment() -> bool:
+    # Safety net against accidental public exposure when deploy env is marked prod.
+    production_markers = {"prod", "production", "live"}
+    env_names = ("APP_ENV", "ENV", "ENVIRONMENT", "FASTAPI_ENV", "BH_ENV")
+    for env_name in env_names:
+        value = os.getenv(env_name, "").strip().lower()
+        if value in production_markers:
+            return True
+    return False
+
+
 def _internal_evals_enabled() -> bool:
-    return _env_flag_enabled("CHAT_NIGHT_TEST_MODE") and _env_flag_enabled("BH_INTERNAL_EVALS_ENABLED")
+    if not (_env_flag_enabled("CHAT_NIGHT_TEST_MODE") and _env_flag_enabled("BH_INTERNAL_EVALS_ENABLED")):
+        return False
+
+    if _is_production_environment() and not _env_flag_enabled("BH_INTERNAL_EVALS_ALLOW_PROD"):
+        return False
+
+    return True
 
 
 class InternalIcebreakersEvalRequest(BaseModel):
