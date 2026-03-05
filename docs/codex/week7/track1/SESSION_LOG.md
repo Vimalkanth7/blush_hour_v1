@@ -3,6 +3,7 @@
 ## Log Format
 - Date (YYYY-MM-DD)
 - What changed
+- Decisions (why we chose X over Y)
 - How verified (commands + PASS lines)
 - PR/commit refs
 - Risks/follow-ups

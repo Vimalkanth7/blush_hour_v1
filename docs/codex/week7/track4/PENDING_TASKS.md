@@ -23,6 +23,10 @@ Provider: Cloudflare R2 (signed uploads)
 - [ ] T4-D (Docs) Storage runbook:
   - env vars, bucket naming, CDN domain rules, troubleshooting
 
+## Rollback / Kill switch (required)
+- BH_PHOTOS_ENABLED=true (default)
+- If false: uploads disabled; placeholders allowed.
+
 ## Acceptance Criteria (Track 4)
 - Photo uploads succeed reliably on Android.
 - No local file:// URIs stored in DB.

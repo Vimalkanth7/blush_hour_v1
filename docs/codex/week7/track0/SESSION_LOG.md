@@ -1,6 +1,6 @@
-# Week 7 — Track 4 (PHOTOS) — SESSION LOG
+# Week 7 — Track 0 (SECURITY + PII BASELINE) — SESSION LOG
 
-## Log Format
+## Log Format (per entry)
 - Date (YYYY-MM-DD)
 - What changed
 - Decisions (why we chose X over Y)

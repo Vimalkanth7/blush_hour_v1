@@ -26,6 +26,10 @@ Provider: LiveKit Cloud (WebRTC)
 - [ ] T2-D (Docs) Voice runbook:
   - LiveKit envs, testing steps, troubleshooting, rollout notes
 
+## Rollback / Kill switch (required)
+- BH_VOICE_ENABLED=true (default)
+- If false: Talk Room shows “Voice temporarily unavailable” and skips join.
+
 ## Acceptance Criteria (Track 2)
 - Users can reliably join the same room and talk (Android devices).
 - Room end forcibly disconnects voice.

@@ -23,9 +23,15 @@ Provider: Twilio Verify (backend-driven)
   - resend throttling / rate limit behavior
 - [ ] T1-D (Docs) OTP runbook:
   - required env vars, local dev steps, test-mode steps, troubleshooting
+  - India OTP deliverability requires DLT entity/header/template registration and must be documented as a pre-launch checklist.
+
+## Rollback / Kill switch (required)
+- BH_OTP_ENABLED=true (default)
+- If false: OTP endpoints return 503 and UI should hide OTP entry (fallback auth to be defined).
 
 ## Acceptance Criteria (Track 1)
 - OTP works end-to-end on Android (real device).
 - Rate limits + anti-abuse in place (per IP/phone).
 - No OTP codes or phone numbers logged/traced.
 - Existing auth contract remains stable.
+- India DLT compliance verified (or delivery will fail).
