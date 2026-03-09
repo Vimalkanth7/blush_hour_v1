@@ -5,7 +5,7 @@ Goal: Phone OTP login for Android launch (trust + lower friction)
 Provider: Twilio Verify (backend-driven)
 
 ## Status
-- Track 1: 🟡 IN PROGRESS
+- Track 1: ✅ DONE
 
 ## Dependencies
 - W7-0 (Baseline): ✅ DONE (security + PII patch set)
