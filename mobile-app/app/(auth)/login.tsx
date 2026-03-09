@@ -1,82 +1,97 @@
-import React, { useState } from 'react';
-import { API_BASE_URL, handleApiError } from '../../constants/Api';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../context/AuthContext';
+import { API_BASE_URL, isApiRequestError, otpStart } from '../../constants/Api';
 import { COLORS, SPACING, RADIUS, TYPOGRAPHY } from '../../constants/Theme';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
-// ... logic remains identical
-// ... imports logic remains identical
+
+const E164_REGEX = /^\+[1-9]\d{7,14}$/;
+
+type StatusType = 'error' | 'info';
+
+const normalizePrefillPhone = (value: string | undefined): string => {
+    if (!value) return '';
+
+    const trimmed = value.trim();
+    if (!trimmed) return '';
+
+    if (trimmed.startsWith('+')) {
+        return `+${trimmed.slice(1).replace(/\D/g, '')}`;
+    }
+
+    const digits = trimmed.replace(/\D/g, '');
+    return digits ? `+${digits}` : '';
+};
+
+const sanitizePhoneInput = (value: string): string => {
+    if (!value) return '';
+    if (value.startsWith('+')) {
+        return `+${value.slice(1).replace(/\D/g, '')}`;
+    }
+    return value.replace(/\D/g, '');
+};
+
+const mapOtpStartError = (error: unknown): string => {
+    if (!isApiRequestError(error)) {
+        return error instanceof Error ? error.message : 'Unable to send OTP.';
+    }
+
+    const detail = error.detail || 'Unable to send OTP.';
+    const lowerDetail = detail.toLowerCase();
+
+    if (error.status === 0) {
+        return 'Network error. Check your connection and try again.';
+    }
+    if (error.status === 429) {
+        return 'Too many requests. Please wait before trying again.';
+    }
+    if (error.status === 503 && (lowerDetail.includes('disabled') || lowerDetail.includes('not configured'))) {
+        return 'OTP login is currently unavailable. Please try again later.';
+    }
+    if (error.status === 503) {
+        return 'OTP service is temporarily unavailable. Please try again shortly.';
+    }
+
+    return detail;
+};
 
 export default function LoginScreen() {
     const router = useRouter();
-    const { prefillPhone } = useLocalSearchParams<{ prefillPhone: string }>();
-    const [phone, setPhone] = useState(prefillPhone || '');
-    const [password, setPassword] = useState('');
-    const [showPassword, setShowPassword] = useState(false);
+    const { prefillPhone } = useLocalSearchParams<{ prefillPhone?: string }>();
+    const [phone, setPhone] = useState(() => normalizePrefillPhone(prefillPhone));
     const [isLoading, setIsLoading] = useState(false);
-    const [statusMsg, setStatusMsg] = useState<{ text: string, type: 'error' | 'success' | 'info' } | null>(null);
-    const { signIn, signOut } = useAuth();
+    const [statusMsg, setStatusMsg] = useState<{ text: string, type: StatusType } | null>(null);
 
-    const handleLogin = async () => {
-        if (!phone || !password) return;
+    const isPhoneValid = useMemo(() => E164_REGEX.test(phone), [phone]);
+
+    const handleBack = () => {
+        if (router.canGoBack()) {
+            router.back();
+            return;
+        }
+        router.replace('/welcome');
+    };
+
+    const handleSendOtp = async () => {
+        if (!isPhoneValid) {
+            setStatusMsg({ text: 'Enter a valid phone number in E.164 format (example: +14155550123).', type: 'error' });
+            return;
+        }
 
         setIsLoading(true);
         setStatusMsg(null);
+
         try {
-            // Normalize phone: remove all non-digits, extract last 10 chars
-            let cleanPhone = phone.replace(/\D/g, '');
-            if (cleanPhone.length > 10) {
-                cleanPhone = cleanPhone.slice(-10);
-            }
-
-            console.log("Attempting Login:", { phone_number: cleanPhone });
-
-            // Using 'phone_number' and 'password' as strict JSON keys
-            const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    phone_number: cleanPhone,
-                    password: password
-                })
+            await otpStart(phone);
+            router.push({
+                pathname: '/otp-code',
+                params: { phone },
             });
-
-            if (await handleApiError(response, signOut)) {
-                setIsLoading(false);
-                return;
-            }
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.log("Login Error Response:", response.status, errorText);
-                try {
-                    const errorJson = JSON.parse(errorText);
-                    throw new Error(errorJson.detail || "Login failed");
-                } catch (e) {
-                    // If parsing fails, use the raw text or default
-                    const msg = errorText && errorText.length < 100 ? errorText : "Login failed (Server Error)";
-                    throw new Error(msg);
-                }
-            }
-
-            const data = await response.json();
-            // Expect { access_token: string, ... }
-            if (data.access_token) {
-                await signIn(data.access_token);
-            } else {
-                throw new Error("No access token returned");
-            }
-
         } catch (error) {
-            console.error("Login error:", error);
-            setStatusMsg({
-                text: error instanceof Error ? error.message : "Invalid phone or password",
-                type: 'error'
-            });
+            setStatusMsg({ text: mapOtpStartError(error), type: 'error' });
         } finally {
             setIsLoading(false);
         }
@@ -93,47 +108,42 @@ export default function LoginScreen() {
                 contentContainerStyle={{ paddingBottom: 100 }}
                 showsVerticalScrollIndicator={false}
             >
-                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                <TouchableOpacity onPress={handleBack} style={styles.backButton}>
                     <Ionicons name="arrow-back" size={24} color={COLORS.primaryText} />
                 </TouchableOpacity>
 
-                <Text style={styles.title}>Welcome back</Text>
+                <Text style={styles.title}>Log in with OTP</Text>
+                <Text style={styles.subtitle}>Enter your phone number in international format.</Text>
 
                 <View style={styles.inputGroup}>
                     <Text style={styles.label}>Phone Number</Text>
                     <Input
-                        placeholder="99999 99999"
+                        placeholder="+14155550123"
                         keyboardType="phone-pad"
+                        autoFocus
+                        autoCapitalize="none"
+                        autoCorrect={false}
                         value={phone}
-                        onChangeText={setPhone}
+                        onChangeText={(value) => {
+                            setPhone(sanitizePhoneInput(value));
+                            if (statusMsg) setStatusMsg(null);
+                        }}
                     />
-                </View>
-
-                <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Password</Text>
-                    <Input
-                        placeholder="Enter your password"
-                        secureTextEntry={!showPassword}
-                        value={password}
-                        onChangeText={setPassword}
-                        rightSlot={(
-                            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                                <Ionicons name={showPassword ? "eye-off" : "eye"} size={24} color={COLORS.secondaryText} />
-                            </TouchableOpacity>
-                        )}
-                    />
+                    {!!phone && !isPhoneValid && (
+                        <Text style={styles.validationText}>Use E.164 format: + then country code and number</Text>
+                    )}
                 </View>
 
                 {statusMsg && (
-                    <View style={[styles.toast, statusMsg.type === 'error' ? styles.toastError : styles.toastSuccess]}>
+                    <View style={styles.toast}>
                         <Text style={styles.toastText}>{statusMsg.text}</Text>
                     </View>
                 )}
 
                 <Button
-                    label="Log In"
-                    onPress={handleLogin}
-                    disabled={!phone || !password || isLoading}
+                    label="Send OTP"
+                    onPress={handleSendOtp}
+                    disabled={isLoading || !phone}
                     loading={isLoading}
                     style={styles.loginButton}
                 />
@@ -149,10 +159,17 @@ const styles = StyleSheet.create({
         padding: SPACING.screen
     },
     debugContainer: {
-        position: 'absolute', top: 5, left: 0, right: 0, alignItems: 'center', zIndex: 10
+        position: 'absolute',
+        top: 5,
+        left: 0,
+        right: 0,
+        alignItems: 'center',
+        zIndex: 10
     },
     debugText: {
-        fontSize: 10, color: '#aaa', fontFamily: 'monospace'
+        fontSize: 10,
+        color: '#aaa',
+        fontFamily: 'monospace'
     },
     backButton: {
         marginBottom: SPACING.display,
@@ -161,16 +178,26 @@ const styles = StyleSheet.create({
     title: {
         ...TYPOGRAPHY.display,
         color: COLORS.primaryText,
+        marginBottom: SPACING.sm
+    },
+    subtitle: {
+        ...TYPOGRAPHY.bodyBase,
+        color: COLORS.secondaryText,
         marginBottom: SPACING.section
     },
     inputGroup: {
-        marginBottom: SPACING.xxl
+        marginBottom: SPACING.xl
     },
     label: {
         ...TYPOGRAPHY.bodyBase,
         fontWeight: '600',
         color: COLORS.secondaryText,
         marginBottom: SPACING.sm
+    },
+    validationText: {
+        ...TYPOGRAPHY.caption,
+        color: COLORS.destructive,
+        marginTop: SPACING.sm
     },
     loginButton: {
         marginTop: SPACING.section
@@ -179,10 +206,8 @@ const styles = StyleSheet.create({
         padding: SPACING.md,
         borderRadius: RADIUS.sm,
         marginBottom: SPACING.md,
-        alignItems: 'center'
+        backgroundColor: '#ffebee'
     },
-    toastError: { backgroundColor: '#ffebee' }, // Could map to a lightened destructive token if available
-    toastSuccess: { backgroundColor: '#e8f5e9' },
     toastText: {
         fontWeight: '600',
         color: COLORS.primaryText
