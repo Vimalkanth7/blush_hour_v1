@@ -5,10 +5,10 @@ Goal: Phone OTP login for Android launch (trust + lower friction)
 Provider: Twilio Verify (backend-driven)
 
 ## Status
-- Track 1: done ✅
+- Track 1: 🟡 IN PROGRESS
 
-## Dependencies (must be done before OTP ships)
-- W7-0 (Baseline): security + PII patch set (no secret fallback, no PII leakage, safe errors)
+## Dependencies
+- W7-0 (Baseline): ✅ DONE (security + PII patch set)
 
 ## Subtasks
 - [x] T1-A (Backend) Add OTP endpoints using Twilio Verify:
@@ -17,13 +17,13 @@ Provider: Twilio Verify (backend-driven)
 - [x] T1-B (Frontend) OTP UI flow:
   - phone entry → code entry → success → session token stored
   - resend cooldown + good error states
-- [ ] T1-C (QA) OTP smoke + abuse checks:
+- [x] T1-C (QA) OTP smoke + abuse checks:
   - happy path
   - invalid code
   - resend throttling / rate limit behavior
-- [ ] T1-D (Docs) OTP runbook:
+- [x] T1-D (Docs) OTP runbook:
   - required env vars, local dev steps, test-mode steps, troubleshooting
-  - India OTP deliverability requires DLT entity/header/template registration and must be documented as a pre-launch checklist.
+  - India OTP deliverability requires DLT entity/header/template registration (pre-launch checklist)
 
 ## Rollback / Kill switch (required)
 - BH_OTP_ENABLED=true (default)
