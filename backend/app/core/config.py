@@ -19,11 +19,26 @@ class Settings(BaseSettings):
     # Gating
     PROFILE_MIN_COMPLETION_FOR_CHAT_NIGHT: int = 0
 
+    # OTP Auth
+    BH_OTP_ENABLED: bool = True
+    BH_OTP_PROVIDER: str = "twilio"  # twilio | test
+    BH_OTP_TEST_CODE: str = "000000"
+    TWILIO_ACCOUNT_SID: Optional[str] = None
+    TWILIO_AUTH_TOKEN: Optional[str] = None
+    TWILIO_VERIFY_SERVICE_SID: Optional[str] = None
+
     @validator("SECRET_KEY", pre=True, always=True)
     def validate_secret_key(cls, value):
         normalized = (value or "").strip()
         if not normalized:
             raise ValueError("SECRET_KEY must be set and non-empty before app startup.")
+        return normalized
+
+    @validator("BH_OTP_PROVIDER", pre=True, always=True)
+    def validate_otp_provider(cls, value):
+        normalized = (value or "twilio").strip().lower()
+        if normalized not in {"twilio", "test"}:
+            raise ValueError("BH_OTP_PROVIDER must be either 'twilio' or 'test'.")
         return normalized
 
     class Config:
