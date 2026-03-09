@@ -4,13 +4,13 @@ Owner: Lead + Backend + QA
 Goal: Remove security/PII launch blockers before OTP/Voice/Passes/Photos.
 
 ## Status
-- Track 0: ⏳ TODO
+- Track 0: ⏳ Done
 
 ## Subtasks
-- [ ] T0-A Require SECRET_KEY at boot (no fallback defaults)
-- [ ] T0-B Remove phone_number and sensitive fields from discovery/browse payloads
-- [ ] T0-C Safe error responses (no raw exception detail to clients)
-- [ ] T0-D Harden internal eval safety (keep env gating; reduce prod misconfig risk)
+- [x] T0-A Require SECRET_KEY at boot (no fallback defaults)
+- [x] T0-B Remove phone_number and sensitive fields from discovery/browse payloads
+- [x] T0-C Safe error responses (no raw exception detail to clients)
+- [x] T0-D Harden internal eval safety (keep env gating; reduce prod misconfig risk)
 
 ## Rollback / Kill switch (required)
 - Add documented “strict mode” envs (implementation in code):
