@@ -5,25 +5,25 @@ Goal: Phone OTP login for Android launch (trust + lower friction)
 Provider: Twilio Verify (backend-driven)
 
 ## Status
-- Track 1: ⏳ TODO
+- Track 1: 🟡 IN PROGRESS
 
-## Dependencies (must be done before OTP ships)
-- W7-0 (Baseline): security + PII patch set (no secret fallback, no PII leakage, safe errors)
+## Dependencies
+- W7-0 (Baseline): ✅ DONE (security + PII patch set)
 
 ## Subtasks
-- [ ] T1-A (Backend) Add OTP endpoints using Twilio Verify:
+- [x] T1-A (Backend) Add OTP endpoints using Twilio Verify:
   - POST /api/auth/otp/start
   - POST /api/auth/otp/verify (issue JWT)
-- [ ] T1-B (Frontend) OTP UI flow:
+- [x] T1-B (Frontend) OTP UI flow:
   - phone entry → code entry → success → session token stored
   - resend cooldown + good error states
-- [ ] T1-C (QA) OTP smoke + abuse checks:
+- [x] T1-C (QA) OTP smoke + abuse checks:
   - happy path
   - invalid code
   - resend throttling / rate limit behavior
 - [ ] T1-D (Docs) OTP runbook:
   - required env vars, local dev steps, test-mode steps, troubleshooting
-  - India OTP deliverability requires DLT entity/header/template registration and must be documented as a pre-launch checklist.
+  - India DLT deliverability checklist (mandatory for India OTP reliability)
 
 ## Rollback / Kill switch (required)
 - BH_OTP_ENABLED=true (default)
@@ -34,4 +34,4 @@ Provider: Twilio Verify (backend-driven)
 - Rate limits + anti-abuse in place (per IP/phone).
 - No OTP codes or phone numbers logged/traced.
 - Existing auth contract remains stable.
-- India DLT compliance verified (or delivery will fail).
+- India DLT compliance verified (otherwise OTP delivery can fail in India).
