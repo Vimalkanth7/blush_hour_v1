@@ -22,8 +22,14 @@ Provider: Google Play Billing (consumables)
   - refund/reversal handling plan
 - [ ] T3-D (Docs) Monetization runbook:
   - SKU list, rollout steps, kill-switch/disable guidance
+- [ ] T3-E Billing unavailable/outage graceful degradation state
+
+## Rollback / Kill switch (required)
+- BH_PASSES_ENABLED=true (default)
+- If false: purchase UI disabled; existing passes still usable.
 
 ## Acceptance Criteria (Track 3)
 - Users can buy passes via Play Billing.
 - Backend verifies and updates balance reliably.
 - No double-grants; strong audit trail.
+- Purchase flow fails gracefully with clear messaging; app remains usable.
