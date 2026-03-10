@@ -15,6 +15,7 @@ Write-Host "==============================================" -ForegroundColor Yel
 Write-Host " CHAT NIGHT V5 CONTRACT REGRESSION VERIFIER   " -ForegroundColor Yellow
 Write-Host "==============================================" -ForegroundColor Yellow
 Write-Host "Target Base URL: $baseUrl" -ForegroundColor Cyan
+Write-Host "Note: If onboarding scoring depends on photos, run backend with DEV_BYPASS_PHOTOS=true (dev only) or run verify_photos_r2_contract.ps1 first." -ForegroundColor DarkYellow
 
 try {
     Invoke-RestMethod -Uri "$baseUrl/health" -Method Get -ErrorAction Stop | Out-Null
@@ -69,7 +70,6 @@ function Patch-Profile {
         firstName = $firstName
         birthday = "1990-01-01"
         gender = $gender
-        photos = @("p1", "p2", "p3", "p4")
         bio = "V5 contract test profile."
         prompts = $profileData.prompts
         work = "Engineer"

@@ -2,6 +2,7 @@ $baseUrl = "http://localhost:8000"
 $timestamp = Get-Date -Format "yyyyMMddHHmmss"
 $phone = "+1887$timestamp"
 $password = "ProfileStrength123!"
+Write-Host "Note: If onboarding scoring depends on photos, run backend with DEV_BYPASS_PHOTOS=true (dev only) or run verify_photos_r2_contract.ps1 first."
 
 Write-Host "1. Registering user $phone..."
 $regBody = @{
@@ -86,7 +87,6 @@ $completePatch = @{
     firstName = "StrengthTester"
     birthday = "1990-01-01"
     gender = "Woman"
-    photos = @("p1", "p2", "p3", "p4")
     bio = "Hello from profile strength verification."
     prompts = @(@{ question = "Q1"; answer = "A1" })
     work = "Engineer"

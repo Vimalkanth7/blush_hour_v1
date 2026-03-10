@@ -7,6 +7,7 @@ Write-Host "===================================================" -ForegroundColo
 Write-Host " CHAT NIGHT ICEBREAKERS CONTRACT VERIFIER (W6-B3)  " -ForegroundColor Yellow
 Write-Host "===================================================" -ForegroundColor Yellow
 Write-Host "Target Base URL: $baseUrl" -ForegroundColor Cyan
+Write-Host "Note: If onboarding scoring depends on photos, run backend with DEV_BYPASS_PHOTOS=true (dev only) or run verify_photos_r2_contract.ps1 first." -ForegroundColor DarkYellow
 
 $provider = if ([string]::IsNullOrWhiteSpace($env:CHAT_NIGHT_ICEBREAKERS_PROVIDER)) { "none" } else { $env:CHAT_NIGHT_ICEBREAKERS_PROVIDER.ToLower() }
 $apiKeyPresent = -not [string]::IsNullOrWhiteSpace($env:OPENAI_API_KEY)
@@ -95,7 +96,6 @@ function Patch-Profile {
         firstName = $firstName
         birthday = "1996-06-15"
         gender = $gender
-        photos = @("p1", "p2", "p3", "p4")
         bio = "Icebreaker contract verification profile."
         prompts = $profileData.prompts
         interests = $profileData.interests
