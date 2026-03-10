@@ -32,3 +32,32 @@ How verified:
 
 Notes / follow-ups:
 - Some existing backend verifiers may fail until T4-B uploads real R2 URLs (or we bypass photos in QA).
+
+
+
+## ✅ T4-B — Frontend photo upload to R2 via presigned PUT
+Status: DONE  
+Merged: (add your merge commit hash from `git log -1 --oneline`)  
+Feature commit: f62ab85  
+Scope: mobile-app only
+
+What shipped:
+- Onboarding Photos step now uploads photos to Cloudflare R2:
+  - Converts selected image URI to Blob.
+  - Validates size <= 5MB and type in {image/jpeg, image/png, image/webp}.
+  - Calls POST /api/photos/upload-url with content_type + content_length.
+  - PUTs bytes directly to presigned upload_url with required headers (Content-Type).
+  - PATCHes /api/users/me with photos=[final_url,...] (HTTPS only).
+- Added API helper in mobile-app/constants/Api.ts:
+  - photoUploadUrl(content_type, content_length, token)
+- Added basic upload UX: disables Next while submitting; progress string support; friendly error messages.
+
+How verified:
+- Lint:
+  - npx eslint app/(onboarding)/photos.tsx constants/Api.ts → PASS
+- Web export:
+  - npx expo export --platform web → PASS
+- Backend smoke:
+  - POST /api/photos/upload-url returned upload_url + final_url (R2) with expires_in=300 and required_headers Content-Type.
+- Manual UI:
+  - Selected 4 photos on Photos step → Next completed without errors.

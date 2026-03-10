@@ -5,7 +5,7 @@ Goal: Real photo upload/storage + reliable profile photos
 Provider: Cloudflare R2 (signed uploads)
 
 ## Status
-- Track 4: ⏳ InProgress
+- Track 4: 🟡 IN PROGRESS
 
 ## Dependencies
 - W7-0 (Baseline): security + PII patch set
@@ -33,7 +33,7 @@ Provider: Cloudflare R2 (signed uploads)
   - Storage rules:
     - backend stores only final HTTPS URLs under R2_PUBLIC_BASE_URL
     - explicitly reject file:// and any non-allowlisted URL domains (also on profile update)
-- [ ] T4-B (Frontend) Photo upload UX:
+- [x] T4-B (Frontend) Photo upload UX:
   - pick + compress + upload + progress + retries
   - PUT directly to presigned URL (no proxy through backend)
   - save final HTTPS URL to profile
