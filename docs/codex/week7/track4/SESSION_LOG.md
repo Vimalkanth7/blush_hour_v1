@@ -65,8 +65,51 @@ How verified (commands + PASS lines):
 
 PR/commit refs:
 - Feature commit: f62ab85
-- Merged into main: (paste merge commit hash)
+- Merged into main: b5af95b
 
 Risks / follow-ups:
 - Progress text “Uploading X/Y…” may not be visible depending on layout; UX can be refined later.
 - Next: T4-C QA must update backend verifier scripts that patch dummy photos, so they either upload a real small file to R2 first or skip photos when disabled.
+
+
+## 2026-03-10 — T4-C merged (QA photos smoke + verifier updates)
+What changed:
+- Added dedicated Track 4 QA verifier for the R2 contract: `backend\verify_photos_r2_contract.ps1`.
+- Updated legacy verifiers to use R2-safe assumptions and avoid placeholder photo URL failures.
+- Locked smoke coverage for required negative cases (file://, non-R2 URL, MIME, >5MB) and retry behavior.
+
+Decisions (why we chose X over Y):
+- Added a focused photos verifier instead of overloading unrelated scripts so Track 4 failures are isolated and easier to triage.
+- Kept legacy verifiers updated for compatibility so older smoke packs still run after R2 migration.
+
+How verified (commands + PASS lines):
+- `backend\verify_photos_r2_contract.ps1 -BaseUrl http://localhost:8000`
+- PASS: photos R2 contract verified (W7-T4-C)
+
+PR/commit refs:
+- Merge commit: 2e4c1b7
+- Feature commit: 8fe4e1a
+
+Risks / follow-ups:
+- QA still depends on correct local `.env` R2 configuration; misconfigured endpoint/base URL can produce false negatives.
+
+
+## 2026-03-10 — T4-D docs closeout (R2 storage runbook + status completion)
+What changed:
+- Added `docs/codex/week7/track4/PHOTOS_R2_RUNBOOK.md` with setup, validation, troubleshooting, and security guidance.
+- Updated `PENDING_TASKS.md` to mark Track 4 as DONE and set T4-C/T4-D complete.
+- Updated `COMPLETED_TASKS.md` with finalized T4-B merge hash and new T4-C/T4-D completion entries.
+
+Decisions (why we chose X over Y):
+- Kept runbook copy/paste-friendly for local Windows/PowerShell workflows to reduce setup friction.
+- Centralized validation around one canonical verifier command and explicit expected PASS text.
+
+How verified (commands + PASS lines):
+- `Test-Path docs/codex/week7/track4/PHOTOS_R2_RUNBOOK.md` → `True`
+- `Select-String` checks for env vars, verifier command, merge hashes, and DONE markers → matched.
+
+PR/commit refs:
+- Docs branch: chore/docs-week7-track4-t4d-runbook
+
+Risks / follow-ups:
+- If future storage provider changes occur, update runbook env var guidance and URL allowlist notes together to avoid drift.

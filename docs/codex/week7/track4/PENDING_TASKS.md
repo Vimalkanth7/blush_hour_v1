@@ -5,7 +5,7 @@ Goal: Real photo upload/storage + reliable profile photos
 Provider: Cloudflare R2 (signed uploads)
 
 ## Status
-- Track 4: 🟡 IN PROGRESS
+- Track 4: ✅ DONE
 
 ## Dependencies
 - W7-0 (Baseline): security + PII patch set
@@ -37,12 +37,12 @@ Provider: Cloudflare R2 (signed uploads)
   - pick + compress + upload + progress + retries
   - PUT directly to presigned URL (no proxy through backend)
   - save final HTTPS URL to profile
-- [ ] T4-C (QA) Photo smoke:
+- [x] T4-C (QA) Photo smoke:
   - slow network retry
   - invalid URL rejection (file://, non-R2 domain)
   - invalid mime type rejection
   - oversized upload rejection (>5MB)
-- [ ] T4-D (Docs) Storage runbook:
+- [x] T4-D (Docs) Storage runbook:
   - env vars, bucket naming, R2_PUBLIC_BASE_URL rules, troubleshooting
 
 ## Rollback / Kill switch (required)
