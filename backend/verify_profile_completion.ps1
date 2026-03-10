@@ -2,6 +2,7 @@ $baseUrl = "http://localhost:8000"
 $timestamp = Get-Date -Format "yyyyMMddHHmmss"
 $phone = "+1888$timestamp"
 $password = "ProfileTest123!"
+Write-Host "Note: If onboarding scoring depends on photos, run backend with DEV_BYPASS_PHOTOS=true (dev only) or run verify_photos_r2_contract.ps1 first."
 
 Write-Host "1. Registering user $phone..."
 $regBody = @{
@@ -27,7 +28,7 @@ function Get-Score {
 }
 
 # 2. Check Initial Score
-# Init: Not onboarding complete (missing name/birth/gender/photos) -> 0?
+# Init: Not onboarding complete (missing name/birth/gender) -> 0?
 # Actually, logic says: if onboarding_completed: 50. else if basic fields ok: 50.
 $score = Get-Score
 Write-Host "2. Initial Score: $score (Expected: 0)"
@@ -38,7 +39,6 @@ $basePatch = @{
     firstName = "ProfileTester"
     birthday = "1990-01-01"
     gender = "Man"
-    photos = @("p1", "p2", "p3", "p4")
 } | ConvertTo-Json
 $null = Invoke-RestMethod -Uri "$baseUrl/api/users/me" -Method Patch -Headers $headers -Body $basePatch -ContentType "application/json"
 
