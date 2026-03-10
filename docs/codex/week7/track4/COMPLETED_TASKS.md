@@ -37,7 +37,7 @@ Notes / follow-ups:
 
 ## ✅ T4-B — Frontend photo upload to R2 via presigned PUT
 Status: DONE  
-Merged: (add your merge commit hash from `git log -1 --oneline`)  
+Merged: b5af95b (Merge PR #27)  
 Feature commit: f62ab85  
 Scope: mobile-app only
 
@@ -61,3 +61,38 @@ How verified:
   - POST /api/photos/upload-url returned upload_url + final_url (R2) with expires_in=300 and required_headers Content-Type.
 - Manual UI:
   - Selected 4 photos on Photos step → Next completed without errors.
+
+
+## ✅ T4-C — QA photo contract smoke + verifier alignment
+Status: DONE  
+Merged: 2e4c1b7 (Merge PR #29)  
+Feature commit: 8fe4e1a  
+Scope: backend verifiers only
+
+What shipped:
+- Added new verifier: `backend\verify_photos_r2_contract.ps1`.
+- Updated legacy verifier scripts to align with R2 URL allowlist behavior and avoid placeholder photo URL assumptions.
+- Covered required smoke cases:
+  - slow network retry behavior
+  - invalid URL rejection (`file://`, non-R2 domain)
+  - invalid MIME rejection
+  - oversized upload rejection (`>5MB`)
+
+How verified:
+- `backend\verify_photos_r2_contract.ps1 -BaseUrl http://localhost:8000` → `PASS: photos R2 contract verified (W7-T4-C)`
+- Legacy verifiers executed after updates (PASS)
+
+
+## ✅ T4-D — Docs runbook + Track 4 closeout
+Status: DONE  
+Merged: local docs branch (this task)  
+Scope: docs only
+
+What shipped:
+- Added Track 4 storage runbook:
+  - `docs/codex/week7/track4/PHOTOS_R2_RUNBOOK.md`
+- Updated Track 4 status and task docs to close out T4-C/T4-D.
+- Filled missing merge commit placeholders for Track 4 history consistency.
+
+How verified:
+- Doc existence + keyword checks for env vars, verifier command, and closeout markers (PASS)
