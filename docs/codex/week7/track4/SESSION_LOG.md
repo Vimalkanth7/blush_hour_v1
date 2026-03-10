@@ -42,3 +42,31 @@ PR/commit refs:
 
 Risks / follow-ups:
 - Existing verifiers that patch placeholder photo URLs may fail until T4-B uploads real R2 photos or QA scripts are updated.
+
+
+## 2026-03-10 — T4-B merged (Frontend R2 photo upload flow)
+What changed:
+- Updated onboarding Photos screen to upload selected images to Cloudflare R2 using backend presigned PUT URLs.
+- Added API helper for photo upload-url.
+- After upload, app PATCHes /api/users/me with final HTTPS photo URLs (R2_PUBLIC_BASE_URL).
+
+Decisions (why we chose X over Y):
+- Presigned PUT upload keeps the backend out of the file transfer path (scales better, simpler).
+- Client validates size/type early to avoid wasted uploads and clearer UX.
+- Backend remains source of truth via allowlist + HEAD validation (T4-A).
+
+How verified (commands + PASS lines):
+- npx eslint app/(onboarding)/photos.tsx constants/Api.ts → PASS
+- npx expo export --platform web → PASS
+- Backend endpoint check:
+  - POST /api/photos/upload-url → returned upload_url + final_url + expires_in=300
+- Manual UI:
+  - Picked 4 photos on Photos step → Next succeeded (no errors).
+
+PR/commit refs:
+- Feature commit: f62ab85
+- Merged into main: (paste merge commit hash)
+
+Risks / follow-ups:
+- Progress text “Uploading X/Y…” may not be visible depending on layout; UX can be refined later.
+- Next: T4-C QA must update backend verifier scripts that patch dummy photos, so they either upload a real small file to R2 first or skip photos when disabled.
