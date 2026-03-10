@@ -15,7 +15,7 @@ from app.models.chat_night import (
 from app.models.events import AppEvent
 from app.models.chat import ChatThread, ChatMessage
 from app.models.admin import AdminAuditLog, SystemConfig
-from app.routers import auth, users, discovery, chat_night, admin, chat, internal_evals
+from app.routers import auth, users, discovery, chat_night, admin, chat, internal_evals, photos
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -92,6 +92,7 @@ app.add_middleware(LangSmithApiTracingMiddleware)
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(users.router, prefix="/api/users", tags=["users"])
+app.include_router(photos.router, prefix="/api/photos", tags=["photos"])
 app.include_router(discovery.router, prefix="/api/discovery", tags=["discovery"])
 app.include_router(chat_night.router, prefix="/api/chat-night", tags=["chat-night"])
 app.include_router(chat.router, prefix="/api/chat", tags=["chat"])

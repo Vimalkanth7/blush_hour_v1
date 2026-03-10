@@ -1,11 +1,17 @@
-from fastapi import APIRouter, Body, HTTPException, Depends
-from app.models.user import User
-from app.auth.dependencies import get_current_user
-from app.schemas.user import UserRead
-from pydantic import BaseModel
-from typing import Optional, List, Dict, Any
-from datetime import datetime
 import os
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+import anyio
+from botocore.exceptions import ClientError
+from fastapi import APIRouter, Body, Depends, HTTPException
+from pydantic import BaseModel
+
+from app.auth.dependencies import get_current_user
+from app.core.config import PHOTOS_ALLOWED_TYPES, PHOTOS_MAX_BYTES, settings
+from app.models.user import User
+from app.schemas.user import UserRead
+from app.services.photo_storage import head_object, is_configured, key_from_final_url
 
 router = APIRouter()
 
@@ -43,6 +49,53 @@ class UserProfileUpdate(BaseModel):
 
 from app.services.profile_scoring import compute_profile_strength
 from app.schemas.user import ProfileStrength
+
+
+async def _validate_updated_photos(photos: List[Optional[str]]) -> List[str]:
+    if not settings.BH_PHOTOS_ENABLED:
+        raise HTTPException(status_code=503, detail="Photo uploads are disabled.")
+    if not is_configured():
+        raise HTTPException(status_code=503, detail="Photo storage is not configured.")
+
+    r2_prefix = f"{settings.R2_PUBLIC_BASE_URL}/"
+    cleaned = [photo.strip() for photo in photos if photo and photo.strip()]
+
+    for photo_url in cleaned:
+        if photo_url.lower().startswith("file://"):
+            raise HTTPException(status_code=400, detail="file:// photo URLs are not allowed.")
+        if not photo_url.startswith(r2_prefix):
+            raise HTTPException(
+                status_code=400,
+                detail="Photo URL must be under configured R2 public base URL.",
+            )
+
+        try:
+            key = key_from_final_url(photo_url)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+        try:
+            metadata = await anyio.to_thread.run_sync(head_object, key)
+        except ClientError as exc:
+            raise HTTPException(status_code=400, detail="Photo object not found in storage.") from exc
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail="Could not validate photo object.") from exc
+
+        content_length = int(metadata["content_length"])
+        content_type = str(metadata["content_type"]).lower()
+        if content_length > PHOTOS_MAX_BYTES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Photo exceeds max size of {PHOTOS_MAX_BYTES} bytes.",
+            )
+        if content_type not in PHOTOS_ALLOWED_TYPES:
+            allowed = ", ".join(sorted(PHOTOS_ALLOWED_TYPES))
+            raise HTTPException(
+                status_code=400,
+                detail=f"Photo content type must be one of: {allowed}.",
+            )
+
+    return cleaned
 
 def _build_user_read_with_strength(user: User) -> UserRead:
     strength = compute_profile_strength(user)
@@ -153,7 +206,7 @@ async def update_my_profile(
         current_user.bio = data.bio
 
     if data.photos is not None:
-        current_user.photos = [p for p in data.photos if p is not None]
+        current_user.photos = await _validate_updated_photos(data.photos)
 
     # VALIDATION LOGIC
     REQUIRED_PHOTOS = 4
