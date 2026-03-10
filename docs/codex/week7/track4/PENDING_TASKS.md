@@ -5,7 +5,7 @@ Goal: Real photo upload/storage + reliable profile photos
 Provider: Cloudflare R2 (signed uploads)
 
 ## Status
-- Track 4: ⏳ TODO
+- Track 4: ⏳ InProgress
 
 ## Dependencies
 - W7-0 (Baseline): security + PII patch set
@@ -21,7 +21,7 @@ Provider: Cloudflare R2 (signed uploads)
   - Backend must allowlist URLs to R2_PUBLIC_BASE_URL only (reject other domains)
 
 ## Subtasks
-- [ ] T4-A (Backend) Signed upload flow (R2):
+- [x] T4-A (Backend) Signed upload flow (R2):
   - Add BH_PHOTOS_ENABLED kill switch (default true)
   - Endpoint returns:
     - presigned PUT upload URL (expires <= 300s)

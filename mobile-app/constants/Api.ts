@@ -26,6 +26,14 @@ export interface OtpVerifyResponse {
     token_type?: string;
 }
 
+export interface PhotoUploadUrlResponse {
+    upload_url: string;
+    final_url: string;
+    key: string;
+    expires_in: number;
+    required_headers: Record<string, string>;
+}
+
 const createApiRequestError = (status: number, detail: string): ApiRequestError => {
     const error = new Error(detail) as ApiRequestError;
     error.name = 'ApiRequestError';
@@ -56,13 +64,47 @@ const parseResponseDetail = async (response: Response, fallbackMessage: string):
     return text.length > 200 ? fallbackMessage : text;
 };
 
-const postJson = async <TResponse>(path: string, payload: Record<string, string>, fallbackMessage: string): Promise<TResponse> => {
+const postJson = async <TResponse>(path: string, payload: Record<string, unknown>, fallbackMessage: string): Promise<TResponse> => {
     let response: Response;
 
     try {
         response = await fetch(`${API_BASE_URL}${path}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+    } catch (error) {
+        const detail = error instanceof Error ? error.message : 'Network request failed';
+        throw createApiRequestError(0, detail);
+    }
+
+    if (!response.ok) {
+        const detail = await parseResponseDetail(response, fallbackMessage);
+        throw createApiRequestError(response.status, detail);
+    }
+
+    try {
+        return (await response.json()) as TResponse;
+    } catch {
+        throw createApiRequestError(response.status, fallbackMessage);
+    }
+};
+
+const postJsonAuthenticated = async <TResponse>(
+    path: string,
+    payload: Record<string, unknown>,
+    token: string,
+    fallbackMessage: string,
+): Promise<TResponse> => {
+    let response: Response;
+
+    try {
+        response = await fetch(`${API_BASE_URL}${path}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+            },
             body: JSON.stringify(payload),
         });
     } catch (error) {
@@ -102,6 +144,19 @@ export const otpVerify = async (phone: string, code: string): Promise<OtpVerifyR
         '/api/auth/otp/verify',
         { phone, code },
         'Unable to verify OTP right now.',
+    );
+};
+
+export const photoUploadUrl = async (
+    content_type: string,
+    content_length: number,
+    token: string,
+): Promise<PhotoUploadUrlResponse> => {
+    return postJsonAuthenticated<PhotoUploadUrlResponse>(
+        '/api/photos/upload-url',
+        { content_type, content_length },
+        token,
+        'Unable to prepare photo upload right now.',
     );
 };
 
