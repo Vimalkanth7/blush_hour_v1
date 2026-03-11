@@ -3,8 +3,11 @@ import { RegistrationProvider } from '../context/RegistrationContext';
 import { AuthProvider } from '../context/AuthContext';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { ensureLiveKitGlobals } from '../lib/livekit/registerGlobals';
 
 export default function RootLayout() {
+  ensureLiveKitGlobals();
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AuthProvider>

@@ -34,11 +34,40 @@ export interface PhotoUploadUrlResponse {
     required_headers: Record<string, string>;
 }
 
+export interface VoiceTokenResponse {
+    url: string;
+    token: string;
+    room: string;
+    identity: string;
+    expires_in: number;
+}
+
+export type VoiceTokenErrorReason =
+    | 'voice_unavailable'
+    | 'not_engaged'
+    | 'expired'
+    | 'network'
+    | 'unknown';
+
+export interface VoiceTokenApiError extends ApiRequestError {
+    reason: VoiceTokenErrorReason;
+}
+
 const createApiRequestError = (status: number, detail: string): ApiRequestError => {
     const error = new Error(detail) as ApiRequestError;
     error.name = 'ApiRequestError';
     error.status = status;
     error.detail = detail;
+    return error;
+};
+
+const createVoiceTokenApiError = (
+    status: number,
+    detail: string,
+    reason: VoiceTokenErrorReason,
+): VoiceTokenApiError => {
+    const error = createApiRequestError(status, detail) as VoiceTokenApiError;
+    error.reason = reason;
     return error;
 };
 
@@ -158,6 +187,59 @@ export const photoUploadUrl = async (
         token,
         'Unable to prepare photo upload right now.',
     );
+};
+
+export const mapVoiceTokenError = (error: unknown): VoiceTokenApiError => {
+    if (isApiRequestError(error)) {
+        if (error.status === 503) {
+            return createVoiceTokenApiError(503, 'Voice is temporarily unavailable.', 'voice_unavailable');
+        }
+        if (error.status === 409) {
+            return createVoiceTokenApiError(409, 'Waiting for partner to engage to start voice.', 'not_engaged');
+        }
+        if (error.status === 410) {
+            return createVoiceTokenApiError(410, 'This Talk Room has expired or ended.', 'expired');
+        }
+        if (error.status === 0) {
+            return createVoiceTokenApiError(0, 'Network error while connecting voice.', 'network');
+        }
+        return createVoiceTokenApiError(
+            error.status,
+            error.detail || 'Unable to start voice right now.',
+            'unknown',
+        );
+    }
+
+    if (error instanceof Error && error.message) {
+        return createVoiceTokenApiError(0, error.message, 'unknown');
+    }
+
+    return createVoiceTokenApiError(0, 'Unable to start voice right now.', 'unknown');
+};
+
+export const voiceToken = async (token: string): Promise<VoiceTokenResponse> => {
+    try {
+        const response = await postJsonAuthenticated<VoiceTokenResponse>(
+            '/api/voice/token',
+            {},
+            token,
+            'Unable to start voice right now.',
+        );
+
+        if (
+            typeof response.url !== 'string' ||
+            typeof response.token !== 'string' ||
+            typeof response.room !== 'string' ||
+            typeof response.identity !== 'string' ||
+            typeof response.expires_in !== 'number'
+        ) {
+            throw createVoiceTokenApiError(0, 'Invalid voice token response from server.', 'unknown');
+        }
+
+        return response;
+    } catch (error) {
+        throw mapVoiceTokenError(error);
+    }
 };
 
 export const handleApiError = async (response: Response, signOut?: () => Promise<void>) => {
