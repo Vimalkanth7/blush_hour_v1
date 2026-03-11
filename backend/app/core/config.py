@@ -40,6 +40,13 @@ class Settings(BaseSettings):
     R2_SECRET_ACCESS_KEY: Optional[str] = None
     R2_PUBLIC_BASE_URL: Optional[str] = None
 
+    # Voice / LiveKit
+    BH_VOICE_ENABLED: bool = True
+    LIVEKIT_URL: Optional[str] = None
+    LIVEKIT_API_KEY: Optional[str] = None
+    LIVEKIT_API_SECRET: Optional[str] = None
+    LIVEKIT_TOKEN_TTL_SECONDS: int = 300
+
     @validator("SECRET_KEY", pre=True, always=True)
     def validate_secret_key(cls, value):
         normalized = (value or "").strip()
@@ -70,6 +77,20 @@ class Settings(BaseSettings):
     def normalize_r2_public_base_url(cls, value):
         normalized = (value or "").strip().rstrip("/")
         return normalized or None
+
+    @validator("LIVEKIT_URL", "LIVEKIT_API_KEY", "LIVEKIT_API_SECRET", pre=True, always=True)
+    def normalize_livekit_strings(cls, value):
+        normalized = (value or "").strip()
+        return normalized or None
+
+    @validator("LIVEKIT_TOKEN_TTL_SECONDS", pre=True, always=True)
+    def clamp_livekit_token_ttl_seconds(cls, value):
+        try:
+            ttl_seconds = int(value)
+        except (TypeError, ValueError):
+            ttl_seconds = 300
+        ttl_seconds = max(1, ttl_seconds)
+        return min(ttl_seconds, 300)
 
     class Config:
         env_file = ".env"
