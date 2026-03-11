@@ -1,6 +1,6 @@
-# Week 7 — Track 2 (VOICE) — SESSION LOG
+﻿# Week 7 — Track 2 (VOICE) — SESSION LOG
 
-## Log Format
+## Log Format (per entry)
 - Date (YYYY-MM-DD)
 - What changed
 - Decisions (why we chose X over Y)
