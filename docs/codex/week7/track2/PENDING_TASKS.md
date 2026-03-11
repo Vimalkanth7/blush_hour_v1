@@ -30,12 +30,13 @@ Provider: LiveKit Cloud (WebRTC)
     - Response includes: livekit_url, token, room_name, expires_in
   - Rate limit endpoint and avoid PII logs (use user_id only)
 
-- [ ] T2-B (Frontend) Real voice in Talk Room (LiveKit):
+- [x] T2-B (Frontend) Real voice in Talk Room (LiveKit):
   - Replace UI-only “voice” with real audio connect/disconnect
   - Mic permission handling + clear error states
   - Mute/unmute
   - Hard disconnect at room end (timer)
   - Web fallback: “Voice available on Android app” (no crash)
+  - Decision: Manual Android voice test deferred to pre-launch mobile testing sprint (post Track 5). T2-B closed on code + contract basis.
 
 - [ ] T2-C (QA) Voice smoke:
   - Add backend contract verifier for /api/voice/token:

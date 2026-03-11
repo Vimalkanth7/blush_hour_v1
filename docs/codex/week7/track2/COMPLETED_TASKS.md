@@ -26,3 +26,22 @@ How verified:
   - /health OK
   - Pre-engage /api/voice/token blocked (detail: “Voice token is only available for engaged rooms.”)
   - Post-engage /api/voice/token → 200 with expires_in=300 and identity=u_<user_id> (non-PII)
+
+## ✅ T2-B — Frontend LiveKit integration (Talk Room)
+Status: DONE  
+Merged: 44fc726 (Merge PR for T2-B)  
+Feature commit: b168ae3  
+Branch: feat/frontend-w7-t2b-livekit-integration  
+Scope: mobile-app only
+
+What shipped:
+- LiveKit deps + Expo plugins.
+- `voiceToken()` wrapper for `POST /api/voice/token`.
+- Native-only LiveKit bootstrap (`registerGlobals.native.ts`, web no-op).
+- Talk Room voice lifecycle (`waiting` / `connecting` / `connected` / `error`), mute/unmute, disconnect cleanup.
+- Web gated (no native imports; safe message).
+
+How verified:
+- `npx eslint ...` PASS.
+- `npx expo export --platform web` PASS.
+- Decision recorded: manual Android audio test deferred to later sprint.
