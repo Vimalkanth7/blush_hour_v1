@@ -5,7 +5,7 @@ Goal: Real voice rooms (core product experience)
 Provider: LiveKit Cloud (WebRTC)
 
 ## Status
-- Track 2: ⏳ TODO
+- Track 2: 🟡 IN PROGRESS
 
 ## Dependencies
 - W7-0 (Baseline): ✅ DONE (security + PII patch set)
@@ -19,7 +19,7 @@ Provider: LiveKit Cloud (WebRTC)
 - Safety: no recording by default; no PII in logs/traces
 
 ## Subtasks
-- [ ] T2-A (Backend) LiveKit token minting + room constraints:
+- [X] T2-A (Backend) LiveKit token minting + room constraints:
   - Add env/config:
     - BH_VOICE_ENABLED (kill switch)
     - LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET
