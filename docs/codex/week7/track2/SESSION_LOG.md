@@ -38,3 +38,26 @@ PR/commit refs:
 Risks / follow-ups:
 - Frontend LiveKit SDK requires EAS build / native run (Expo Go/web won’t do real audio).
 - Next: T2-B should implement the Talk Room join/leave and timer-enforced disconnect.
+
+## 2026-03-11 — T2-B merged (Frontend LiveKit Talk Room integration)
+What changed:
+- Closed out T2-B after merge to `main`.
+- Recorded frontend LiveKit integration delivery (native voice lifecycle + web gating).
+- Documented deferred manual Android audio testing decision.
+
+Decisions (why we chose X over Y):
+- Manual Android voice test deferred to pre-launch mobile sprint (post Track 5). T2-B merged on code + contract basis.
+
+How verified (commands + PASS lines):
+- Non-device checks only:
+  - `npx eslint ...` → PASS
+  - `npx expo export --platform web` → PASS
+- T2-A backend `/api/voice/token` endpoint had already been verified in prior Track 2 session (no new backend testing required here).
+
+PR/commit refs:
+- Merged into main: 44fc726
+- Feature commit: b168ae3
+
+Risks / follow-ups:
+- Manual Android two-device audio validation remains deferred to the pre-launch mobile testing sprint (post Track 5).
+- T2-C should add the backend voice verifier coverage and formal smoke checklist.
