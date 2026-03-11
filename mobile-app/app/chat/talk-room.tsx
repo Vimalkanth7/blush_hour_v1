@@ -1,4 +1,4 @@
-import { COLORS, TYPOGRAPHY, SPACING, RADIUS, SHADOWS } from '../../constants/Theme';
+import { COLORS, SPACING, RADIUS, SHADOWS } from '../../constants/Theme';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform, AppState, AppStateStatus } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -6,7 +6,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 
-import { API_BASE_URL } from '../../constants/Api';
+import { API_BASE_URL, mapVoiceTokenError, voiceToken } from '../../constants/Api';
+import { createVoiceSession, type VoiceSessionController } from '../../lib/livekit/voiceSession';
 
 const normalizeRevealedIndices = (rawIndices: unknown): number[] => {
     if (!Array.isArray(rawIndices)) {
@@ -24,6 +25,8 @@ const areSameIndices = (left: number[], right: number[]): boolean => (
     left.length === right.length && left.every((value, index) => value === right[index])
 );
 
+type VoiceStatus = 'idle' | 'waiting' | 'connecting' | 'connected' | 'error';
+
 export default function TalkRoomScreen() {
     const router = useRouter();
     const { roomId } = useLocalSearchParams<{ roomId: string }>();
@@ -33,7 +36,10 @@ export default function TalkRoomScreen() {
     const [isMuted, setIsMuted] = useState(false);
     const [engaged, setEngaged] = useState(false);
     const [matchUnlocked, setMatchUnlocked] = useState(false); // Both engaged
-    const [roomState, setRoomState] = useState('active');
+    const [voiceStatus, setVoiceStatus] = useState<VoiceStatus>(Platform.OS === 'web' ? 'idle' : 'waiting');
+    const [voiceError, setVoiceError] = useState<string | null>(
+        Platform.OS === 'web' ? 'Voice available on Android dev build only.' : 'Waiting for partner to engage to start voice.',
+    );
     // Fix: explicitly define networkError state to prevent reference errors
     const [networkError, setNetworkError] = useState(false);
     const [lastSync, setLastSync] = useState(Date.now());
@@ -53,11 +59,119 @@ export default function TalkRoomScreen() {
     const pollNowRef = useRef<(() => void) | null>(null);
     const didFetchIcebreakersRef = useRef(false);
     const icebreakersRoomIdRef = useRef<string | null>(null);
+    const voiceSessionRef = useRef<VoiceSessionController | null>(null);
+    const voiceConnectingRef = useRef(false);
+    const voiceAutoJoinTriggeredRef = useRef(false);
+    const isMountedRef = useRef(true);
 
     const getEstimatedRemaining = (nowMs: number = Date.now()) => {
         const elapsedSeconds = Math.floor((nowMs - lastSyncAtRef.current) / 1000);
         return Math.max(0, lastServerSecondsRemainingRef.current - elapsedSeconds);
     };
+
+    const disconnectVoice = useCallback(async () => {
+        const session = voiceSessionRef.current;
+        voiceSessionRef.current = null;
+        voiceConnectingRef.current = false;
+
+        if (!session) {
+            return;
+        }
+
+        await session.disconnect();
+    }, []);
+
+    const getVoiceSession = useCallback(() => {
+        if (!voiceSessionRef.current) {
+            voiceSessionRef.current = createVoiceSession({
+                onConnected: () => {
+                    if (!isMountedRef.current) return;
+                    setVoiceStatus('connected');
+                    setVoiceError(null);
+                },
+                onDisconnected: () => {
+                    if (!isMountedRef.current) return;
+                    setVoiceStatus((current) => (current === 'error' ? current : 'idle'));
+                },
+                onError: (message: string) => {
+                    if (!isMountedRef.current) return;
+                    setVoiceStatus('error');
+                    setVoiceError(message);
+                },
+            });
+        }
+
+        return voiceSessionRef.current;
+    }, []);
+
+    const joinVoice = useCallback(async () => {
+        if (Platform.OS === 'web') {
+            setVoiceStatus('error');
+            setVoiceError('Voice available on Android dev build only.');
+            return;
+        }
+
+        if (!token || voiceConnectingRef.current || voiceSessionRef.current?.isConnected()) {
+            return;
+        }
+
+        if (!matchUnlocked) {
+            setVoiceStatus('waiting');
+            setVoiceError('Waiting for partner to engage to start voice.');
+            return;
+        }
+
+        voiceConnectingRef.current = true;
+        setVoiceStatus('connecting');
+        setVoiceError(null);
+
+        try {
+            const creds = await voiceToken(token);
+            const session = getVoiceSession();
+
+            await session.connect({
+                url: creds.url,
+                token: creds.token,
+                muted: isMuted,
+            });
+
+            if (!isMountedRef.current) {
+                return;
+            }
+
+            setVoiceStatus('connected');
+            setVoiceError(null);
+        } catch (error) {
+            if (!isMountedRef.current) {
+                return;
+            }
+
+            const mappedError = mapVoiceTokenError(error);
+            setVoiceStatus(mappedError.reason === 'not_engaged' ? 'waiting' : 'error');
+            setVoiceError(mappedError.detail);
+        } finally {
+            voiceConnectingRef.current = false;
+        }
+    }, [token, matchUnlocked, isMuted, getVoiceSession]);
+
+    const handleToggleMute = useCallback(async () => {
+        const nextMuted = !isMuted;
+        setIsMuted(nextMuted);
+
+        if (!voiceSessionRef.current?.isConnected()) {
+            return;
+        }
+
+        try {
+            await voiceSessionRef.current.setMuted(nextMuted);
+        } catch {
+            if (!isMountedRef.current) {
+                return;
+            }
+            setVoiceStatus('error');
+            setVoiceError('Unable to update microphone state.');
+        }
+    }, [isMuted]);
 
     // Track AppState
     useEffect(() => {
@@ -69,6 +183,34 @@ export default function TalkRoomScreen() {
         });
         return () => subscription.remove();
     }, []);
+
+    useEffect(() => {
+        return () => {
+            isMountedRef.current = false;
+            void disconnectVoice();
+        };
+    }, [disconnectVoice]);
+
+    useEffect(() => {
+        if (Platform.OS === 'web') {
+            return;
+        }
+
+        if (!matchUnlocked) {
+            if (voiceStatus !== 'connected' && voiceStatus !== 'connecting') {
+                setVoiceStatus('waiting');
+                setVoiceError('Waiting for partner to engage to start voice.');
+            }
+            return;
+        }
+
+        if (voiceStatus === 'connected' || voiceStatus === 'connecting' || voiceAutoJoinTriggeredRef.current) {
+            return;
+        }
+
+        voiceAutoJoinTriggeredRef.current = true;
+        void joinVoice();
+    }, [matchUnlocked, joinVoice, voiceStatus]);
 
     useEffect(() => {
         if (Platform.OS !== 'web' || typeof document === 'undefined' || typeof window === 'undefined') {
@@ -180,6 +322,10 @@ export default function TalkRoomScreen() {
         if (!roomId) return;
         if (icebreakersRoomIdRef.current === roomId) return;
 
+        void disconnectVoice();
+        voiceAutoJoinTriggeredRef.current = false;
+        voiceConnectingRef.current = false;
+
         didFetchIcebreakersRef.current = false;
         icebreakersRoomIdRef.current = null;
         setIcebreakers(null);
@@ -188,7 +334,11 @@ export default function TalkRoomScreen() {
         setIcebreakersError(null);
         setRevealedIndices([]);
         setIcebreakersMeta({ model: null, cached: null });
-    }, [roomId]);
+        setVoiceStatus(Platform.OS === 'web' ? 'idle' : 'waiting');
+        setVoiceError(Platform.OS === 'web'
+            ? 'Voice available on Android dev build only.'
+            : 'Waiting for partner to engage to start voice.');
+    }, [roomId, disconnectVoice]);
 
     useEffect(() => {
         if (!roomId || !token) return;
@@ -243,14 +393,14 @@ export default function TalkRoomScreen() {
                 lastServerSecondsRemainingRef.current = serverRemaining;
                 lastSyncAtRef.current = syncedAt;
                 setTimeLeft(serverRemaining);
-                setRoomState(data.state);
                 setLastSync(syncedAt);
                 setNetworkError(false);
 
                 // Sync Engagement
+                const isUnlocked = data.engage_status === 'match_unlocked' || data.match_unlocked === true;
                 if (data.engage_status === 'waiting_for_partner') {
                     setEngaged(true);
-                } else if (data.engage_status === 'match_unlocked') {
+                } else if (isUnlocked) {
                     setEngaged(true);
                     setMatchUnlocked(true);
                 }
@@ -264,18 +414,9 @@ export default function TalkRoomScreen() {
 
                 // Handle Ended
                 if (data.state === 'ended' || serverRemaining <= 0) {
+                    await disconnectVoice();
                     Alert.alert("Session Ended", "The chat session has finished.");
                     router.replace('/(tabs)/chat-night');
-                    return 0; // Stop polling
-                }
-
-                // Handle Match
-                if (data.match_unlocked) {
-                    setMatchUnlocked(true);
-                    setTimeout(() => {
-                        Alert.alert("It's a Match!", "You both engaged! You can now find them in your Matches tab.");
-                        router.replace('/(tabs)/matches');
-                    }, 1000);
                     return 0; // Stop polling
                 }
 
@@ -311,7 +452,7 @@ export default function TalkRoomScreen() {
             pollNowRef.current = null;
             if (timeoutId) clearTimeout(timeoutId);
         };
-    }, [roomId, token, router]);
+    }, [roomId, token, router, disconnectVoice]);
 
     const formatTime = (seconds: number) => {
         const m = Math.floor(seconds / 60);
@@ -344,7 +485,8 @@ export default function TalkRoomScreen() {
         }
     };
 
-    const handleEndCall = () => {
+    const handleEndCall = async () => {
+        await disconnectVoice();
         router.replace('/(tabs)/chat-night');
     };
 
@@ -380,10 +522,23 @@ export default function TalkRoomScreen() {
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.topBar}>
-                <View style={[styles.activeIndicator, { backgroundColor: matchUnlocked ? COLORS.destructive : COLORS.success }]} />
+                <View
+                    style={[
+                        styles.activeIndicator,
+                        {
+                            backgroundColor: voiceStatus === 'connected'
+                                ? COLORS.success
+                                : voiceStatus === 'error'
+                                    ? COLORS.destructive
+                                    : matchUnlocked
+                                        ? COLORS.brandBase
+                                        : COLORS.success,
+                        },
+                    ]}
+                />
                 <View>
                     <Text style={styles.statusText}>
-                        {matchUnlocked ? "Match Unlocked!" : "Voice Connected"}
+                        {matchUnlocked ? "Match Unlocked" : "Talk Room Active"}
                     </Text>
                     <Text style={{ fontSize: 10, color: networkError ? COLORS.destructive : COLORS.dark.secondaryText, textAlign: 'center' }}>
                         {networkError ? "Network Error" : `Sync: ${Math.floor((Date.now() - lastSync) / 1000)}s ago`}
@@ -397,6 +552,22 @@ export default function TalkRoomScreen() {
                     <Text style={styles.timerLabel}>REMAINING</Text>
                 </View>
                 <Text style={styles.hintText}>No names, no photos. Just talk.</Text>
+            </View>
+
+            <View style={[styles.voiceBanner, voiceStatus === 'error' && styles.voiceBannerError]}>
+                <Text style={styles.voiceBannerText}>
+                    {Platform.OS === 'web'
+                        ? 'Voice available on Android dev build only.'
+                        : !matchUnlocked
+                            ? 'Waiting for partner to engage to start voice.'
+                            : voiceStatus === 'connecting'
+                                ? 'Connecting to voice...'
+                                : voiceStatus === 'connected'
+                                    ? 'Voice connected.'
+                                    : voiceStatus === 'error'
+                                        ? (voiceError || 'Voice is unavailable.')
+                                        : 'Ready to join voice.'}
+                </Text>
             </View>
 
             <View style={styles.icebreakersSection}>
@@ -453,10 +624,31 @@ export default function TalkRoomScreen() {
                 )}
             </View>
 
+            {Platform.OS !== 'web' && (
+                <View style={styles.voiceActions}>
+                    <TouchableOpacity
+                        style={[
+                            styles.voiceJoinButton,
+                            (!matchUnlocked || voiceStatus === 'connecting' || voiceStatus === 'connected') && styles.voiceJoinButtonDisabled,
+                        ]}
+                        onPress={() => void joinVoice()}
+                        disabled={!matchUnlocked || voiceStatus === 'connecting' || voiceStatus === 'connected'}
+                    >
+                        <Text style={styles.voiceJoinButtonText}>
+                            {voiceStatus === 'connecting'
+                                ? 'Connecting...'
+                                : voiceStatus === 'connected'
+                                    ? 'Connected'
+                                    : 'Join Voice'}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            )}
+
             <View style={styles.controls}>
                 <TouchableOpacity
                     style={[styles.roundButton, isMuted ? styles.btnActive : styles.btnInactive]}
-                    onPress={() => setIsMuted(!isMuted)}
+                    onPress={() => void handleToggleMute()}
                 >
                     <Ionicons name={isMuted ? "mic-off" : "mic"} size={28} color={isMuted ? COLORS.brandBase : COLORS.dark.primaryText} />
                 </TouchableOpacity>
@@ -474,7 +666,7 @@ export default function TalkRoomScreen() {
 
                 <TouchableOpacity
                     style={[styles.roundButton, styles.endButton]}
-                    onPress={handleEndCall}
+                    onPress={() => void handleEndCall()}
                 >
                     <Ionicons name="call" size={28} color={COLORS.dark.primaryText} />
                 </TouchableOpacity>
@@ -498,6 +690,23 @@ const styles = StyleSheet.create({
     timerText: { color: COLORS.dark.primaryText, fontSize: 48, fontWeight: 'bold' },
     timerLabel: { color: COLORS.dark.secondaryText, fontSize: 12, marginTop: 5, letterSpacing: 2 },
     hintText: { color: COLORS.dark.secondaryText, fontSize: 16 },
+    voiceBanner: {
+        marginHorizontal: SPACING.screen,
+        marginBottom: SPACING.md,
+        paddingHorizontal: SPACING.md,
+        paddingVertical: SPACING.sm,
+        borderRadius: RADIUS.md,
+        borderWidth: 1,
+        borderColor: COLORS.dark.surface,
+        backgroundColor: COLORS.dark.surface
+    },
+    voiceBannerError: {
+        borderColor: COLORS.destructive
+    },
+    voiceBannerText: {
+        color: COLORS.dark.primaryText,
+        fontSize: 12
+    },
     icebreakersSection: {
         paddingHorizontal: SPACING.screen,
         marginBottom: SPACING.md
@@ -559,6 +768,27 @@ const styles = StyleSheet.create({
         color: COLORS.dark.primaryText,
         fontSize: 12,
         fontWeight: '600'
+    },
+    voiceActions: {
+        paddingHorizontal: SPACING.screen,
+        marginBottom: SPACING.sm
+    },
+    voiceJoinButton: {
+        borderWidth: 1,
+        borderColor: COLORS.brandBase,
+        borderRadius: RADIUS.md,
+        paddingVertical: SPACING.sm,
+        alignItems: 'center',
+        justifyContent: 'center'
+    },
+    voiceJoinButtonDisabled: {
+        borderColor: COLORS.disabled,
+        opacity: 0.6
+    },
+    voiceJoinButtonText: {
+        color: COLORS.dark.primaryText,
+        fontSize: 13,
+        fontWeight: '700'
     },
     controls: { flexDirection: 'row', justifyContent: 'space-evenly', alignItems: 'center', paddingBottom: 50 },
     roundButton: { width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center' },
