@@ -99,3 +99,22 @@ How verified:
   - `view_report_detail`
   - `resolve_report`
   - `ban_user_from_report`
+
+## ✅ T5-C — Safety + admin operations runbook
+Status: DONE  
+Deliverable: docs/codex/week7/track5/SAFETY_ADMIN_RUNBOOK.md  
+Scope: docs only
+
+What shipped:
+- Added Track 5 safety/admin runbook covering:
+  - backend safety endpoints
+  - admin moderation queue flow
+  - pilot operations checklist
+  - incident response
+  - troubleshooting
+  - kill switch behavior
+- Recorded current backend moderation flow and the rule that block must remain available even if safety tools are disabled.
+
+How verified:
+- Runbook file created successfully.
+- Required strings for safety/admin operations, kill switch, and moderation flows are present.

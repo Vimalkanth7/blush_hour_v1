@@ -59,7 +59,7 @@ Deliverables (admin-only):
 Enforcement:
 - Banned users cannot use core flows (at minimum: login/enter chat-night).
 
-### [ ] T5-C (Docs) Safety + beta ops runbook
+### [x] T5-C (Docs) Safety + beta ops runbook
 Deliverable:
 - docs/codex/week7/track5/SAFETY_ADMIN_RUNBOOK.md
 Must include:

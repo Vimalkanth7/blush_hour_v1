@@ -97,3 +97,23 @@ Risks / follow-ups:
 - Resolving as `banned_user` returns 404 if the reported user no longer exists; product decision may be needed later on whether “resolve anyway” should be allowed.
 - User-facing safety UI is still pending.
 - Track 5 QA verifier packet is still pending.
+## 2026-03-12 — T5-C completed (safety/admin runbook added)
+What changed:
+- Added `SAFETY_ADMIN_RUNBOOK.md` for Track 5 operations.
+- Marked T5-C complete in the Track 5 pending tracker.
+
+Decisions (why we chose X over Y):
+- We documented the currently merged backend safety/admin flows before Track 5 QA so pilot operations are explicit and repeatable.
+- We kept Track 5 overall status as in progress because QA is still pending.
+
+How verified (commands + PASS lines):
+- `Test-Path "docs/codex/week7/track5/SAFETY_ADMIN_RUNBOOK.md"` -> True
+- `Select-String -Path "docs/codex/week7/track5/SAFETY_ADMIN_RUNBOOK.md" -Pattern "BH_SAFETY_TOOLS_ENABLED","/api/safety/report","/api/admin/reports","banned_user" -SimpleMatch` -> matched
+- `Select-String -Path "docs/codex/week7/track5/PENDING_TASKS.md" -Pattern "[x] T5-C" -SimpleMatch` -> matched
+
+PR/commit refs:
+- PR branch: chore/docs-week7-track5-t5c-runbook
+
+Risks / follow-ups:
+- T5-D QA verifier is still pending.
+- Track 5 cannot be closed until QA confirms final behavior.
