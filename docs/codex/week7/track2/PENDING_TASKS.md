@@ -50,7 +50,7 @@ Provider: LiveKit Cloud (WebRTC)
     - early-leave behavior
     - timer end disconnect
 
-- [ ] T2-D (Docs) Voice runbook:
+- [x] T2-D (Docs) Voice runbook:
   - required env vars + presets
   - local dev steps + Android testing steps (EAS / expo run:android)
   - troubleshooting (permissions, token expiry, connectivity)
