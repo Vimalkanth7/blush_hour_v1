@@ -4,7 +4,7 @@ Owner: Lead + Backend + QA + Docs
 Goal: Safety and owner control for real-world launch (moderation is not optional).
 
 ## Status
-- Track 5: ⏳ TODO
+- Track 5: 🟡 IN PROGRESS
 
 ## Dependencies
 - Track 0 (Security baseline): ✅ DONE
@@ -32,7 +32,7 @@ Goal: Safety and owner control for real-world launch (moderation is not optional
 
 ## Subtasks
 
-### [ ] T5-A (Backend) Report / Block / Mute primitives + enforcement
+### [x] T5-A (Backend) Report / Block / Mute primitives + enforcement
 Deliverables:
 - New models:
   - Block (blocker_user_id, blocked_user_id, created_at)
