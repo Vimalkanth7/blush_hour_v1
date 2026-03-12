@@ -117,3 +117,39 @@ PR/commit refs:
 Risks / follow-ups:
 - T5-D QA verifier is still pending.
 - Track 5 cannot be closed until QA confirms final behavior.
+
+## 2026-03-12 — T5-B2 merged (block enforcement in Chat Night + voice)
+What changed:
+- Added block enforcement to Chat Night matching so blocked pairs are skipped during partner selection.
+- Added blocked-room protection for:
+  - `GET /api/chat-night/my-room`
+  - `GET /api/chat-night/room/{room_id}`
+  - `POST /api/chat-night/engage`
+- Added blocked-pair protection in `POST /api/voice/token`.
+
+Decisions (why we chose X over Y):
+- We added this as a backend follow-up before QA because Track 5 was not functionally safe until block had real enforcement, not just persistence.
+- Error messages were kept neutral so blocked users do not learn who blocked whom.
+
+How verified (commands + PASS lines):
+- `Invoke-RestMethod http://localhost:8000/health`
+  - healthy / connected
+- `powershell -ExecutionPolicy Bypass -File .\backend\verify_profile_strength_contract.ps1`
+  - PASS: profile_strength contract verified.
+- `powershell -ExecutionPolicy Bypass -File .\backend\verify_chat_night_icebreakers_contract.ps1`
+  - PASS: chat night icebreakers contract verified (W6-B3)
+- `powershell -ExecutionPolicy Bypass -File .\backend\verify_talk_room_engage_sync.ps1`
+  - PASS: talk room engage sync verified.
+- Manual block enforcement evidence:
+  - match prevention: both users remained queued / no room created
+  - blocked room access returned 403
+  - blocked voice token returned 403
+  - PASS: W7-T5-B2 manual block enforcement checks verified.
+
+PR/commit refs:
+- Merged into main: f8e9294
+- Feature commit: b3114b0
+
+Risks / follow-ups:
+- Chat thread/message block gating was intentionally not added in this patch.
+- T5-D QA verifier is still required before Track 5 can close.
