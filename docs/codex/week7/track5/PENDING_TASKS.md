@@ -48,7 +48,7 @@ Deliverables:
   - If a user blocks someone while in an active room, room access must be prevented going forward (best-effort: end/leave + deny re-entry).
 - No PII in logs/traces; sanitize error messages.
 
-### [ ] T5-B (Backend) Moderation queue + admin actions + audit log
+### [x] T5-B (Backend) Moderation queue + admin actions (ban/suspend) + audit log
 Deliverables (admin-only):
 - GET /api/admin/reports?status=open|resolved
 - POST /api/admin/reports/{report_id}/resolve

@@ -50,3 +50,50 @@ Risks / follow-ups:
 - Frontend safety UI is still pending.
 - Admin moderation queue and report resolution flow are still pending.
 - QA verifier packet for safety/admin is still pending.
+
+## 2026-03-12 — T5-B merged (admin moderation queue + report resolution)
+What changed:
+- Extended `UserReport` with moderation metadata (`status`, `resolved_at`, `resolved_by_admin_id`, `resolution`).
+- Added admin moderation queue endpoints for listing reports, fetching report detail, and resolving reports.
+- Reused the existing admin ban persistence pattern so report-based bans and direct bans stay aligned.
+- Added audit logging for report queue views, detail views, resolutions, and ban-from-report actions.
+
+Decisions (why we chose X over Y):
+- Reused the existing admin auth and audit patterns instead of introducing a second moderation auth path.
+- Kept queue/list responses lightweight to avoid unnecessary exposure of report details in bulk views.
+- Resolution was restricted to a small enum (`dismissed`, `warned`, `banned_user`) to keep moderation behavior explicit and auditable.
+
+How verified (commands + PASS lines):
+- Health:
+  - `Invoke-RestMethod http://localhost:8000/health`
+  - Returned healthy / connected
+- Regression smoke:
+  - `powershell -ExecutionPolicy Bypass -File .\backend\verify_profile_strength_contract.ps1`
+  - PASS: profile_strength contract verified.
+  - `powershell -ExecutionPolicy Bypass -File .\backend\verify_chat_night_icebreakers_contract.ps1`
+  - PASS: chat night icebreakers contract verified (W6-B3)
+- Manual moderation flow:
+  - created reports via `/api/safety/report`
+  - listed via `/api/admin/reports?status=open`
+  - inspected via `/api/admin/reports/{report_id}`
+  - resolved with `dismissed`
+  - resolved with `banned_user`
+- PASS evidence:
+  - admin reports queue returned open reports
+  - report detail returned full record including moderation fields
+  - dismissed resolution persisted correctly and stayed idempotent
+  - banned_user resolution persisted and banned the reported user
+- Audit evidence:
+  - `view_reports_queue`
+  - `view_report_detail`
+  - `resolve_report`
+  - `ban_user_from_report`
+
+PR/commit refs:
+- Merged into main: 7499758
+- Feature commit: 75c3623
+
+Risks / follow-ups:
+- Resolving as `banned_user` returns 404 if the reported user no longer exists; product decision may be needed later on whether “resolve anyway” should be allowed.
+- User-facing safety UI is still pending.
+- Track 5 QA verifier packet is still pending.
