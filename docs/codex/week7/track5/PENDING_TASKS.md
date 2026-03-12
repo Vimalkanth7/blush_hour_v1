@@ -4,7 +4,7 @@ Owner: Lead + Backend + QA + Docs
 Goal: Safety and owner control for real-world launch (moderation is not optional).
 
 ## Status
-- Track 5: 🟡 IN PROGRESS
+- Track 5: ✅ DONE
 
 ## Dependencies
 - Track 0 (Security baseline): ✅ DONE
@@ -68,7 +68,7 @@ Must include:
 - Admin endpoints usage (curl/PowerShell examples)
 - Kill switch procedure (BH_SAFETY_TOOLS_ENABLED)
 
-### [ ] T5-D (QA) Safety/admin verifiers + staging smoke harness
+### [x] T5-D (QA) Safety/admin verifiers + staging smoke harness
 Deliverables:
 - backend\verify_safety_admin_contract.ps1:
   - report works (auth)

@@ -153,3 +153,35 @@ PR/commit refs:
 Risks / follow-ups:
 - Chat thread/message block gating was intentionally not added in this patch.
 - T5-D QA verifier is still required before Track 5 can close.
+
+## 2026-03-12 — W7-T5-D completed (QA safety/admin verifier closeout)
+What changed:
+- Completed W7-T5-D and closed Track 5 QA verifier work.
+- Delivered verifier path:
+  - `backend/verify_safety_admin_contract.ps1`
+- Captured final evidence for parse check, enabled mode, disabled mode, and required regression guards.
+
+Decisions (why we chose X over Y):
+- Closeout uses only the already verified agent result so docs reflect shipped behavior without re-scoping backend work.
+- Track 5 status is now marked done because all listed subtasks are complete.
+
+How verified (commands + PASS lines):
+- `powershell -ExecutionPolicy Bypass -File .\backend\verify_safety_admin_contract.ps1`
+  - `PARSE_OK`
+  - `PASS: safety/admin contract verifier completed (enabled mode).`
+- `$env:BH_SAFETY_TOOLS_ENABLED="false"; powershell -ExecutionPolicy Bypass -File .\backend\verify_safety_admin_contract.ps1`
+  - `PASS: safety/admin contract verifier completed (disabled mode).`
+- `powershell -ExecutionPolicy Bypass -File .\backend\verify_profile_strength_contract.ps1`
+  - `PASS: profile_strength contract verified.`
+- `powershell -ExecutionPolicy Bypass -File .\backend\verify_chat_night_icebreakers_contract.ps1`
+  - `PASS: chat night icebreakers contract verified (W6-B3)`
+- `powershell -ExecutionPolicy Bypass -File .\backend\verify_talk_room_engage_sync.ps1`
+  - `PASS: talk room engage sync verified.`
+
+PR/commit refs:
+- Docs closeout branch: chore/docs-week7-track5-t5d-closeout
+
+Risks / follow-ups:
+- admin auth env required
+- voice enforcement depends on voice feature being enabled/configured
+- chat-night gating override noted by agent
