@@ -47,6 +47,9 @@ class Settings(BaseSettings):
     LIVEKIT_API_SECRET: Optional[str] = None
     LIVEKIT_TOKEN_TTL_SECONDS: int = 300
 
+    # Safety tools
+    BH_SAFETY_TOOLS_ENABLED: bool = True
+
     @validator("SECRET_KEY", pre=True, always=True)
     def validate_secret_key(cls, value):
         normalized = (value or "").strip()
