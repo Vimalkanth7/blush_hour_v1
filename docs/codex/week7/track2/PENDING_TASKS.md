@@ -38,7 +38,7 @@ Provider: LiveKit Cloud (WebRTC)
   - Web fallback: “Voice available on Android app” (no crash)
   - Decision: Manual Android voice test deferred to pre-launch mobile testing sprint (post Track 5). T2-B closed on code + contract basis.
 
-- [ ] T2-C (QA) Voice smoke:
+- [X] T2-C (QA) Voice smoke:
   - Add backend contract verifier for /api/voice/token:
     - 401 when unauthenticated
     - 503 when BH_VOICE_ENABLED=false
