@@ -118,3 +118,34 @@ What shipped:
 How verified:
 - Runbook file created successfully.
 - Required strings for safety/admin operations, kill switch, and moderation flows are present.
+
+## ✅ T5-B2 — Backend block enforcement in Chat Night + voice
+Status: DONE  
+Merged: f8e9294  
+Feature commit: b3114b0  
+Branch: fix/backend-w7-t5b2-block-enforcement  
+Scope: backend only
+
+What shipped:
+- Added bidirectional block enforcement helpers in `chat_night.py`.
+- Prevented blocked users from being matched in both:
+  - V5 ranked matching
+  - FIFO fallback matching
+- Added active-room protection:
+  - `GET /api/chat-night/my-room` → 403 when blocked
+  - `GET /api/chat-night/room/{room_id}` → 403 when blocked
+  - `POST /api/chat-night/engage` → 403 when blocked
+- Added voice protection:
+  - `POST /api/voice/token` now returns 403 when either room participant has blocked the other
+- Used neutral denial messaging and best-effort room-ending behavior.
+
+How verified:
+- `/health` returned healthy.
+- Regression smoke passed:
+  - `verify_profile_strength_contract.ps1`
+  - `verify_chat_night_icebreakers_contract.ps1`
+  - `verify_talk_room_engage_sync.ps1`
+- Manual blocked-pair verification passed:
+  - blocked users did not match each other
+  - blocked active-room access returned 403
+  - blocked voice token minting returned 403
