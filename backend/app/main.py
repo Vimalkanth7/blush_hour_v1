@@ -15,7 +15,8 @@ from app.models.chat_night import (
 from app.models.events import AppEvent
 from app.models.chat import ChatThread, ChatMessage
 from app.models.admin import AdminAuditLog, SystemConfig
-from app.routers import auth, users, discovery, chat_night, admin, chat, internal_evals, photos, voice
+from app.models.safety import UserBlock, UserMute, UserReport
+from app.routers import auth, users, discovery, chat_night, admin, chat, internal_evals, photos, voice, safety
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -33,7 +34,10 @@ async def lifespan(app: FastAPI):
             ChatThread,
             ChatMessage,
             AdminAuditLog,
-            SystemConfig
+            SystemConfig,
+            UserBlock,
+            UserMute,
+            UserReport,
         ]
     )
     print("Startup: Connected to MongoDB and initialized Beanie models.")
@@ -99,6 +103,7 @@ app.include_router(chat.router, prefix="/api/chat", tags=["chat"])
 app.include_router(voice.router, prefix="/api/voice", tags=["voice"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 app.include_router(internal_evals.router, prefix="/api/internal/evals", tags=["internal-evals"])
+app.include_router(safety.router, prefix="/api/safety", tags=["safety"])
 
 @app.get("/")
 async def read_root():
