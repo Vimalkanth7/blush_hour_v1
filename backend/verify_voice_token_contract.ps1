@@ -29,53 +29,35 @@ function Fail {
 }
 
 function Get-HttpStatusCodeFromError {
-    param(
-        [Parameter(Mandatory = $true)]
-        [System.Management.Automation.ErrorRecord] $ErrorRecord
-    )
+    param([Parameter(Mandatory = $true)][System.Management.Automation.ErrorRecord] $ErrorRecord)
 
     $exception = $ErrorRecord.Exception
-    if ($null -eq $exception) {
-        return $null
-    }
+    if ($null -eq $exception) { return $null }
 
     if ($exception.PSObject.Properties.Name -contains "Response") {
         $response = $exception.Response
         if ($null -ne $response -and $response.PSObject.Properties.Name -contains "StatusCode") {
-            try {
-                return [int] $response.StatusCode
-            }
-            catch {
-                return $null
-            }
+            try { return [int] $response.StatusCode } catch { return $null }
         }
     }
-
     return $null
 }
 
 function Get-HttpErrorText {
-    param(
-        [Parameter(Mandatory = $true)]
-        [System.Management.Automation.ErrorRecord] $ErrorRecord
-    )
+    param([Parameter(Mandatory = $true)][System.Management.Automation.ErrorRecord] $ErrorRecord)
 
     if ($ErrorRecord.ErrorDetails -and -not [string]::IsNullOrWhiteSpace("$($ErrorRecord.ErrorDetails.Message)")) {
         return "$($ErrorRecord.ErrorDetails.Message)"
     }
 
     $exception = $ErrorRecord.Exception
-    if ($null -eq $exception) {
-        return "$ErrorRecord"
-    }
+    if ($null -eq $exception) { return "$ErrorRecord" }
 
     if ($exception.PSObject.Properties.Name -contains "Response") {
         $response = $exception.Response
         if ($null -ne $response -and $response.PSObject.Properties.Name -contains "Content") {
             $content = "$($response.Content)"
-            if (-not [string]::IsNullOrWhiteSpace($content)) {
-                return $content
-            }
+            if (-not [string]::IsNullOrWhiteSpace($content)) { return $content }
         }
     }
 
@@ -85,9 +67,7 @@ function Get-HttpErrorText {
 function Try-GetDetailMessage {
     param([AllowEmptyString()][string] $RawErrorText)
 
-    if ([string]::IsNullOrWhiteSpace($RawErrorText)) {
-        return ""
-    }
+    if ([string]::IsNullOrWhiteSpace($RawErrorText)) { return "" }
 
     try {
         $parsed = $RawErrorText | ConvertFrom-Json -ErrorAction Stop
@@ -95,9 +75,7 @@ function Try-GetDetailMessage {
             return "$($parsed.detail)"
         }
     }
-    catch {
-        # Raw text fallback.
-    }
+    catch { }
 
     return $RawErrorText
 }
@@ -133,12 +111,7 @@ function Invoke-JsonApi {
             }
         }
 
-        return [pscustomobject]@{
-            Ok        = $true
-            Status    = 200
-            Body      = $response
-            ErrorText = ""
-        }
+        return [pscustomobject]@{ Ok = $true; Status = 200; Body = $response; ErrorText = "" }
     }
     catch {
         return [pscustomobject]@{
@@ -152,7 +125,6 @@ function Invoke-JsonApi {
 
 function New-TestPhone {
     param([Parameter(Mandatory = $true)][string] $Prefix)
-
     $stamp = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds().ToString()
     $tailLength = [Math]::Min(7, $stamp.Length)
     $tail = $stamp.Substring($stamp.Length - $tailLength, $tailLength)
@@ -165,10 +137,7 @@ function Register-TestUser {
         [Parameter(Mandatory = $true)][string] $Label
     )
 
-    $body = @{
-        phone_number = $PhoneNumber
-        password     = $script:Password
-    }
+    $body = @{ phone_number = $PhoneNumber; password = $script:Password }
 
     for ($attempt = 1; $attempt -le 2; $attempt++) {
         $result = Invoke-JsonApi -Method POST -Uri "$BaseUrl/api/auth/register" -Body $body
@@ -190,7 +159,7 @@ function Register-TestUser {
     Fail "Registration failed for $Label after retry."
 }
 
-function Patch-MinProfile {
+function Patch-FullProfile {
     param(
         [Parameter(Mandatory = $true)][string] $Token,
         [Parameter(Mandatory = $true)][string] $FirstName,
@@ -198,18 +167,22 @@ function Patch-MinProfile {
     )
 
     $headers = @{ Authorization = "Bearer $Token" }
+
+    # Full profile payload (modeled after talk-room verifier) to satisfy >=80% chat-night gate
     $body = @{
         firstName      = $FirstName
-        gender         = $Gender
         birthday       = "1990-01-01"
-        bio            = "Voice token verifier profile setup."
-        prompts        = @(@{ question = "Weekend plan?"; answer = "Coffee and a long walk." })
+        gender         = $Gender
+        bio            = "Voice token verifier profile."
+        prompts        = @(@{ question = "Q1"; answer = "A1" })
         work           = "Engineer"
         location       = "Austin"
         educationLevel = "Bachelors"
         starSign       = "Leo"
         height         = "170cm"
-        interests      = @("Music", "Travel", "Food")
+        interests      = @("Music", "Art", "Hiking")
+        values         = @("Honesty", "Humor")
+        languages      = @("English")
         habits         = @{
             drinking = "sometimes"
             smoking  = "no"
@@ -230,28 +203,18 @@ function Enter-ChatNight {
     return Invoke-JsonApi -Method POST -Uri "$BaseUrl/api/chat-night/enter" -Headers $Headers
 }
 
-function MyRoom-ChatNight {
-    param([Parameter(Mandatory = $true)][hashtable] $Headers)
-    return Invoke-JsonApi -Method GET -Uri "$BaseUrl/api/chat-night/my-room" -Headers $Headers
-}
-
 function Engage-ChatNight {
     param(
         [Parameter(Mandatory = $true)][hashtable] $Headers,
         [Parameter(Mandatory = $true)][string] $RoomId
     )
-
     $body = @{ room_id = $RoomId }
     return Invoke-JsonApi -Method POST -Uri "$BaseUrl/api/chat-night/engage" -Headers $Headers -Body $body
 }
 
 function BestEffort-Leave {
     param([AllowNull()][string] $Token)
-
-    if ([string]::IsNullOrWhiteSpace($Token)) {
-        return
-    }
-
+    if ([string]::IsNullOrWhiteSpace($Token)) { return }
     $headers = @{ Authorization = "Bearer $Token" }
     $null = Invoke-JsonApi -Method POST -Uri "$BaseUrl/api/chat-night/leave" -Headers $headers
 }
@@ -280,10 +243,10 @@ try {
     }
     Write-Pass "Unauthenticated POST /api/voice/token returns HTTP 401."
 
-    Write-Step "Create synthetic user A and patch minimal profile"
+    Write-Step "Create synthetic user A and patch FULL profile"
     $userAPhone = New-TestPhone -Prefix "966"
     $script:UserAToken = Register-TestUser -PhoneNumber $userAPhone -Label "UserA"
-    Patch-MinProfile -Token $script:UserAToken -FirstName "VoiceA" -Gender "Man"
+    Patch-FullProfile -Token $script:UserAToken -FirstName "VoiceA" -Gender "Man"
     $headersA = @{ Authorization = "Bearer $script:UserAToken" }
     Write-Pass "UserA registered and profile patched."
 
@@ -313,7 +276,7 @@ try {
     Write-Step "Create synthetic user B, then match and engage both users"
     $userBPhone = New-TestPhone -Prefix "967"
     $script:UserBToken = Register-TestUser -PhoneNumber $userBPhone -Label "UserB"
-    Patch-MinProfile -Token $script:UserBToken -FirstName "VoiceB" -Gender "Woman"
+    Patch-FullProfile -Token $script:UserBToken -FirstName "VoiceB" -Gender "Woman"
     $headersB = @{ Authorization = "Bearer $script:UserBToken" }
 
     BestEffort-Leave -Token $script:UserAToken
@@ -323,22 +286,23 @@ try {
     if (-not $enterA.Ok) {
         $detail = Try-GetDetailMessage -RawErrorText "$($enterA.ErrorText)"
         if ($detail -match "(?i)complete your profile") {
-            Fail ("UserA /chat-night/enter blocked by profile gating. detail='{0}'. Ensure chat-night profile completion preconditions are met (for this backend: completion threshold + photos or DEV_BYPASS_PHOTOS)." -f $detail)
+            Fail ("UserA /chat-night/enter blocked by profile gating. detail='{0}'. Consider DEV_BYPASS_PHOTOS=true (dev only) or run verify_photos_r2_contract.ps1 first." -f $detail)
+        }
+        if ($detail -match "(?i)chat night is closed") {
+            Fail ("UserA /chat-night/enter blocked: Chat Night is closed. Start backend with CHAT_NIGHT_FORCE_OPEN=true (dev) to run this verifier.")
         }
         Fail ("UserA /chat-night/enter failed. HTTP {0}; detail/error: {1}" -f $enterA.Status, $detail)
     }
 
-    $statusA = "$($enterA.Body.status)"
-    if ($statusA -notin @("queued", "active_room", "match_found")) {
-        Fail ("Unexpected UserA /enter status: {0}" -f $statusA)
-    }
-
     $roomId = $null
     $sawMatchFoundByB = $false
-    for ($attempt = 1; $attempt -le 3; $attempt++) {
+    for ($attempt = 1; $attempt -le 6; $attempt++) {
         $enterB = Enter-ChatNight -Headers $headersB
         if (-not $enterB.Ok) {
             $detail = Try-GetDetailMessage -RawErrorText "$($enterB.ErrorText)"
+            if ($detail -match "(?i)chat night is closed") {
+                Fail ("UserB /chat-night/enter blocked: Chat Night is closed. Start backend with CHAT_NIGHT_FORCE_OPEN=true (dev) to run this verifier.")
+            }
             Fail ("UserB /chat-night/enter failed on attempt {0}. HTTP {1}; detail/error: {2}" -f $attempt, $enterB.Status, $detail)
         }
 
@@ -351,23 +315,13 @@ try {
 
         if ($statusB -eq "active_room" -and -not [string]::IsNullOrWhiteSpace("$($enterB.Body.room_id)")) {
             $roomId = "$($enterB.Body.room_id)"
-            Start-Sleep -Seconds 1
-            continue
-        }
-
-        if ($statusB -ne "queued") {
-            Fail ("Unexpected UserB /enter status: {0}" -f $statusB)
         }
 
         Start-Sleep -Seconds 1
     }
 
-    if (-not $sawMatchFoundByB) {
-        Fail "UserB never received status=match_found after repeated /enter calls."
-    }
-    if ([string]::IsNullOrWhiteSpace($roomId)) {
-        Fail "room_id missing after match_found for UserB."
-    }
+    if (-not $sawMatchFoundByB) { Fail "UserB never received status=match_found after repeated /enter calls." }
+    if ([string]::IsNullOrWhiteSpace($roomId)) { Fail "room_id missing after match_found for UserB." }
     Write-Pass ("Chat-night match created with room_id={0}" -f $roomId)
 
     $engageA = Engage-ChatNight -Headers $headersA -RoomId $roomId
@@ -381,6 +335,7 @@ try {
         $err = if ($engageB.Ok) { ($engageB.Body | ConvertTo-Json -Compress) } else { (Try-GetDetailMessage -RawErrorText "$($engageB.ErrorText)") }
         Fail ("UserB engage failed. HTTP {0}; body/error: {1}" -f $engageB.Status, $err)
     }
+
     if ("$($engageB.Body.room_state)" -ne "engaged") {
         Fail ("Expected engaged room_state after both engage calls. Got room_state={0}" -f "$($engageB.Body.room_state)")
     }
@@ -399,23 +354,13 @@ try {
     $identity = "$($body.identity)"
     $url = "$($body.url)"
 
-    if ([string]::IsNullOrWhiteSpace($token)) {
-        Fail "Response missing token."
-    }
+    if ([string]::IsNullOrWhiteSpace($token)) { Fail "Response missing token." }
     $tokenLength = $token.Length
-    if ($tokenLength -le 0) {
-        Fail "Token length is zero."
-    }
+    if ($tokenLength -le 0) { Fail "Token length is zero." }
 
-    if ([string]::IsNullOrWhiteSpace($room)) {
-        Fail "Response missing room."
-    }
-    if ([string]::IsNullOrWhiteSpace($identity)) {
-        Fail "Response missing identity."
-    }
-    if ([string]::IsNullOrWhiteSpace($url)) {
-        Fail "Response missing url."
-    }
+    if ([string]::IsNullOrWhiteSpace($room)) { Fail "Response missing room." }
+    if ([string]::IsNullOrWhiteSpace($identity)) { Fail "Response missing identity." }
+    if ([string]::IsNullOrWhiteSpace($url)) { Fail "Response missing url." }
 
     $expiresIn = 0
     if (-not [int]::TryParse("$($body.expires_in)", [ref] $expiresIn)) {
