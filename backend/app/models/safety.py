@@ -42,6 +42,10 @@ class UserReport(Document):
     room_id: Optional[str] = None
     category: str
     details: Optional[str] = None
+    status: str = "open"
+    resolved_at: Optional[datetime] = None
+    resolved_by_admin_id: Optional[str] = None
+    resolution: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     class Settings:
@@ -51,5 +55,8 @@ class UserReport(Document):
             "reported_user_id",
             "room_id",
             "category",
+            "status",
+            "resolved_at",
+            "resolved_by_admin_id",
             "created_at",
         ]

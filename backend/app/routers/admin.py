@@ -8,10 +8,13 @@ from app.models.chat_night import MatchUnlocked, ChatNightPass, ChatNightRoom
 from app.models.events import AppEvent
 from app.models.chat import ChatThread, ChatMessage
 from app.models.admin import AdminAuditLog, SystemConfig
+from app.models.safety import UserReport
 from app.auth.dependencies import get_current_admin
 from app.services.profile_scoring import compute_profile_strength
 
 router = APIRouter()
+VALID_REPORT_STATUSES = {"open", "resolved"}
+VALID_REPORT_RESOLUTIONS = {"dismissed", "warned", "banned_user"}
 
 # --- Logging Helper ---
 async def log_admin_action(admin_id: str, action: str, target_id: str = None, meta: dict = None):
@@ -22,6 +25,30 @@ async def log_admin_action(admin_id: str, action: str, target_id: str = None, me
         metadata=meta
     )
     await log.insert()
+
+
+def serialize_user_report(report: UserReport, include_details: bool = False) -> Dict[str, Any]:
+    data: Dict[str, Any] = {
+        "id": str(report.id),
+        "reporter_user_id": str(report.reporter_user_id),
+        "reported_user_id": str(report.reported_user_id),
+        "room_id": report.room_id,
+        "category": report.category,
+        "status": report.status,
+        "created_at": report.created_at,
+        "resolved_at": report.resolved_at,
+        "resolved_by_admin_id": report.resolved_by_admin_id,
+    }
+    if include_details:
+        data["details"] = report.details
+        data["resolution"] = report.resolution
+    return data
+
+
+async def apply_ban_to_user(user: User, reason: str) -> None:
+    user.is_banned = True
+    user.ban_reason = reason
+    await user.save()
 
 # --- Endpoints ---
 
@@ -205,6 +232,131 @@ async def inspect_thread(thread_id: str, curr_admin: User = Depends(get_current_
         "messages": msgs
     }
 
+@router.get("/reports")
+async def get_reports_queue(
+    status: Optional[str] = Query(default=None),
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    curr_admin: User = Depends(get_current_admin)
+):
+    if status is not None and status not in VALID_REPORT_STATUSES:
+        raise HTTPException(400, "Invalid status")
+
+    filters = []
+    if status:
+        filters.append(UserReport.status == status)
+
+    reports = await UserReport.find(*filters).sort(-UserReport.created_at).skip(offset).limit(limit).to_list()
+
+    await log_admin_action(
+        str(curr_admin.id),
+        "view_reports_queue",
+        meta={"status": status, "limit": limit, "offset": offset},
+    )
+
+    return {"reports": [serialize_user_report(r) for r in reports]}
+
+
+@router.get("/reports/{report_id}")
+async def get_report_detail(report_id: str, curr_admin: User = Depends(get_current_admin)):
+    try:
+        rid = PydanticObjectId(report_id)
+    except Exception:
+        raise HTTPException(400, "Invalid ID")
+
+    report = await UserReport.get(rid)
+    if not report:
+        raise HTTPException(404, "Report not found")
+
+    await log_admin_action(
+        str(curr_admin.id),
+        "view_report_detail",
+        target_id=str(report.id),
+        meta={"report_id": str(report.id)},
+    )
+
+    return serialize_user_report(report, include_details=True)
+
+
+@router.post("/reports/{report_id}/resolve")
+async def resolve_report(
+    report_id: str,
+    resolution: str = Body(..., embed=True),
+    curr_admin: User = Depends(get_current_admin)
+):
+    if resolution not in VALID_REPORT_RESOLUTIONS:
+        raise HTTPException(400, "Invalid resolution")
+
+    try:
+        rid = PydanticObjectId(report_id)
+    except Exception:
+        raise HTTPException(400, "Invalid ID")
+
+    report = await UserReport.get(rid)
+    if not report:
+        raise HTTPException(404, "Report not found")
+
+    if report.status == "resolved":
+        await log_admin_action(
+            str(curr_admin.id),
+            "resolve_report",
+            target_id=str(report.id),
+            meta={
+                "resolution": resolution,
+                "report_id": str(report.id),
+                "idempotent": True,
+                "existing_resolution": report.resolution,
+            },
+        )
+        return {
+            "status": "resolved",
+            "idempotent": True,
+            "report": serialize_user_report(report, include_details=True),
+        }
+
+    ban_applied = False
+    if resolution == "banned_user":
+        reported_user = await User.get(report.reported_user_id)
+        if not reported_user:
+            raise HTTPException(404, "Reported user not found")
+        await apply_ban_to_user(
+            reported_user,
+            f"Report {str(report.id)} resolved as banned_user",
+        )
+        ban_applied = True
+
+    report.status = "resolved"
+    report.resolution = resolution
+    report.resolved_at = datetime.utcnow()
+    report.resolved_by_admin_id = str(curr_admin.id)
+    await report.save()
+
+    await log_admin_action(
+        str(curr_admin.id),
+        "resolve_report",
+        target_id=str(report.id),
+        meta={
+            "resolution": resolution,
+            "report_id": str(report.id),
+            "reported_user_id": str(report.reported_user_id),
+            "ban_applied": ban_applied,
+        },
+    )
+    if ban_applied:
+        await log_admin_action(
+            str(curr_admin.id),
+            "ban_user_from_report",
+            target_id=str(report.reported_user_id),
+            meta={"report_id": str(report.id)},
+        )
+
+    return {
+        "status": "resolved",
+        "idempotent": False,
+        "report": serialize_user_report(report, include_details=True),
+    }
+
+
 @router.post("/users/{user_id}/actions/reset-passes")
 async def reset_passes(user_id: str, count: int = 3, curr_admin: User = Depends(get_current_admin)):
     try:
@@ -241,9 +393,7 @@ async def ban_user(user_id: str, reason: str = Body(..., embed=True), curr_admin
     u = await User.get(uid)
     if not u: raise HTTPException(404, "User not found")
     
-    u.is_banned = True
-    u.ban_reason = reason
-    await u.save()
+    await apply_ban_to_user(u, reason)
     
     # Todo: terminate sessions if possible (jwt invalidation not implemented yet)
     
