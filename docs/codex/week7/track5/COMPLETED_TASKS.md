@@ -149,3 +149,32 @@ How verified:
   - blocked users did not match each other
   - blocked active-room access returned 403
   - blocked voice token minting returned 403
+
+## ✅ T5-D — QA safety/admin verifier + staging smoke harness
+Status: DONE  
+Branch: feat/qa-w7-t5d-safety-admin-verifier  
+Deliverable: `backend/verify_safety_admin_contract.ps1`  
+Scope: backend QA verifier + docs closeout
+
+What shipped:
+- Added safety/admin contract verifier:
+  - `backend/verify_safety_admin_contract.ps1`
+- Contract coverage summary:
+  - unauthenticated rejection
+  - block/report behavior
+  - admin queue moderation
+  - banned-user resolution
+  - blocked room/voice enforcement
+  - kill-switch disabled-mode behavior
+
+How verified:
+- Parse check:
+  - `PARSE_OK`
+- Enabled mode PASS:
+  - `PASS: safety/admin contract verifier completed (enabled mode).`
+- Disabled mode PASS:
+  - `PASS: safety/admin contract verifier completed (disabled mode).`
+- Required regression guards PASS:
+  - `PASS: profile_strength contract verified.`
+  - `PASS: chat night icebreakers contract verified (W6-B3)`
+  - `PASS: talk room engage sync verified.`

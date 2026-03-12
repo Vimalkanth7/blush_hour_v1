@@ -20,4 +20,5 @@ Regression guards (PASS required to merge):
 - backend\verify_chat_night_icebreakers_contract.ps1
 - backend\verify_chat_night_icebreakers_reveal_sync.ps1
 - backend\verify_talk_room_engage_sync.ps1
+- backend\verify_safety_admin_contract.ps1 (run in enabled mode and with `BH_SAFETY_TOOLS_ENABLED=false`)
 - manual run browser check.txt  (Talk Room “2 browsers, 1 room” — PASS required)
