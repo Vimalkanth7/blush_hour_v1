@@ -45,3 +45,26 @@ How verified:
 - `npx eslint ...` PASS.
 - `npx expo export --platform web` PASS.
 - Decision recorded: manual Android audio test deferred to later sprint.
+
+
+## ✅ T2-C — QA voice token contract verifier (/api/voice/token)
+Status: DONE  
+Merged: 8cc1750 (Merge PR #36)  
+Feature commits: dedcc36 → 0782b330  
+Branch: feat/qa-w7-t2c-voice-token-verifier  
+Scope: backend QA scripts only
+
+What shipped:
+- Added `backend/verify_voice_token_contract.ps1` (QA-only) to validate the `/api/voice/token` backend contract.
+- Covers:
+  - 401 when unauthenticated
+  - 503 when `BH_VOICE_ENABLED=false` (disabled mode)
+  - pre-engage blocked (expects “engaged” gating)
+  - engaged room returns 200 with `token` present and `expires_in <= 300`
+- Token safety: token value is never printed (length only).
+
+How verified:
+- `powershell -ExecutionPolicy Bypass -File .\backend\verify_voice_token_contract.ps1 -BaseUrl "http://localhost:8000" -Mode enabled`
+  - PASS: voice token contract verified (enabled mode).
+- `powershell -ExecutionPolicy Bypass -File .\backend\verify_voice_token_contract.ps1 -BaseUrl "http://localhost:8000" -Mode disabled`
+  - PASS: voice token contract verified (disabled mode).

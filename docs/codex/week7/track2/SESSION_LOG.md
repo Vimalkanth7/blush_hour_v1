@@ -61,3 +61,33 @@ PR/commit refs:
 Risks / follow-ups:
 - Manual Android two-device audio validation remains deferred to the pre-launch mobile testing sprint (post Track 5).
 - T2-C should add the backend voice verifier coverage and formal smoke checklist.
+
+
+## 2026-03-12 — T2-C merged (QA voice token verifier)
+What changed:
+- Added `backend/verify_voice_token_contract.ps1` to assert `/api/voice/token` contract behavior across:
+  - unauthenticated (401)
+  - disabled mode via `BH_VOICE_ENABLED=false` (503)
+  - enabled mode pre-engage gating
+  - enabled mode engaged-room success (200 + token fields)
+
+Decisions (why we chose X over Y):
+- We added a backend contract verifier to de-risk Track 2 while **manual Android voice testing is deferred** to the pre-launch mobile testing sprint (post Track 5).
+- The verifier redacts secrets by policy (token never printed; length only).
+
+How verified (commands + PASS lines):
+- Enabled mode:
+  - `powershell -ExecutionPolicy Bypass -File .\backend\verify_voice_token_contract.ps1 -BaseUrl "http://localhost:8000" -Mode enabled`
+  - PASS: voice token contract verified (enabled mode).
+- Disabled mode:
+  - (restart backend with `BH_VOICE_ENABLED=false`)
+  - `powershell -ExecutionPolicy Bypass -File .\backend\verify_voice_token_contract.ps1 -BaseUrl "http://localhost:8000" -Mode disabled`
+  - PASS: voice token contract verified (disabled mode).
+
+PR/commit refs:
+- Merged into main: 8cc1750 (PR #36)
+- Feature branch: feat/qa-w7-t2c-voice-token-verifier (dedcc36 → 0782b330)
+
+Risks / follow-ups:
+- Enabled-mode run requires Chat Night to be open (use `CHAT_NIGHT_FORCE_OPEN=true` in dev if needed).
+- Manual Android two-device audio validation remains deferred to the pre-launch sprint.
