@@ -68,3 +68,11 @@ How verified:
   - PASS: voice token contract verified (enabled mode).
 - `powershell -ExecutionPolicy Bypass -File .\backend\verify_voice_token_contract.ps1 -BaseUrl "http://localhost:8000" -Mode disabled`
   - PASS: voice token contract verified (disabled mode).
+
+## ✅ T2-D — Voice runbook (LiveKit)
+Status: DONE  
+Deliverable: docs/codex/week7/track2/VOICE_LIVEKIT_RUNBOOK.md
+
+Notes:
+- Documents env vars, presets, kill switch, and verifier commands.
+- Explicitly records decision: manual Android audio testing deferred to the pre-launch mobile testing sprint (post Track 5).

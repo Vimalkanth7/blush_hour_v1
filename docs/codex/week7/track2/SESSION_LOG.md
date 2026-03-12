@@ -91,3 +91,23 @@ PR/commit refs:
 Risks / follow-ups:
 - Enabled-mode run requires Chat Night to be open (use `CHAT_NIGHT_FORCE_OPEN=true` in dev if needed).
 - Manual Android two-device audio validation remains deferred to the pre-launch sprint.
+
+## 2026-03-12 — T2-D completed (Voice runbook added)
+What changed:
+- Added LiveKit Voice runbook: VOICE_LIVEKIT_RUNBOOK.md
+- Marked T2-D complete in Track 2 pending tracker
+
+Decisions (why we chose X over Y):
+- Manual Android voice testing deferred to the pre-launch mobile testing sprint (post Track 5).
+- This task is docs-only; verification is via backend contract verifier + code review.
+
+How verified (commands + PASS lines):
+- Test-Path "docs/codex/week7/track2/VOICE_LIVEKIT_RUNBOOK.md" -> True
+- Select-String ... "BH_VOICE_ENABLED","LIVEKIT_URL","verify_voice_token_contract.ps1" -> matched
+
+PR/commit refs:
+- PR branch: chore/docs-week7-track2-t2d-voice-runbook
+
+Risks/follow-ups:
+- Run Track 2 full closeout after this merges (mark Track 2 ✅ DONE).
+- Android device testing remains deferred until post Track 5.
