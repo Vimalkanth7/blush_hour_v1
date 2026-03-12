@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Body
 from app.models.user import User
 from app.models.chat_night import ChatNightPass, ChatNightRoom, MatchUnlocked, ChatNightIcebreakers
 from app.models.chat import ChatThread
+from app.models.safety import UserBlock
 from app.schemas.chat_night import (
     ChatNightStatus,
     ChatNightRoomResponse,
@@ -224,6 +225,65 @@ async def get_recent_partner_ids(user_id: str, minutes: int) -> set[str]:
     partners.discard(user_id)
     return partners
 
+
+def _to_object_id(user_id: str) -> Optional[PydanticObjectId]:
+    try:
+        return PydanticObjectId(user_id)
+    except Exception:
+        return None
+
+
+async def has_user_blocked(blocker_user_id: str, blocked_user_id: str) -> bool:
+    blocker_oid = _to_object_id(blocker_user_id)
+    blocked_oid = _to_object_id(blocked_user_id)
+    if not blocker_oid or not blocked_oid:
+        return False
+    record = await UserBlock.find_one(
+        UserBlock.blocker_user_id == blocker_oid,
+        UserBlock.blocked_user_id == blocked_oid,
+    )
+    return record is not None
+
+
+async def is_pair_blocked(user_a_id: str, user_b_id: str) -> bool:
+    if not user_a_id or not user_b_id or user_a_id == user_b_id:
+        return False
+    if await has_user_blocked(user_a_id, user_b_id):
+        return True
+    return await has_user_blocked(user_b_id, user_a_id)
+
+
+async def get_blocked_pair_user_ids(user_id: str) -> set[str]:
+    user_oid = _to_object_id(user_id)
+    if not user_oid:
+        return set()
+
+    rows = await UserBlock.find(
+        {
+            "$or": [
+                {"blocker_user_id": user_oid},
+                {"blocked_user_id": user_oid},
+            ]
+        }
+    ).to_list()
+
+    paired_ids: set[str] = set()
+    for row in rows:
+        if row.blocker_user_id == user_oid:
+            paired_ids.add(str(row.blocked_user_id))
+        elif row.blocked_user_id == user_oid:
+            paired_ids.add(str(row.blocker_user_id))
+    return paired_ids
+
+
+async def enforce_room_not_blocked(room: ChatNightRoom, detail: str) -> None:
+    if not await is_pair_blocked(room.male_user_id, room.female_user_id):
+        return
+    if room.state in LIVE_ROOM_STATES:
+        room.state = "ended"
+        await room.save()
+    raise HTTPException(status_code=403, detail=detail)
+
 # NOTE: Keeping is_whitelisted_for_testing for legacy individual whitelist support if needed,
 # but new settings apply globally or complement it.
 
@@ -335,6 +395,7 @@ async def try_match_and_create_room(user_id: str, gender: str, date_ist: str):
         return None, None
 
     cooldown_set = await get_recent_partner_ids(user_id, pair_cooldown_minutes())
+    blocked_pair_user_ids = await get_blocked_pair_user_ids(user_id)
     selection_now = get_now_utc()
     
     if v5_enabled():
@@ -350,6 +411,7 @@ async def try_match_and_create_room(user_id: str, gender: str, date_ist: str):
             eligible_candidates = [
                 candidate for candidate in candidates
                 if str(candidate.id) != user_id and str(candidate.id) not in cooldown_set
+                and str(candidate.id) not in blocked_pair_user_ids
             ]
             if eligible_candidates:
                 min_score = v5_min_score()
@@ -401,7 +463,7 @@ async def try_match_and_create_room(user_id: str, gender: str, date_ist: str):
             selected_index = None
             selected_wait_seconds = -1
             for idx, cid in enumerate(opposite_queue[:max_scan]):
-                if cid == user_id or cid in cooldown_set:
+                if cid == user_id or cid in cooldown_set or cid in blocked_pair_user_ids:
                     continue
                 candidate_wait_seconds = get_wait_seconds(cid, selection_now)
                 if candidate_wait_seconds > selected_wait_seconds:
@@ -617,6 +679,8 @@ async def get_my_room(current_user: User = Depends(get_current_user)):
     
     if not room:
         return {"state": "none"}
+
+    await enforce_room_not_blocked(room, "This room is no longer available.")
         
     # Partner Logic (Copied from get_room - refactor if strict DRY needed, 
     # but kept inline for speed as per instructions)
@@ -759,6 +823,8 @@ async def get_room(room_id: str, current_user: User = Depends(get_current_user))
         partner_engage = room.engage_male
     else:
         raise HTTPException(403, "Not in room")
+
+    await enforce_room_not_blocked(room, "This room is no longer available.")
         
     # Resolving Partner ID type (UUID vs PydanticObjectId)
     # Beanie IDs are PydanticObjectId (ObjectId), but uuid4 was used for room_id. 
@@ -826,6 +892,8 @@ async def engage_room(
     is_female_user = uid == room.female_user_id
     if not is_male_user and not is_female_user:
         raise HTTPException(403, "Not in room")
+
+    await enforce_room_not_blocked(room, "This match is unavailable.")
     
     # Validate Liveness
     now = get_now_utc()
