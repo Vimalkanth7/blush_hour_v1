@@ -6,7 +6,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 
-import { API_BASE_URL, mapVoiceTokenError, voiceToken } from '../../constants/Api';
+import {
+    API_BASE_URL,
+    blockUser,
+    isApiRequestError,
+    mapSafetyActionError,
+    mapVoiceTokenError,
+    muteUser,
+    reportUser,
+    type SafetyActionKind,
+    type SafetyReportCategory,
+    voiceToken,
+} from '../../constants/Api';
+import SafetyActionsMenu from '../../components/chat/SafetyActionsMenu';
 import { createVoiceSession, type VoiceSessionController } from '../../lib/livekit/voiceSession';
 
 const normalizeRevealedIndices = (rawIndices: unknown): number[] => {
@@ -26,11 +38,15 @@ const areSameIndices = (left: number[], right: number[]): boolean => (
 );
 
 type VoiceStatus = 'idle' | 'waiting' | 'connecting' | 'connected' | 'error';
+type NoticeTone = 'success' | 'error';
+
+const DEFAULT_ROOM_UNAVAILABLE_MESSAGE = 'This connection is no longer available.';
+const BLOCKED_ROOM_MESSAGE = 'User blocked.\nThis connection is no longer available.';
 
 export default function TalkRoomScreen() {
     const router = useRouter();
     const { roomId } = useLocalSearchParams<{ roomId: string }>();
-    const { token } = useAuth();
+    const { token, signOut } = useAuth();
 
     const [timeLeft, setTimeLeft] = useState(300); // 5 minutes
     const [isMuted, setIsMuted] = useState(false);
@@ -48,6 +64,12 @@ export default function TalkRoomScreen() {
     const [icebreakersLoading, setIcebreakersLoading] = useState(false);
     const [icebreakersError, setIcebreakersError] = useState<string | null>(null);
     const [revealedIndices, setRevealedIndices] = useState<number[]>([]);
+    const [partnerUserId, setPartnerUserId] = useState<string | null>(null);
+    const [partnerFirstName, setPartnerFirstName] = useState<string | null>(null);
+    const [safetyMenuVisible, setSafetyMenuVisible] = useState(false);
+    const [safetyBusyAction, setSafetyBusyAction] = useState<SafetyActionKind | null>(null);
+    const [safetyNotice, setSafetyNotice] = useState<{ tone: NoticeTone; text: string } | null>(null);
+    const [roomUnavailableMessage, setRoomUnavailableMessage] = useState<string | null>(null);
     const [icebreakersMeta, setIcebreakersMeta] = useState<{ model: string | null; cached: boolean | null }>({
         model: null,
         cached: null
@@ -80,6 +102,39 @@ export default function TalkRoomScreen() {
 
         await session.disconnect();
     }, []);
+
+    const markRoomUnavailable = useCallback(async (message: string = DEFAULT_ROOM_UNAVAILABLE_MESSAGE) => {
+        await disconnectVoice();
+
+        if (!isMountedRef.current) {
+            return;
+        }
+
+        setSafetyMenuVisible(false);
+        setSafetyBusyAction(null);
+        setSafetyNotice(null);
+        setRoomUnavailableMessage(message);
+    }, [disconnectVoice]);
+
+    const handleSafetyActionError = useCallback(async (action: SafetyActionKind, error: unknown) => {
+        if (isApiRequestError(error)) {
+            if (error.status === 401) {
+                await signOut();
+                return;
+            }
+
+            if (error.status === 403 || error.status === 404) {
+                await markRoomUnavailable();
+                return;
+            }
+        }
+
+        setSafetyMenuVisible(false);
+        setSafetyNotice({
+            tone: 'error',
+            text: mapSafetyActionError(action, error),
+        });
+    }, [markRoomUnavailable, signOut]);
 
     const getVoiceSession = useCallback(() => {
         if (!voiceSessionRef.current) {
@@ -146,13 +201,25 @@ export default function TalkRoomScreen() {
                 return;
             }
 
+            if (isApiRequestError(error)) {
+                if (error.status === 401) {
+                    await signOut();
+                    return;
+                }
+
+                if (error.status === 403 || error.status === 404) {
+                    await markRoomUnavailable();
+                    return;
+                }
+            }
+
             const mappedError = mapVoiceTokenError(error);
             setVoiceStatus(mappedError.reason === 'not_engaged' ? 'waiting' : 'error');
             setVoiceError(mappedError.detail);
         } finally {
             voiceConnectingRef.current = false;
         }
-    }, [token, matchUnlocked, isMuted, getVoiceSession]);
+    }, [token, matchUnlocked, isMuted, getVoiceSession, markRoomUnavailable, signOut]);
 
     const handleToggleMute = useCallback(async () => {
         const nextMuted = !isMuted;
@@ -190,6 +257,18 @@ export default function TalkRoomScreen() {
             void disconnectVoice();
         };
     }, [disconnectVoice]);
+
+    useEffect(() => {
+        if (!safetyNotice) {
+            return;
+        }
+
+        const timeoutId = setTimeout(() => {
+            setSafetyNotice(null);
+        }, 2600);
+
+        return () => clearTimeout(timeoutId);
+    }, [safetyNotice]);
 
     useEffect(() => {
         if (Platform.OS === 'web') {
@@ -267,6 +346,16 @@ export default function TalkRoomScreen() {
                 body: JSON.stringify({ room_id: roomId })
             });
 
+            if (res.status === 401) {
+                await signOut();
+                return;
+            }
+
+            if (res.status === 403 || res.status === 404) {
+                await markRoomUnavailable();
+                return;
+            }
+
             if (!res.ok) {
                 throw new Error(`HTTP ${res.status}`);
             }
@@ -316,7 +405,7 @@ export default function TalkRoomScreen() {
                 setIcebreakersLoading(false);
             }
         }
-    }, [roomId, token]);
+    }, [markRoomUnavailable, roomId, signOut, token]);
 
     useEffect(() => {
         if (!roomId) return;
@@ -333,6 +422,12 @@ export default function TalkRoomScreen() {
         setIcebreakersLoading(false);
         setIcebreakersError(null);
         setRevealedIndices([]);
+        setPartnerUserId(null);
+        setPartnerFirstName(null);
+        setSafetyMenuVisible(false);
+        setSafetyBusyAction(null);
+        setSafetyNotice(null);
+        setRoomUnavailableMessage(null);
         setIcebreakersMeta({ model: null, cached: null });
         setVoiceStatus(Platform.OS === 'web' ? 'idle' : 'waiting');
         setVoiceError(Platform.OS === 'web'
@@ -341,13 +436,54 @@ export default function TalkRoomScreen() {
     }, [roomId, disconnectVoice]);
 
     useEffect(() => {
-        if (!roomId || !token) return;
+        if (!roomId || !token || roomUnavailableMessage) return;
         if (didFetchIcebreakersRef.current) return;
         void fetchIcebreakers();
-    }, [roomId, token, fetchIcebreakers]);
+    }, [roomId, token, fetchIcebreakers, roomUnavailableMessage]);
+
+    const fetchPartnerUser = useCallback(async () => {
+        if (!roomId || !token || roomUnavailableMessage) {
+            return;
+        }
+
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/chat-night/my-room`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (res.status === 401) {
+                await signOut();
+                return;
+            }
+
+            if (res.status === 403 || res.status === 404) {
+                await markRoomUnavailable();
+                return;
+            }
+
+            if (!res.ok) {
+                return;
+            }
+
+            const data = await res.json();
+            if (!isMountedRef.current) {
+                return;
+            }
+
+            if (data?.room_id === roomId && typeof data?.partner_user_id === 'string') {
+                setPartnerUserId(data.partner_user_id);
+            }
+        } catch (error) {
+            console.warn('[TalkRoom] Partner lookup error', error);
+        }
+    }, [markRoomUnavailable, roomId, roomUnavailableMessage, signOut, token]);
 
     useEffect(() => {
-        if (!roomId) return;
+        void fetchPartnerUser();
+    }, [fetchPartnerUser]);
+
+    useEffect(() => {
+        if (!roomId || !token || roomUnavailableMessage) return;
 
         let active = true;
         let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -376,6 +512,16 @@ export default function TalkRoomScreen() {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 
+                if (res.status === 401) {
+                    await signOut();
+                    return 0;
+                }
+
+                if (res.status === 403 || res.status === 404) {
+                    await markRoomUnavailable();
+                    return 0;
+                }
+
                 if (!res.ok) {
                     throw new Error(`HTTP ${res.status}`);
                 }
@@ -395,6 +541,7 @@ export default function TalkRoomScreen() {
                 setTimeLeft(serverRemaining);
                 setLastSync(syncedAt);
                 setNetworkError(false);
+                setPartnerFirstName(typeof data.partner_first_name === 'string' ? data.partner_first_name : null);
 
                 // Sync Engagement
                 const isUnlocked = data.engage_status === 'match_unlocked' || data.match_unlocked === true;
@@ -452,7 +599,7 @@ export default function TalkRoomScreen() {
             pollNowRef.current = null;
             if (timeoutId) clearTimeout(timeoutId);
         };
-    }, [roomId, token, router, disconnectVoice]);
+    }, [roomId, token, router, disconnectVoice, markRoomUnavailable, roomUnavailableMessage, signOut]);
 
     const formatTime = (seconds: number) => {
         const m = Math.floor(seconds / 60);
@@ -461,7 +608,7 @@ export default function TalkRoomScreen() {
     };
 
     const handleEngage = async () => {
-        if (!roomId || engaged) return;
+        if (!roomId || !token || engaged) return;
 
         // Optimistic UI
         setEngaged(true);
@@ -475,6 +622,17 @@ export default function TalkRoomScreen() {
                 },
                 body: JSON.stringify({ room_id: roomId })
             });
+
+            if (res.status === 401) {
+                await signOut();
+                return;
+            }
+
+            if (res.status === 403 || res.status === 404) {
+                await markRoomUnavailable();
+                return;
+            }
+
             if (!res.ok) {
                 Alert.alert("Error", "Could not submit engagement.");
                 setEngaged(false); // Revert
@@ -504,6 +662,16 @@ export default function TalkRoomScreen() {
                 body: JSON.stringify({ room_id: roomId, index })
             });
 
+            if (res.status === 401) {
+                await signOut();
+                return;
+            }
+
+            if (res.status === 403 || res.status === 404) {
+                await markRoomUnavailable();
+                return;
+            }
+
             if (!res.ok) {
                 throw new Error(`HTTP ${res.status}`);
             }
@@ -517,26 +685,106 @@ export default function TalkRoomScreen() {
         } catch (e) {
             console.warn('[TalkRoom] Reveal card error', e);
         }
-    }, [roomId, token, revealedIndices]);
+    }, [markRoomUnavailable, revealedIndices, roomId, signOut, token]);
+
+    const handleMuteUser = useCallback(async () => {
+        if (!token || !partnerUserId) {
+            setSafetyNotice({ tone: 'error', text: 'Actions are unavailable right now.' });
+            return;
+        }
+
+        setSafetyBusyAction('mute');
+
+        try {
+            await muteUser(partnerUserId, token);
+            setSafetyMenuVisible(false);
+            setSafetyNotice({ tone: 'success', text: 'User muted.' });
+        } catch (error) {
+            await handleSafetyActionError('mute', error);
+        } finally {
+            setSafetyBusyAction(null);
+        }
+    }, [handleSafetyActionError, partnerUserId, token]);
+
+    const handleReportUser = useCallback(async (category: SafetyReportCategory) => {
+        if (!token || !partnerUserId) {
+            setSafetyNotice({ tone: 'error', text: 'Actions are unavailable right now.' });
+            return;
+        }
+
+        setSafetyBusyAction('report');
+
+        try {
+            await reportUser({
+                targetUserId: partnerUserId,
+                category,
+                token,
+                roomId,
+            });
+            setSafetyMenuVisible(false);
+            setSafetyNotice({ tone: 'success', text: 'Report submitted.' });
+        } catch (error) {
+            await handleSafetyActionError('report', error);
+        } finally {
+            setSafetyBusyAction(null);
+        }
+    }, [handleSafetyActionError, partnerUserId, roomId, token]);
+
+    const handleBlockUser = useCallback(async () => {
+        if (!token || !partnerUserId) {
+            setSafetyNotice({ tone: 'error', text: 'Actions are unavailable right now.' });
+            return;
+        }
+
+        setSafetyBusyAction('block');
+
+        try {
+            await blockUser(partnerUserId, token);
+            await markRoomUnavailable(BLOCKED_ROOM_MESSAGE);
+        } catch (error) {
+            await handleSafetyActionError('block', error);
+        } finally {
+            setSafetyBusyAction(null);
+        }
+    }, [handleSafetyActionError, markRoomUnavailable, partnerUserId, token]);
+
+    if (roomUnavailableMessage) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <View style={styles.unavailableState}>
+                    <Ionicons name="shield-checkmark-outline" size={44} color={COLORS.primary} />
+                    <Text style={styles.unavailableTitle}>Talk Room unavailable</Text>
+                    <Text style={styles.unavailableText}>{roomUnavailableMessage}</Text>
+                    <TouchableOpacity
+                        onPress={() => router.replace('/(tabs)/chat-night')}
+                        style={styles.unavailableButton}
+                    >
+                        <Text style={styles.unavailableButtonText}>Back to Chat Night</Text>
+                    </TouchableOpacity>
+                </View>
+            </SafeAreaView>
+        );
+    }
 
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.topBar}>
-                <View
-                    style={[
-                        styles.activeIndicator,
-                        {
-                            backgroundColor: voiceStatus === 'connected'
-                                ? COLORS.success
-                                : voiceStatus === 'error'
-                                    ? COLORS.destructive
-                                    : matchUnlocked
-                                        ? COLORS.brandBase
-                                        : COLORS.success,
-                        },
-                    ]}
-                />
-                <View>
+                <View style={styles.topBarSide} />
+                <View style={styles.topBarStatus}>
+                    <View
+                        style={[
+                            styles.activeIndicator,
+                            {
+                                backgroundColor: voiceStatus === 'connected'
+                                    ? COLORS.success
+                                    : voiceStatus === 'error'
+                                        ? COLORS.destructive
+                                        : matchUnlocked
+                                            ? COLORS.brandBase
+                                            : COLORS.success,
+                            },
+                        ]}
+                    />
                     <Text style={styles.statusText}>
                         {matchUnlocked ? "Match Unlocked" : "Talk Room Active"}
                     </Text>
@@ -544,7 +792,22 @@ export default function TalkRoomScreen() {
                         {networkError ? "Network Error" : `Sync: ${Math.floor((Date.now() - lastSync) / 1000)}s ago`}
                     </Text>
                 </View>
+                <TouchableOpacity
+                    accessibilityLabel="Safety actions"
+                    disabled={!partnerUserId}
+                    onPress={() => setSafetyMenuVisible(true)}
+                    testID="safety-menu-trigger"
+                    style={[styles.topBarAction, !partnerUserId && styles.topBarActionDisabled]}
+                >
+                    <Ionicons name="ellipsis-horizontal" size={20} color={COLORS.dark.primaryText} />
+                </TouchableOpacity>
             </View>
+
+            {safetyNotice ? (
+                <View style={[styles.safetyNotice, safetyNotice.tone === 'error' && styles.safetyNoticeError]}>
+                    <Text style={styles.safetyNoticeText}>{safetyNotice.text}</Text>
+                </View>
+            ) : null}
 
             <View style={styles.centerContent}>
                 <View style={[styles.timerCircle, matchUnlocked && { borderColor: COLORS.destructive }]}>
@@ -671,15 +934,59 @@ export default function TalkRoomScreen() {
                     <Ionicons name="call" size={28} color={COLORS.dark.primaryText} />
                 </TouchableOpacity>
             </View>
+
+            <SafetyActionsMenu
+                visible={safetyMenuVisible}
+                onClose={() => setSafetyMenuVisible(false)}
+                onMute={handleMuteUser}
+                onBlock={handleBlockUser}
+                onReport={handleReportUser}
+                busyAction={safetyBusyAction}
+                targetName={partnerFirstName || undefined}
+            />
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: COLORS.dark.background },
-    topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: SPACING.screen },
-    activeIndicator: { width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.success, marginRight: SPACING.md },
+    topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: SPACING.screen },
+    topBarSide: { width: 36, height: 36 },
+    topBarStatus: { alignItems: 'center' },
+    topBarAction: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        backgroundColor: COLORS.dark.surface,
+    },
+    topBarActionDisabled: {
+        opacity: 0.45,
+    },
+    activeIndicator: { width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.success, marginBottom: SPACING.sm },
     statusText: { color: COLORS.dark.secondaryText, fontSize: 16, fontWeight: '600' },
+    safetyNotice: {
+        marginHorizontal: SPACING.screen,
+        marginBottom: SPACING.sm,
+        borderRadius: RADIUS.md,
+        borderWidth: 1,
+        borderColor: 'rgba(16, 185, 129, 0.35)',
+        backgroundColor: 'rgba(16, 185, 129, 0.12)',
+        paddingHorizontal: SPACING.md,
+        paddingVertical: SPACING.sm,
+    },
+    safetyNoticeError: {
+        borderColor: 'rgba(225, 29, 72, 0.35)',
+        backgroundColor: 'rgba(225, 29, 72, 0.12)',
+    },
+    safetyNoticeText: {
+        color: COLORS.dark.primaryText,
+        fontSize: 12,
+        textAlign: 'center',
+    },
     centerContent: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     timerCircle: {
         width: 200, height: 200, borderRadius: 100,
@@ -789,6 +1096,37 @@ const styles = StyleSheet.create({
         color: COLORS.dark.primaryText,
         fontSize: 13,
         fontWeight: '700'
+    },
+    unavailableState: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: SPACING.screen,
+    },
+    unavailableTitle: {
+        color: COLORS.dark.primaryText,
+        fontSize: 24,
+        fontWeight: '700',
+        marginTop: SPACING.md,
+    },
+    unavailableText: {
+        color: COLORS.dark.secondaryText,
+        fontSize: 15,
+        lineHeight: 22,
+        textAlign: 'center',
+        marginTop: SPACING.sm,
+        marginBottom: SPACING.lg,
+    },
+    unavailableButton: {
+        borderRadius: RADIUS.pill,
+        backgroundColor: COLORS.primary,
+        paddingHorizontal: SPACING.xl,
+        paddingVertical: SPACING.md,
+    },
+    unavailableButtonText: {
+        color: COLORS.brandBase,
+        fontSize: 14,
+        fontWeight: '700',
     },
     controls: { flexDirection: 'row', justifyContent: 'space-evenly', alignItems: 'center', paddingBottom: 50 },
     roundButton: { width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center' },

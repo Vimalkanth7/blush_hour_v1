@@ -1,13 +1,24 @@
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS, SHADOWS } from '../../constants/Theme';
-import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, Text, ScrollView, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator, Image, Modal, Dimensions } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { View, StyleSheet, Text, ScrollView, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator, Image, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { API_BASE_URL, handleApiError } from '../../constants/Api';
+import {
+    API_BASE_URL,
+    blockUser,
+    handleApiError,
+    isApiRequestError,
+    mapSafetyActionError,
+    muteUser,
+    reportUser,
+    type SafetyActionKind,
+    type SafetyReportCategory,
+} from '../../constants/Api';
 import { useAuth } from '../../context/AuthContext';
 import { BlurView } from 'expo-blur';
 import PartnerProfileView, { PartnerProfile } from '../../components/profile/PartnerProfileView';
+import SafetyActionsMenu from '../../components/chat/SafetyActionsMenu';
 
 // Simple Message Interface for Web Fallback
 interface IMessage {
@@ -20,7 +31,10 @@ interface IMessage {
     };
 }
 
-const { width, height } = Dimensions.get('window');
+type NoticeTone = 'success' | 'error';
+
+const DEFAULT_THREAD_UNAVAILABLE_MESSAGE = 'This connection is no longer available.';
+const BLOCKED_THREAD_MESSAGE = 'User blocked.\nThis connection is no longer available.';
 
 // --- Helper Functions ---
 const isTempId = (id: string | number) => typeof id === 'number';
@@ -37,34 +51,122 @@ const sortAsc = (messages: IMessage[]) => {
 // ------------------------
 
 export default function ChatThread() {
-    const { id, partnerId, partnerName, partnerPhoto, partnerAge } = useLocalSearchParams();
+    const { id, partnerId, partnerName, partnerPhoto, partnerAge } = useLocalSearchParams<{
+        id: string;
+        partnerId?: string;
+        partnerName?: string;
+        partnerPhoto?: string;
+        partnerAge?: string;
+    }>();
     const router = useRouter();
-    const { user, token, refreshProfile, signOut } = useAuth();
+    const { user, token, signOut } = useAuth();
     const [messages, setMessages] = useState<IMessage[]>([]);
     const [nextCursor, setNextCursor] = useState<string | null>(null);
     const [webInputText, setWebInputText] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
-    const [partnerProfile, setPartnerProfile] = useState<any>(null); // Store full profile
+    const [partnerProfile, setPartnerProfile] = useState<PartnerProfile | null>(null);
     const [loadingProfile, setLoadingProfile] = useState(false);
     const [profileError, setProfileError] = useState<string | null>(null);
+    const [safetyMenuVisible, setSafetyMenuVisible] = useState(false);
+    const [safetyBusyAction, setSafetyBusyAction] = useState<SafetyActionKind | null>(null);
+    const [statusNotice, setStatusNotice] = useState<{ tone: NoticeTone; text: string } | null>(null);
+    const [conversationUnavailableMessage, setConversationUnavailableMessage] = useState<string | null>(null);
     const scrollViewRef = useRef<ScrollView>(null);
 
-    const pName = (partnerName as string) || 'Match';
-    const pPhoto = (partnerPhoto as string) || 'https://placeimg.com/150/150/people';
-    const pAge = (partnerAge as string) || '24'; // default fallback
+    const pName = partnerName || partnerProfile?.first_name || 'Match';
+    const pPhoto = partnerPhoto || partnerProfile?.photos?.[0] || 'https://placeimg.com/150/150/people';
+    const pAge = partnerAge || (partnerProfile?.age ? String(partnerProfile.age) : '24');
+    const targetUserId = partnerId || partnerProfile?.id || null;
 
-    const fetchPartnerProfile = async () => {
-        if (!token || !id) return;
+    const markConversationUnavailable = useCallback((message: string = DEFAULT_THREAD_UNAVAILABLE_MESSAGE) => {
+        setConversationUnavailableMessage(message);
+        setSafetyMenuVisible(false);
+        setSafetyBusyAction(null);
+        setStatusNotice(null);
+        setIsProfileOpen(false);
+        setIsLoading(false);
+        setLoadingProfile(false);
+        setProfileError(null);
+    }, []);
+
+    const handleThreadAccessResponse = useCallback(async (response: Response): Promise<boolean> => {
+        if (response.status === 401) {
+            await signOut();
+            return true;
+        }
+
+        if (response.status === 403 || response.status === 404) {
+            markConversationUnavailable();
+            return true;
+        }
+
+        return false;
+    }, [markConversationUnavailable, signOut]);
+
+    const handleSafetyActionError = useCallback(async (action: SafetyActionKind, error: unknown) => {
+        if (isApiRequestError(error)) {
+            if (error.status === 401) {
+                await signOut();
+                return;
+            }
+
+            if (error.status === 403 || error.status === 404) {
+                markConversationUnavailable();
+                return;
+            }
+        }
+
+        setSafetyMenuVisible(false);
+        setStatusNotice({
+            tone: 'error',
+            text: mapSafetyActionError(action, error),
+        });
+    }, [markConversationUnavailable, signOut]);
+
+    useEffect(() => {
+        if (!statusNotice) {
+            return;
+        }
+
+        const timeoutId = setTimeout(() => {
+            setStatusNotice(null);
+        }, 2600);
+
+        return () => clearTimeout(timeoutId);
+    }, [statusNotice]);
+
+    useEffect(() => {
+        setMessages([]);
+        setNextCursor(null);
+        setWebInputText('');
+        setIsLoading(true);
+        setIsProfileOpen(false);
+        setPartnerProfile(null);
+        setLoadingProfile(false);
+        setProfileError(null);
+        setSafetyMenuVisible(false);
+        setSafetyBusyAction(null);
+        setStatusNotice(null);
+        setConversationUnavailableMessage(null);
+    }, [id]);
+
+    const fetchPartnerProfile = useCallback(async () => {
+        if (!token || !id || conversationUnavailableMessage) return;
         setLoadingProfile(true);
         setProfileError(null);
         try {
             const response = await fetch(`${API_BASE_URL}/api/chat/threads/${id}/partner`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
+
+            if (await handleThreadAccessResponse(response)) {
+                return;
+            }
+
             if (response.ok) {
                 const data = await response.json();
-                setPartnerProfile(data.partner ?? data);
+                setPartnerProfile((data.partner ?? data) as PartnerProfile);
             } else {
                 setProfileError("Profile unavailable. Please try again.");
             }
@@ -74,10 +176,10 @@ export default function ChatThread() {
         } finally {
             setLoadingProfile(false);
         }
-    };
+    }, [conversationUnavailableMessage, handleThreadAccessResponse, id, token]);
 
-    const fetchMessages = async (cursor?: string | null) => {
-        if (!token || !id) return;
+    const fetchMessages = useCallback(async (cursor?: string | null) => {
+        if (!token || !id || conversationUnavailableMessage) return;
         try {
             const url = cursor
                 ? `${API_BASE_URL}/api/chat/threads/${id}/messages?limit=50&before=${cursor}`
@@ -86,6 +188,10 @@ export default function ChatThread() {
             const response = await fetch(url, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
+
+            if (await handleThreadAccessResponse(response)) {
+                return;
+            }
 
             if (response.ok) {
                 const data = await response.json();
@@ -125,41 +231,54 @@ export default function ChatThread() {
                 // Update cursor logic:
                 // If cursor was provided, we are paginating, update if newCursor exists.
                 // If no cursor (initial), we set it.
-                if (cursor || !nextCursor) {
-                    setNextCursor(newCursor);
-                }
+                setNextCursor((prev) => (cursor || !prev ? newCursor : prev));
+            } else {
+                setStatusNotice({
+                    tone: 'error',
+                    text: 'Unable to load messages right now.',
+                });
             }
         } catch (error) {
             console.error("Failed to fetch messages", error);
+            setStatusNotice({
+                tone: 'error',
+                text: 'Unable to load messages right now.',
+            });
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [conversationUnavailableMessage, handleThreadAccessResponse, id, token, user]);
 
-    const markRead = async () => {
-        if (!token || !id) return;
+    const markRead = useCallback(async () => {
+        if (!token || !id || conversationUnavailableMessage) return;
         try {
-            await fetch(`${API_BASE_URL}/api/chat/threads/${id}/read`, {
+            const response = await fetch(`${API_BASE_URL}/api/chat/threads/${id}/read`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
+
+            await handleThreadAccessResponse(response);
         } catch (e) {
             console.error("Failed to mark read", e);
         }
-    };
+    }, [conversationUnavailableMessage, handleThreadAccessResponse, id, token]);
 
     useEffect(() => {
+        if (conversationUnavailableMessage) {
+            return;
+        }
+
         fetchMessages();
         fetchPartnerProfile();
         markRead();
 
         const interval = setInterval(() => fetchMessages(), 5000); // Poll every 5s
         return () => clearInterval(interval);
-    }, [id, token]);
+    }, [conversationUnavailableMessage, fetchMessages, fetchPartnerProfile, markRead]);
 
 
     const handleWebSend = async () => {
-        if (!webInputText.trim() || !token) return;
+        if (!webInputText.trim() || !token || conversationUnavailableMessage) return;
 
         const tempId = Date.now();
         const textToSend = webInputText;
@@ -189,7 +308,15 @@ export default function ChatThread() {
                 body: JSON.stringify({ text: textToSend })
             });
 
-            if (await handleApiError(response, signOut)) return;
+            if (await handleThreadAccessResponse(response)) {
+                setMessages(prev => prev.filter(m => m._id !== tempId));
+                return;
+            }
+
+            if (await handleApiError(response, signOut)) {
+                setMessages(prev => prev.filter(m => m._id !== tempId));
+                return;
+            }
 
             if (response.ok) {
                 // Success: remove temp message and fetch real ones
@@ -197,18 +324,79 @@ export default function ChatThread() {
                 setMessages(prev => prev.filter(m => m._id !== tempId));
                 fetchMessages();
             } else {
-                console.error("Send failed");
-                // Optional: mark error, but for now just leave temp or remove? 
-                // Requirement said "minimal required is ok". 
-                // Let's remove temp on definite failure to avoid stuck state if not implementing full retry UI.
                 setMessages(prev => prev.filter(m => m._id !== tempId));
-                alert("Failed to send message");
+                setStatusNotice({
+                    tone: 'error',
+                    text: 'Unable to send message right now.',
+                });
             }
         } catch (error) {
             console.error("Send error", error);
-            // Remove temp on network error
             setMessages(prev => prev.filter(m => m._id !== tempId));
-            alert("Failed to send message: Network error");
+            setStatusNotice({
+                tone: 'error',
+                text: 'Connection issue. Try again.',
+            });
+        }
+    };
+
+    const handleMuteUser = async () => {
+        if (!token || !targetUserId) {
+            setStatusNotice({ tone: 'error', text: 'Actions are unavailable right now.' });
+            return;
+        }
+
+        setSafetyBusyAction('mute');
+
+        try {
+            await muteUser(targetUserId, token);
+            setSafetyMenuVisible(false);
+            setStatusNotice({ tone: 'success', text: 'User muted.' });
+        } catch (error) {
+            await handleSafetyActionError('mute', error);
+        } finally {
+            setSafetyBusyAction(null);
+        }
+    };
+
+    const handleReportUser = async (category: SafetyReportCategory) => {
+        if (!token || !targetUserId) {
+            setStatusNotice({ tone: 'error', text: 'Actions are unavailable right now.' });
+            return;
+        }
+
+        setSafetyBusyAction('report');
+
+        try {
+            await reportUser({
+                targetUserId,
+                category,
+                token,
+            });
+            setSafetyMenuVisible(false);
+            setStatusNotice({ tone: 'success', text: 'Report submitted.' });
+        } catch (error) {
+            await handleSafetyActionError('report', error);
+        } finally {
+            setSafetyBusyAction(null);
+        }
+    };
+
+    const handleBlockUser = async () => {
+        if (!token || !targetUserId) {
+            setStatusNotice({ tone: 'error', text: 'Actions are unavailable right now.' });
+            return;
+        }
+
+        setSafetyBusyAction('block');
+
+        try {
+            await blockUser(targetUserId, token);
+            markConversationUnavailable(BLOCKED_THREAD_MESSAGE);
+        } catch (error) {
+            await handleSafetyActionError('block', error);
+        } finally {
+            setSafetyBusyAction(null);
         }
     };
 
@@ -220,20 +408,59 @@ export default function ChatThread() {
                     <Ionicons name="arrow-back" size={24} color={COLORS.primaryText} />
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.profileHeader} onPress={() => setIsProfileOpen(true)}>
+                <TouchableOpacity
+                    disabled={!!conversationUnavailableMessage}
+                    style={styles.profileHeader}
+                    onPress={() => setIsProfileOpen(true)}
+                >
                     <Image source={{ uri: pPhoto }} style={styles.headerAvatar} />
                     <View>
                         <Text style={styles.headerName}>{pName}</Text>
-                        <Text style={styles.headerStatus}>Online</Text>
+                        <Text style={styles.headerStatus}>
+                            {conversationUnavailableMessage ? 'Unavailable' : 'Online'}
+                        </Text>
                     </View>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.infoButton} onPress={() => setIsProfileOpen(true)}>
-                    <Ionicons name="information-circle-outline" size={28} color={COLORS.primary} />
-                </TouchableOpacity>
+                <View style={styles.headerActions}>
+                    <TouchableOpacity
+                        disabled={!!conversationUnavailableMessage}
+                        style={styles.infoButton}
+                        onPress={() => setIsProfileOpen(true)}
+                    >
+                        <Ionicons name="information-circle-outline" size={26} color={COLORS.primary} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        accessibilityLabel="Safety actions"
+                        disabled={!targetUserId || !!conversationUnavailableMessage}
+                        testID="safety-menu-trigger"
+                        style={[styles.menuButton, (!targetUserId || !!conversationUnavailableMessage) && styles.iconButtonDisabled]}
+                        onPress={() => setSafetyMenuVisible(true)}
+                    >
+                        <Ionicons name="ellipsis-horizontal" size={20} color={COLORS.primaryText} />
+                    </TouchableOpacity>
+                </View>
             </View>
 
-            {isLoading && messages.length === 0 ? (
+            {statusNotice ? (
+                <View style={[styles.statusNotice, statusNotice.tone === 'error' && styles.statusNoticeError]}>
+                    <Text style={styles.statusNoticeText}>{statusNotice.text}</Text>
+                </View>
+            ) : null}
+
+            {conversationUnavailableMessage ? (
+                <View style={styles.unavailableContainer}>
+                    <Ionicons name="shield-checkmark-outline" size={42} color={COLORS.primary} />
+                    <Text style={styles.unavailableTitle}>Conversation unavailable</Text>
+                    <Text style={styles.unavailableText}>{conversationUnavailableMessage}</Text>
+                    <TouchableOpacity
+                        onPress={() => router.replace('/(tabs)/matches')}
+                        style={styles.unavailableButton}
+                    >
+                        <Text style={styles.unavailableButtonText}>Back to matches</Text>
+                    </TouchableOpacity>
+                </View>
+            ) : isLoading && messages.length === 0 ? (
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                     <ActivityIndicator color={COLORS.primary} />
                 </View>
@@ -278,22 +505,24 @@ export default function ChatThread() {
                 </ScrollView>
             )}
 
-            <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}>
-                <View style={styles.webInputContainer}>
-                    <TextInput
-                        style={styles.webInput}
-                        placeholder="Type a message..."
-                        placeholderTextColor={COLORS.disabledText}
-                        value={webInputText}
-                        onChangeText={setWebInputText}
-                        onSubmitEditing={handleWebSend}
-                        returnKeyType="send"
-                    />
-                    <TouchableOpacity onPress={handleWebSend} style={styles.webSendButton}>
-                        <Ionicons name="send" size={20} color={COLORS.brandBase} />
-                    </TouchableOpacity>
-                </View>
-            </KeyboardAvoidingView>
+            {!conversationUnavailableMessage ? (
+                <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}>
+                    <View style={styles.webInputContainer}>
+                        <TextInput
+                            style={styles.webInput}
+                            placeholder="Type a message..."
+                            placeholderTextColor={COLORS.disabledText}
+                            value={webInputText}
+                            onChangeText={setWebInputText}
+                            onSubmitEditing={handleWebSend}
+                            returnKeyType="send"
+                        />
+                        <TouchableOpacity onPress={handleWebSend} style={styles.webSendButton}>
+                            <Ionicons name="send" size={20} color={COLORS.brandBase} />
+                        </TouchableOpacity>
+                    </View>
+                </KeyboardAvoidingView>
+            ) : null}
             {/* Profile Drawer Modal */}
             <Modal
                 visible={isProfileOpen}
@@ -340,7 +569,7 @@ export default function ChatThread() {
                                     </TouchableOpacity>
 
                                     <PartnerProfileView
-                                        profile={partnerProfile || {}}
+                                        profile={partnerProfile ?? ({ id: targetUserId || 'partner' } as PartnerProfile)}
                                         fallbackName={pName}
                                         fallbackAge={pAge}
                                         fallbackPhoto={pPhoto}
@@ -358,6 +587,16 @@ export default function ChatThread() {
                     </View>
                 </View>
             </Modal>
+
+            <SafetyActionsMenu
+                visible={safetyMenuVisible}
+                onClose={() => setSafetyMenuVisible(false)}
+                onMute={handleMuteUser}
+                onBlock={handleBlockUser}
+                onReport={handleReportUser}
+                busyAction={safetyBusyAction}
+                targetName={pName}
+            />
 
         </SafeAreaView>
     );
@@ -381,7 +620,67 @@ const styles = StyleSheet.create({
     headerAvatar: { width: 40, height: 40, borderRadius: 20, marginRight: SPACING.sm },
     headerName: { ...TYPOGRAPHY.bodyLarge, fontWeight: '700', color: COLORS.primaryText },
     headerStatus: { fontSize: 12, color: COLORS.success },
-    infoButton: { padding: SPACING.sm },
+    headerActions: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs },
+    infoButton: { padding: SPACING.xs },
+    menuButton: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        backgroundColor: COLORS.background,
+    },
+    iconButtonDisabled: { opacity: 0.45 },
+    statusNotice: {
+        marginHorizontal: SPACING.md,
+        marginTop: SPACING.sm,
+        borderRadius: RADIUS.md,
+        borderWidth: 1,
+        borderColor: 'rgba(16, 185, 129, 0.35)',
+        backgroundColor: 'rgba(16, 185, 129, 0.12)',
+        paddingHorizontal: SPACING.md,
+        paddingVertical: SPACING.sm,
+    },
+    statusNoticeError: {
+        borderColor: 'rgba(225, 29, 72, 0.35)',
+        backgroundColor: 'rgba(225, 29, 72, 0.12)',
+    },
+    statusNoticeText: {
+        color: COLORS.primaryText,
+        fontSize: 12,
+        textAlign: 'center',
+    },
+    unavailableContainer: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: SPACING.screen,
+    },
+    unavailableTitle: {
+        ...TYPOGRAPHY.h2,
+        color: COLORS.primaryText,
+        marginTop: SPACING.md,
+    },
+    unavailableText: {
+        ...TYPOGRAPHY.bodyBase,
+        color: COLORS.secondaryText,
+        textAlign: 'center',
+        marginTop: SPACING.sm,
+        marginBottom: SPACING.lg,
+    },
+    unavailableButton: {
+        backgroundColor: COLORS.primary,
+        paddingHorizontal: SPACING.xl,
+        paddingVertical: SPACING.md,
+        borderRadius: RADIUS.pill,
+    },
+    unavailableButtonText: {
+        color: COLORS.brandBase,
+        fontSize: 14,
+        fontWeight: '700',
+    },
 
     // Web Chat Styles
     webChatContent: { padding: SPACING.md, paddingBottom: 20 },
