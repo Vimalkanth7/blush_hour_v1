@@ -42,6 +42,36 @@ export interface VoiceTokenResponse {
     expires_in: number;
 }
 
+export type SafetyReportCategory =
+    | 'harassment'
+    | 'spam'
+    | 'hate_speech'
+    | 'nudity'
+    | 'underage'
+    | 'scam'
+    | 'other';
+
+export type SafetyActionKind = 'report' | 'mute' | 'block';
+
+export interface SafetyReportOption {
+    value: SafetyReportCategory;
+    label: string;
+}
+
+export interface StatusOkResponse {
+    status: 'ok';
+}
+
+export const SAFETY_REPORT_OPTIONS: SafetyReportOption[] = [
+    { value: 'harassment', label: 'Harassment' },
+    { value: 'spam', label: 'Spam' },
+    { value: 'hate_speech', label: 'Hate speech' },
+    { value: 'nudity', label: 'Nudity' },
+    { value: 'underage', label: 'Underage' },
+    { value: 'scam', label: 'Scam' },
+    { value: 'other', label: 'Other' },
+];
+
 export type VoiceTokenErrorReason =
     | 'voice_unavailable'
     | 'not_engaged'
@@ -160,6 +190,14 @@ export const isApiRequestError = (error: unknown): error is ApiRequestError => {
     return typeof (error as Partial<ApiRequestError>).status === 'number';
 };
 
+export const isUnauthorizedApiError = (error: unknown): error is ApiRequestError => {
+    return isApiRequestError(error) && error.status === 401;
+};
+
+export const isUnavailableApiError = (error: unknown): error is ApiRequestError => {
+    return isApiRequestError(error) && (error.status === 403 || error.status === 404);
+};
+
 export const otpStart = async (phone: string): Promise<OtpStartResponse> => {
     return postJson<OtpStartResponse>(
         '/api/auth/otp/start',
@@ -187,6 +225,76 @@ export const photoUploadUrl = async (
         token,
         'Unable to prepare photo upload right now.',
     );
+};
+
+export const blockUser = async (targetUserId: string, token: string): Promise<StatusOkResponse> => {
+    return postJsonAuthenticated<StatusOkResponse>(
+        '/api/safety/block',
+        { target_user_id: targetUserId },
+        token,
+        'Unable to block this user right now.',
+    );
+};
+
+export const muteUser = async (targetUserId: string, token: string): Promise<StatusOkResponse> => {
+    return postJsonAuthenticated<StatusOkResponse>(
+        '/api/safety/mute',
+        { target_user_id: targetUserId },
+        token,
+        'Unable to mute this user right now.',
+    );
+};
+
+export interface ReportUserInput {
+    targetUserId: string;
+    category: SafetyReportCategory;
+    token: string;
+    roomId?: string;
+}
+
+export const reportUser = async ({
+    targetUserId,
+    category,
+    token,
+    roomId,
+}: ReportUserInput): Promise<StatusOkResponse> => {
+    return postJsonAuthenticated<StatusOkResponse>(
+        '/api/safety/report',
+        {
+            target_user_id: targetUserId,
+            category,
+            room_id: roomId,
+        },
+        token,
+        'Unable to submit this report right now.',
+    );
+};
+
+export const mapSafetyActionError = (action: SafetyActionKind, error: unknown): string => {
+    if (isApiRequestError(error)) {
+        if (error.status === 0) {
+            return 'Connection issue. Try again.';
+        }
+        if (error.status === 401) {
+            return 'Please sign in again.';
+        }
+        if (error.status === 403 || error.status === 404) {
+            return 'This connection is no longer available.';
+        }
+        if (error.status === 503) {
+            return action === 'block'
+                ? 'This action is unavailable right now.'
+                : 'Safety tools are temporarily unavailable.';
+        }
+    }
+
+    if (action === 'report') {
+        return 'Unable to submit this report right now.';
+    }
+    if (action === 'mute') {
+        return 'Unable to mute this user right now.';
+    }
+    return 'Unable to block this user right now.';
 };
 
 export const mapVoiceTokenError = (error: unknown): VoiceTokenApiError => {
