@@ -47,6 +47,10 @@ class Settings(BaseSettings):
     LIVEKIT_API_SECRET: Optional[str] = None
     LIVEKIT_TOKEN_TTL_SECONDS: int = 300
 
+    # Passes / Wallet foundation
+    BH_PASSES_ENABLED: bool = False
+    BH_PASSES_PROVIDER_MODE: str = "stub"  # stub | google
+
     # Safety tools
     BH_SAFETY_TOOLS_ENABLED: bool = True
 
@@ -94,6 +98,13 @@ class Settings(BaseSettings):
             ttl_seconds = 300
         ttl_seconds = max(1, ttl_seconds)
         return min(ttl_seconds, 300)
+
+    @validator("BH_PASSES_PROVIDER_MODE", pre=True, always=True)
+    def validate_passes_provider_mode(cls, value):
+        normalized = (value or "stub").strip().lower()
+        if normalized not in {"stub", "google"}:
+            raise ValueError("BH_PASSES_PROVIDER_MODE must be either 'stub' or 'google'.")
+        return normalized
 
     class Config:
         env_file = ".env"
