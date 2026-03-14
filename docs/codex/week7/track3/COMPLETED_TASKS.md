@@ -70,3 +70,45 @@ Notes / follow-ups:
 - Spend-order enforcement is intentionally deferred; the locked rule remains free passes first and paid credits second.
 - `W7-T3-C - Frontend passes shell` is the next implementation packet.
 - Admin JWT/env mismatch is a separate repo/runtime note, not a `W7-T3-B` blocker.
+
+## W7-T3-C - Frontend passes shell
+Status: DONE  
+Date: 2026-03-15  
+Branch: `feat/frontend-w7-t3c-passes-shell`  
+Scope: frontend only
+
+What shipped:
+- Added the first visible Passes screen and frontend passes API helpers:
+  - `mobile-app/app/passes.tsx`
+  - `mobile-app/constants/Api.ts`
+- Added one profile entry point into the new Passes screen:
+  - `mobile-app/app/(tabs)/profile.tsx`
+- Shipped the frontend shell against the completed backend foundation endpoints:
+  - `GET /api/passes/catalog`
+  - `GET /api/passes/me`
+- Rendered the paid wallet balance clearly and kept free daily passes explicitly separate from paid credits.
+- Rendered the 3 active backend products and kept purchase actions as placeholder-only disabled CTAs.
+- Added clean loading, disabled, empty, missing-wallet, and network error handling without adding any fake purchase success flow.
+
+How verified:
+- Frontend runtime:
+  - `cd mobile-app`
+  - `npm install`
+  - `npm run web -- --port 8082 --non-interactive`
+- Backend runtime used for frontend verification:
+  - `BH_PASSES_ENABLED=true`
+  - `BH_PASSES_PROVIDER_MODE=stub`
+- Verified behavior:
+  - wallet rendered
+  - 3 products rendered
+  - disabled state works when passes are off
+  - placeholder CTA only (`Coming soon`)
+  - profile entry-point navigation works
+- Verified runtime summary:
+  - `health`: `{"status":"healthy","database":"connected"}`
+  - authenticated passes check: `product_count=3`, `provider_mode=stub`, `platform=android`, `paid_pass_credits=0`, `wallet_present=true`
+
+Notes / follow-ups:
+- Repo-wide `npm run lint` and `npx tsc --noEmit` remain noisy due to unrelated pre-existing issues outside `W7-T3-C`.
+- Google Play purchase validation remains unimplemented and is the next active backend packet.
+- Android billing launch flow, paid-credit spend enforcement, out-of-passes UX, and extension work remain later Track 3 items.

@@ -10,8 +10,9 @@ Plan: `docs/codex/week7/track3/PLAN.md`
 - Closed out in docs:
   - `W7-T3-A / W7-T3-DOCS` - DONE
   - `W7-T3-B` - DONE
+  - `W7-T3-C` - DONE
 - Next active item:
-  - `W7-T3-C - Frontend passes shell`
+  - `W7-T3-D - Backend Google Play purchase validation`
 
 ## Locked Decisions
 - Android-first / Google Play Billing for paid passes.
@@ -25,9 +26,6 @@ Plan: `docs/codex/week7/track3/PLAN.md`
 - Subscriptions are out of scope for v1.
 
 ## Remaining Tasks
-- [ ] `W7-T3-C` - Frontend passes shell
-  - Scope: frontend only
-  - Goal: expose a passes screen and wallet state using `GET /api/passes/catalog` and `GET /api/passes/me`
 - [ ] `W7-T3-D` - Backend Google Play purchase validation
   - Scope: backend only
   - Goal: verify Google Play purchase tokens server-side, enforce idempotency, and grant paid credits safely

@@ -9,6 +9,52 @@
 - Risks or follow-ups
 
 ## Entries
+## 2026-03-15 - W7-T3-C recorded complete
+What changed:
+- Closed out the frontend passes shell in Track 3 docs.
+- Recorded the shipped frontend files:
+  - `mobile-app/app/passes.tsx`
+  - `mobile-app/constants/Api.ts`
+  - `mobile-app/app/(tabs)/profile.tsx`
+- Captured the shipped frontend behavior:
+  - wallet rendered
+  - 3 products rendered
+  - disabled state works
+  - placeholder CTA only
+- Updated the Track 3 pending list so `W7-T3-D - Backend Google Play purchase validation` is now the next active item.
+
+Decisions:
+- Kept `W7-T3-C` documented as a frontend shell only with no real Google Play billing flow.
+- Preserved the wallet rules already locked in Track 3:
+  - free daily passes remain separate
+  - free passes are consumed first
+  - paid credits are consumed second
+- Carried forward repo-wide lint and TypeScript noise as an existing repo issue, not a blocker specific to the shipped passes shell.
+
+How verified:
+- Frontend verification commands recorded from the source packet:
+  - `cd mobile-app`
+  - `npm install`
+  - `npm run web -- --port 8082 --non-interactive`
+- Backend runtime flags used during frontend verification:
+  - `BH_PASSES_ENABLED=true`
+  - `BH_PASSES_PROVIDER_MODE=stub`
+- Verified runtime summary recorded from the packet:
+  - `health`: `{"status":"healthy","database":"connected"}`
+  - authenticated passes check: `product_count=3`, `provider_mode=stub`, `platform=android`, `paid_pass_credits=0`, `wallet_present=true`
+- Verified UI behavior recorded from the packet:
+  - wallet section rendered
+  - catalog section rendered with 3 products
+  - disabled state rendered cleanly when passes were off
+  - no fake purchase success flow was added
+
+PR or branch refs:
+- Source implementation branch: `feat/frontend-w7-t3c-passes-shell`
+
+Risks or follow-ups:
+- Repo-wide `npm run lint` and `npx tsc --noEmit` still report unrelated pre-existing issues outside the `W7-T3-C` scope.
+- `W7-T3-D - Backend Google Play purchase validation` is now the next active implementation packet.
+
 ## 2026-03-15 - W7-T3-DOCS-CONFLICT-RESOLVE completed
 What changed:
 - Merged `origin/main` into the docs branch locally.
