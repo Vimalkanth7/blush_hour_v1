@@ -42,6 +42,37 @@ export interface VoiceTokenResponse {
     expires_in: number;
 }
 
+export interface PassCatalogProduct {
+    product_id: string;
+    title: string;
+    platform: string;
+    active: boolean;
+    grant_type: string;
+    units_per_purchase: number;
+    sort_order: number;
+}
+
+export interface PassesCatalogResponse {
+    passes_enabled: boolean;
+    provider_mode: string;
+    platform: string;
+    products: PassCatalogProduct[];
+}
+
+export interface UserPassWallet {
+    user_id: string;
+    paid_pass_credits: number;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface PassesMeResponse {
+    passes_enabled: boolean;
+    provider_mode: string;
+    catalog_available: boolean;
+    wallet?: UserPassWallet | null;
+}
+
 export type SafetyReportCategory =
     | 'harassment'
     | 'spam'
@@ -165,6 +196,36 @@ const postJsonAuthenticated = async <TResponse>(
                 Authorization: `Bearer ${token}`,
             },
             body: JSON.stringify(payload),
+        });
+    } catch (error) {
+        const detail = error instanceof Error ? error.message : 'Network request failed';
+        throw createApiRequestError(0, detail);
+    }
+
+    if (!response.ok) {
+        const detail = await parseResponseDetail(response, fallbackMessage);
+        throw createApiRequestError(response.status, detail);
+    }
+
+    try {
+        return (await response.json()) as TResponse;
+    } catch {
+        throw createApiRequestError(response.status, fallbackMessage);
+    }
+};
+
+const getJsonAuthenticated = async <TResponse>(
+    path: string,
+    token: string,
+    fallbackMessage: string,
+): Promise<TResponse> => {
+    let response: Response;
+
+    try {
+        response = await fetch(`${API_BASE_URL}${path}`, {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
         });
     } catch (error) {
         const detail = error instanceof Error ? error.message : 'Network request failed';
@@ -348,6 +409,22 @@ export const voiceToken = async (token: string): Promise<VoiceTokenResponse> => 
     } catch (error) {
         throw mapVoiceTokenError(error);
     }
+};
+
+export const getPassesCatalog = async (token: string): Promise<PassesCatalogResponse> => {
+    return getJsonAuthenticated<PassesCatalogResponse>(
+        '/api/passes/catalog',
+        token,
+        'Unable to load passes catalog right now.',
+    );
+};
+
+export const getMyPasses = async (token: string): Promise<PassesMeResponse> => {
+    return getJsonAuthenticated<PassesMeResponse>(
+        '/api/passes/me',
+        token,
+        'Unable to load your passes right now.',
+    );
 };
 
 export const handleApiError = async (response: Response, signOut?: () => Promise<void>) => {

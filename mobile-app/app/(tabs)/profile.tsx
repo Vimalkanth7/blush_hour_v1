@@ -81,6 +81,10 @@ export default function ProfileHubScreen() {
         router.push("/modal/preview-profile");
     };
 
+    const onPassesPress = () => {
+        router.push('/passes');
+    };
+
     const handleFixField = (field: string) => {
         console.log(`[ProfileHub] Fixing field: ${field}`);
         const isOnboarded = user?.onboarding_completed;
@@ -220,6 +224,21 @@ export default function ProfileHubScreen() {
 
                 {/* Languages & Habits */}
                 <View style={styles.detailsSection}>
+                    <TouchableOpacity onPress={onPassesPress} activeOpacity={0.8}>
+                        <Card style={styles.passesEntryCard}>
+                            <View style={styles.passesEntryRow}>
+                                <View style={styles.passesEntryIcon}>
+                                    <Ionicons name="ticket-outline" size={22} color={COLORS.primary} />
+                                </View>
+                                <View style={styles.passesEntryCopy}>
+                                    <Text style={styles.passesEntryTitle}>Passes</Text>
+                                    <Text style={styles.passesEntrySubtitle}>See paid pass credits and available pass packs.</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={20} color={COLORS.secondaryText} />
+                            </View>
+                        </Card>
+                    </TouchableOpacity>
+
                     <Card style={styles.detailCard}>
                         <View style={styles.sectionHeaderRow}>
                             <Text style={styles.sectionTitle}>Languages</Text>
@@ -352,6 +371,19 @@ const styles = StyleSheet.create({
 
     // Languages & Habits
     detailsSection: { paddingHorizontal: SPACING.screen, gap: SPACING.md, marginBottom: SPACING.xl },
+    passesEntryCard: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: '#2D2440', borderRadius: RADIUS.lg },
+    passesEntryRow: { flexDirection: 'row', alignItems: 'center' },
+    passesEntryIcon: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255,107,157,0.12)'
+    },
+    passesEntryCopy: { flex: 1, marginLeft: SPACING.md, marginRight: SPACING.md },
+    passesEntryTitle: { ...TYPOGRAPHY.h2, fontSize: 16, color: COLORS.primaryText, fontWeight: '600' },
+    passesEntrySubtitle: { ...TYPOGRAPHY.caption, color: COLORS.secondaryText },
     detailCard: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: '#2D2440', borderRadius: RADIUS.lg },
     sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.sm },
     sectionTitle: { ...TYPOGRAPHY.h2, fontSize: 16, color: COLORS.primaryText, fontWeight: '600' },
