@@ -12,6 +12,7 @@ from app.schemas.chat import (
     PartnerProfileResponse, PartnerProfileData
 )
 from app.auth.dependencies import get_current_user
+from app.routers.voice import is_pair_blocked
 from app.services.event_logger import log_event
 from pymongo.errors import DuplicateKeyError
 
@@ -147,6 +148,8 @@ async def get_thread_partner(
     partner_id = next((p for p in t.participants if p != current_user.id), None)
     if not partner_id:
         raise HTTPException(404, "Partner not found in thread")
+    if await is_pair_blocked(str(current_user.id), str(partner_id)):
+        raise HTTPException(status_code=403, detail="This match is unavailable.")
         
     # 5. Fetch Partner Profile
     partner = await User.get(partner_id)
@@ -203,6 +206,11 @@ async def send_message(
     # Security: Participant check
     if current_user.id not in t.participants:
         raise HTTPException(403, "Not authorized")
+    partner_id = next((p for p in t.participants if p != current_user.id), None)
+    if not partner_id:
+        raise HTTPException(404, "Partner not found in thread")
+    if await is_pair_blocked(str(current_user.id), str(partner_id)):
+        raise HTTPException(status_code=403, detail="This match is unavailable.")
         
     # Create Message
     msg = ChatMessage(
@@ -244,6 +252,11 @@ async def get_messages(
         raise HTTPException(404, "Thread not found")
     if current_user.id not in t.participants:
         raise HTTPException(403, "Not authorized")
+    partner_id = next((p for p in t.participants if p != current_user.id), None)
+    if not partner_id:
+        raise HTTPException(404, "Partner not found in thread")
+    if await is_pair_blocked(str(current_user.id), str(partner_id)):
+        raise HTTPException(status_code=403, detail="This match is unavailable.")
         
     # Construct Query
     query = [ChatMessage.thread_id == tid]
@@ -293,6 +306,11 @@ async def mark_read(
         raise HTTPException(404, "Thread not found")
     if current_user.id not in t.participants:
         raise HTTPException(403, "Not authorized")
+    partner_id = next((p for p in t.participants if p != current_user.id), None)
+    if not partner_id:
+        raise HTTPException(404, "Partner not found in thread")
+    if await is_pair_blocked(str(current_user.id), str(partner_id)):
+        raise HTTPException(status_code=403, detail="This match is unavailable.")
         
     # Update all unread messages where sender != me
     now = datetime.utcnow()
