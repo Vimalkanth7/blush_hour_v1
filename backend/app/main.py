@@ -15,8 +15,9 @@ from app.models.chat_night import (
 from app.models.events import AppEvent
 from app.models.chat import ChatThread, ChatMessage
 from app.models.admin import AdminAuditLog, SystemConfig
+from app.models.passes import PassCreditLedgerEntry, UserPassWallet
 from app.models.safety import UserBlock, UserMute, UserReport
-from app.routers import auth, users, discovery, chat_night, admin, chat, internal_evals, photos, voice, safety
+from app.routers import auth, users, discovery, chat_night, admin, chat, internal_evals, passes, photos, voice, safety
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -35,6 +36,8 @@ async def lifespan(app: FastAPI):
             ChatMessage,
             AdminAuditLog,
             SystemConfig,
+            UserPassWallet,
+            PassCreditLedgerEntry,
             UserBlock,
             UserMute,
             UserReport,
@@ -101,6 +104,7 @@ app.include_router(discovery.router, prefix="/api/discovery", tags=["discovery"]
 app.include_router(chat_night.router, prefix="/api/chat-night", tags=["chat-night"])
 app.include_router(chat.router, prefix="/api/chat", tags=["chat"])
 app.include_router(voice.router, prefix="/api/voice", tags=["voice"])
+app.include_router(passes.router, prefix="/api/passes", tags=["passes"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 app.include_router(internal_evals.router, prefix="/api/internal/evals", tags=["internal-evals"])
 app.include_router(safety.router, prefix="/api/safety", tags=["safety"])
@@ -120,4 +124,3 @@ async def health_check():
         db_status = "error"
         
     return {"status": "healthy", "database": db_status}
-
