@@ -1,68 +1,56 @@
-# Week 7 — Track 3 (PASSES) — PENDING TASKS
+# Week 7 - Track 3 Pending Tasks
 
 Owner: Lead + Backend + Frontend + QA  
 Goal: Passes monetization (Android-compliant)  
-Provider: Google Play Billing (consumables)
+Provider: Google Play Billing (consumables)  
 Plan: `docs/codex/week7/track3/PLAN.md`
 
 ## Status
-- Track 3: ⏳ IN PROGRESS
+- Track 3: IN PROGRESS
 - Closed out in docs:
-  - W7-T3-A / W7-T3-DOCS — ✅ DONE
-  - W7-T3-B — ✅ DONE
+  - `W7-T3-A / W7-T3-DOCS` - DONE
+  - `W7-T3-B` - DONE
 - Next active item:
-  - W7-T3-C — Frontend passes shell
-
-## Dependencies
-- W7-0 (Baseline): security + safe errors
-- Track 1 OTP recommended before monetization rollout
+  - `W7-T3-C - Frontend passes shell`
 
 ## Locked Decisions
 - Android-first / Google Play Billing for paid passes.
-- Backend is authoritative for wallet state, catalog availability, and entitlements.
-- Free daily Chat Night passes remain separate from paid pass credits.
+- Backend remains authoritative for wallet state, catalog availability, purchase validation, and entitlements.
+- Free daily passes stay separate from paid credits.
 - Spend order is locked:
   - consume free passes first
   - consume paid credits second
-- Extension work is phase 2 only.
-- Google Play purchase validation is not yet implemented.
+- Extension is phase 2 only.
+- Google Play purchase validation is still pending.
 - Subscriptions are out of scope for v1.
 
-## Backend Foundation Confirmed (W7-T3-B)
-- Config flags:
-  - `BH_PASSES_ENABLED`
-  - `BH_PASSES_PROVIDER_MODE` (`stub|google`)
-- Endpoints:
-  - `GET /api/passes/catalog`
-  - `GET /api/passes/me`
-- Wallet foundation:
-  - backend-owned paid wallet model
-  - minimal ledger-ready credit entry
-  - free daily `ChatNightPass` kept separate from paid credits
-- Verifier evidence:
-  - `PARSE_OK`
-  - `PASS: passes contract verified (enabled mode).`
-  - `PASS: passes contract verified (disabled mode).`
+## Remaining Tasks
+- [ ] `W7-T3-C` - Frontend passes shell
+  - Scope: frontend only
+  - Goal: expose a passes screen and wallet state using `GET /api/passes/catalog` and `GET /api/passes/me`
+- [ ] `W7-T3-D` - Backend Google Play purchase validation
+  - Scope: backend only
+  - Goal: verify Google Play purchase tokens server-side, enforce idempotency, and grant paid credits safely
+- [ ] `W7-T3-E` - Android billing integration
+  - Scope: frontend only
+  - Goal: launch Google Play Billing purchase flows and hand validated purchase data to the backend
+- [ ] `W7-T3-F` - Chat Night pass consumption
+  - Scope: backend only
+  - Goal: enforce free passes first and paid credits second through backend wallet rules
+- [ ] `W7-T3-G` - Out-of-passes UX
+  - Scope: frontend only
+  - Goal: show clear wallet state and respectful purchase prompts when free and paid balances are exhausted
+- [ ] `W7-T3-H` - QA passes verifier
+  - Scope: QA only
+  - Goal: verify purchase validation, wallet grants, idempotency, and consumption order
+- [ ] `W7-T3-I` - Phase 2 extension design and implementation
+  - Scope: docs first, implementation later
+  - Goal: define extension rules only after wallet and billing flows are stable
+- [ ] `W7-T3-J` - Docs closeout and runbook
+  - Scope: docs only
+  - Goal: capture shipped behavior, rollout notes, compatibility constraints, and regression evidence
 
-## Subtasks
-- [x] W7-T3-A / W7-T3-DOCS — Track 3 planning/docs init
-- [x] W7-T3-B — Backend wallet/catalog foundation
-- [ ] W7-T3-C — Frontend passes shell
-- [ ] W7-T3-D
-- [ ] W7-T3-E
-- [ ] W7-T3-F
-- [ ] W7-T3-G
-- [ ] W7-T3-H
-- [ ] W7-T3-I
-- [ ] W7-T3-J
-
-## Rollback / Kill switch (required)
+## Rollback / Kill Switch
 - `BH_PASSES_ENABLED=true` (default)
-- If false: passes UI/endpoints should disable gracefully.
+- If false: passes UI and passes endpoints should disable gracefully.
 - `BH_PASSES_PROVIDER_MODE=stub` until Google Play validation is implemented.
-
-## Acceptance Criteria (Track 3)
-- Users can buy passes via Google Play Billing.
-- Backend verifies purchases and updates balance reliably.
-- Free daily passes and paid credits remain separate with ledger-ready audit support.
-- Purchase flow fails gracefully with clear messaging; app remains usable.

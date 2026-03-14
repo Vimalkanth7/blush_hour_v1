@@ -1,6 +1,6 @@
-# Week 7 — Track 3 (PASSES) — COMPLETED TASKS
+# Week 7 - Track 3 Completed Tasks
 
-## ✅ W7-T3-A / W7-T3-DOCS — Track 3 planning + docs init
+## W7-T3-A / W7-T3-DOCS - Track 3 planning and docs init
 Status: DONE  
 Date: 2026-03-14  
 Scope: docs only
@@ -19,41 +19,29 @@ What shipped:
   - consume paid credits second
   - extension deferred to phase 2
   - no subscriptions in v1
-- Recorded that no code work started in the docs-init packet.
+- Recorded that no backend, frontend, or QA work shipped in the docs-init packet.
 
 How verified:
-- Source evidence confirmed the docs-init packet was already completed.
-- Planning decisions are now explicitly carried in the Track 3 docs:
-  - free first
-  - paid second
-  - extension phase 2
-  - backend authoritative
-  - no subscriptions in v1
+- Track 3 docs record `W7-T3-A / W7-T3-DOCS = DONE`.
+- `docs/codex/week7/track3/PLAN.md` exists and carries the locked planning decisions.
+- The docs state that `W7-T3-C` is the next active implementation item after backend foundation closeout.
 
 Notes / follow-ups:
-- Google Play purchase validation remained pending after docs-init.
-- Backend foundation was tracked separately in W7-T3-B.
+- Google Play purchase validation remained pending after docs init.
+- `W7-T3-B` was tracked and closed separately as the backend foundation packet.
 
-
-## ✅ W7-T3-B — Backend wallet/catalog foundation
+## W7-T3-B - Backend wallet/catalog foundation
 Status: DONE  
-Branch: feat/backend-w7-t3b-wallet-catalog-foundation  
+Date: 2026-03-14  
+Branch: `feat/backend-w7-t3b-wallet-catalog-foundation`  
 Scope: backend only
 
 What shipped:
-- Changed backend files:
-  - `backend/app/core/config.py`
-  - `backend/app/main.py`
-  - `backend/app/models/passes.py`
-  - `backend/app/schemas/passes.py`
-  - `backend/app/services/passes.py`
-  - `backend/app/routers/passes.py`
-  - `backend/verify_passes_contract.ps1`
 - Added passes config flags:
   - `BH_PASSES_ENABLED`
   - validated `BH_PASSES_PROVIDER_MODE` (`stub|google`)
-- Added a backend-owned paid wallet model and kept free daily `ChatNightPass` separate.
-- Added minimal `PassCreditLedgerEntry` for ledger-ready paid credit tracking.
+- Added a backend-owned paid wallet model and kept free daily `ChatNightPass` separate from paid credits.
+- Added ledger-ready `PassCreditLedgerEntry` support for paid credit tracking.
 - Added a static Android catalog:
   - `pass_pack_1`
   - `pass_pack_5`
@@ -61,11 +49,11 @@ What shipped:
 - Added endpoints:
   - `GET /api/passes/catalog`
   - `GET /api/passes/me`
-- Integrated passes models/router into startup/bootstrap.
+- Integrated passes models and router into startup/bootstrap.
 - Added `backend/verify_passes_contract.ps1`.
 
 How verified:
-- `Invoke-RestMethod http://localhost:8000/health` → `{"status":"healthy","database":"connected"}`
+- `Invoke-RestMethod http://localhost:8000/health` -> `{"status":"healthy","database":"connected"}`
 - `PARSE_OK`
 - `PASS: passes contract verified (enabled mode).`
 - `PASS: passes contract verified (disabled mode).`
@@ -79,6 +67,6 @@ How verified:
 
 Notes / follow-ups:
 - Google Play purchase validation is intentionally deferred and not yet implemented.
-- Spend-order enforcement is intentionally deferred; current docs lock the intended order as free first, paid second.
-- Frontend passes shell is the next implementation step.
-- Admin JWT/env mismatch is a separate repo/runtime note, not a T3-B blocker.
+- Spend-order enforcement is intentionally deferred; the locked rule remains free passes first and paid credits second.
+- `W7-T3-C - Frontend passes shell` is the next implementation packet.
+- Admin JWT/env mismatch is a separate repo/runtime note, not a `W7-T3-B` blocker.
