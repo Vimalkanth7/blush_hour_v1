@@ -15,7 +15,7 @@ from app.models.chat_night import (
 from app.models.events import AppEvent
 from app.models.chat import ChatThread, ChatMessage
 from app.models.admin import AdminAuditLog, SystemConfig
-from app.models.passes import PassCreditLedgerEntry, UserPassWallet
+from app.models.passes import PassCreditLedgerEntry, PassPurchase, UserPassWallet
 from app.models.safety import UserBlock, UserMute, UserReport
 from app.routers import auth, users, discovery, chat_night, admin, chat, internal_evals, passes, photos, voice, safety
 
@@ -38,6 +38,7 @@ async def lifespan(app: FastAPI):
             SystemConfig,
             UserPassWallet,
             PassCreditLedgerEntry,
+            PassPurchase,
             UserBlock,
             UserMute,
             UserReport,

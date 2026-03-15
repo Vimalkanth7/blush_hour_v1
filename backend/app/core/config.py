@@ -50,6 +50,10 @@ class Settings(BaseSettings):
     # Passes / Wallet foundation
     BH_PASSES_ENABLED: bool = False
     BH_PASSES_PROVIDER_MODE: str = "stub"  # stub | google
+    GOOGLE_PLAY_PACKAGE_NAME: Optional[str] = None
+    GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: Optional[str] = None
+    GOOGLE_PLAY_SERVICE_ACCOUNT_FILE: Optional[str] = None
+    GOOGLE_PLAY_API_TIMEOUT_SECONDS: int = 10
 
     # Safety tools
     BH_SAFETY_TOOLS_ENABLED: bool = True
@@ -73,6 +77,9 @@ class Settings(BaseSettings):
         "R2_BUCKET",
         "R2_ACCESS_KEY_ID",
         "R2_SECRET_ACCESS_KEY",
+        "GOOGLE_PLAY_PACKAGE_NAME",
+        "GOOGLE_PLAY_SERVICE_ACCOUNT_JSON",
+        "GOOGLE_PLAY_SERVICE_ACCOUNT_FILE",
         pre=True,
         always=True,
     )
@@ -105,6 +112,15 @@ class Settings(BaseSettings):
         if normalized not in {"stub", "google"}:
             raise ValueError("BH_PASSES_PROVIDER_MODE must be either 'stub' or 'google'.")
         return normalized
+
+    @validator("GOOGLE_PLAY_API_TIMEOUT_SECONDS", pre=True, always=True)
+    def clamp_google_play_timeout_seconds(cls, value):
+        try:
+            timeout_seconds = int(value)
+        except (TypeError, ValueError):
+            timeout_seconds = 10
+        timeout_seconds = max(1, timeout_seconds)
+        return min(timeout_seconds, 60)
 
     class Config:
         env_file = ".env"

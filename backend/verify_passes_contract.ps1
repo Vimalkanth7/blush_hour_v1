@@ -193,8 +193,33 @@ function Assert-FailureStatus {
     }
 }
 
+function Parse-StrictInt {
+    param(
+        [Parameter(Mandatory = $true)][AllowNull()] $Value,
+        [Parameter(Mandatory = $true)][string] $Context
+    )
+
+    $parsed = 0
+    if (-not [int]::TryParse("$Value", [ref] $parsed)) {
+        Fail ("{0} must be an integer. Raw value: {1}" -f $Context, "$Value")
+    }
+    return $parsed
+}
+
+function Assert-DetailMentionsDisabled {
+    param(
+        [Parameter(Mandatory = $true)] $Result,
+        [Parameter(Mandatory = $true)][string] $Context
+    )
+
+    $detail = Try-GetDetailMessage -RawErrorText "$($Result.ErrorText)"
+    if (-not ($detail -match "(?i)passes.+disabled|disabled.+passes")) {
+        Fail ("{0} detail must indicate passes are disabled. detail/error: {1}" -f $Context, $detail)
+    }
+}
+
 Write-Host "===================================================" -ForegroundColor Yellow
-Write-Host " PASSES CONTRACT VERIFIER (W7-T3-B)                " -ForegroundColor Yellow
+Write-Host " PASSES CONTRACT VERIFIER (W7-T3-D)                " -ForegroundColor Yellow
 Write-Host "===================================================" -ForegroundColor Yellow
 Write-Host "Base URL: $BaseUrl" -ForegroundColor Cyan
 Write-Host "Mode: $Mode" -ForegroundColor Cyan
@@ -218,6 +243,16 @@ try {
     Assert-FailureStatus -Result $meNoAuth -ExpectedStatuses @(401) -Context "Unauthenticated GET /api/passes/me"
     Write-Pass "Unauthenticated GET /api/passes/me returned HTTP 401."
 
+    $validateBody = @{
+        product_id     = "pass_pack_5"
+        purchase_token = "stub-pass_pack_5-unauthcheck"
+        order_id       = "STUB-UNAUTH-CHECK"
+        platform       = "android"
+    }
+    $validateNoAuth = Invoke-JsonApi -Method POST -Uri "$BaseUrl/api/passes/google/validate" -Body $validateBody
+    Assert-FailureStatus -Result $validateNoAuth -ExpectedStatuses @(401) -Context "Unauthenticated POST /api/passes/google/validate"
+    Write-Pass "Unauthenticated POST /api/passes/google/validate returned HTTP 401."
+
     Write-Step "Register synthetic user"
     $phone = New-TestPhone -Prefix "981"
     $script:UserToken = Register-TestUser -PhoneNumber $phone -Label "PassesUser"
@@ -227,19 +262,18 @@ try {
         Write-Step "Disabled mode checks"
         $catalogDisabled = Invoke-JsonApi -Method GET -Uri "$BaseUrl/api/passes/catalog" -Headers $headers
         Assert-FailureStatus -Result $catalogDisabled -ExpectedStatuses @(503) -Context "GET /api/passes/catalog in disabled mode"
-        $catalogDisabledDetail = Try-GetDetailMessage -RawErrorText "$($catalogDisabled.ErrorText)"
-        if (-not ($catalogDisabledDetail -match "(?i)passes.+disabled|disabled.+passes")) {
-            Fail ("Disabled catalog detail must indicate passes are disabled. detail/error: {0}" -f $catalogDisabledDetail)
-        }
+        Assert-DetailMentionsDisabled -Result $catalogDisabled -Context "GET /api/passes/catalog in disabled mode"
         Write-Pass "Authenticated GET /api/passes/catalog returned HTTP 503 in disabled mode."
 
         $meDisabled = Invoke-JsonApi -Method GET -Uri "$BaseUrl/api/passes/me" -Headers $headers
         Assert-FailureStatus -Result $meDisabled -ExpectedStatuses @(503) -Context "GET /api/passes/me in disabled mode"
-        $meDisabledDetail = Try-GetDetailMessage -RawErrorText "$($meDisabled.ErrorText)"
-        if (-not ($meDisabledDetail -match "(?i)passes.+disabled|disabled.+passes")) {
-            Fail ("Disabled wallet detail must indicate passes are disabled. detail/error: {0}" -f $meDisabledDetail)
-        }
+        Assert-DetailMentionsDisabled -Result $meDisabled -Context "GET /api/passes/me in disabled mode"
         Write-Pass "Authenticated GET /api/passes/me returned HTTP 503 in disabled mode."
+
+        $validateDisabled = Invoke-JsonApi -Method POST -Uri "$BaseUrl/api/passes/google/validate" -Headers $headers -Body $validateBody
+        Assert-FailureStatus -Result $validateDisabled -ExpectedStatuses @(503) -Context "POST /api/passes/google/validate in disabled mode"
+        Assert-DetailMentionsDisabled -Result $validateDisabled -Context "POST /api/passes/google/validate in disabled mode"
+        Write-Pass "Authenticated POST /api/passes/google/validate returned HTTP 503 in disabled mode."
 
         Write-Host ""
         Write-Host "PASS: passes contract verified (disabled mode)." -ForegroundColor Green
@@ -251,6 +285,10 @@ try {
     if (-not $catalog.Ok) {
         $detail = Try-GetDetailMessage -RawErrorText "$($catalog.ErrorText)"
         Fail ("GET /api/passes/catalog failed. HTTP {0}; detail/error: {1}" -f $catalog.Status, $detail)
+    }
+
+    if ("$($catalog.Body.provider_mode)" -ne "stub") {
+        Fail ("Enabled verifier expects provider_mode=stub. Got '{0}'." -f "$($catalog.Body.provider_mode)")
     }
 
     $products = @($catalog.Body.products)
@@ -277,31 +315,120 @@ try {
     Write-Pass ("Authenticated GET /api/passes/catalog returned expected active products: {0}" -f ($expectedIds -join ", "))
 
     Write-Step "Enabled mode checks: GET /api/passes/me"
-    $me = Invoke-JsonApi -Method GET -Uri "$BaseUrl/api/passes/me" -Headers $headers
-    if (-not $me.Ok) {
-        $detail = Try-GetDetailMessage -RawErrorText "$($me.ErrorText)"
-        Fail ("GET /api/passes/me failed. HTTP {0}; detail/error: {1}" -f $me.Status, $detail)
+    $meBefore = Invoke-JsonApi -Method GET -Uri "$BaseUrl/api/passes/me" -Headers $headers
+    if (-not $meBefore.Ok) {
+        $detail = Try-GetDetailMessage -RawErrorText "$($meBefore.ErrorText)"
+        Fail ("GET /api/passes/me failed. HTTP {0}; detail/error: {1}" -f $meBefore.Status, $detail)
     }
 
-    $wallet = $me.Body.wallet
-    if ($null -eq $wallet) {
+    $walletBefore = $meBefore.Body.wallet
+    if ($null -eq $walletBefore) {
         Fail "GET /api/passes/me missing wallet payload."
     }
-    if (-not ($wallet.PSObject.Properties.Name -contains "paid_pass_credits")) {
-        Fail "GET /api/passes/me wallet missing paid_pass_credits."
-    }
 
-    $credits = -1
-    if (-not [int]::TryParse("$($wallet.paid_pass_credits)", [ref] $credits)) {
-        Fail ("wallet.paid_pass_credits must be an integer. Raw value: {0}" -f "$($wallet.paid_pass_credits)")
+    $creditsBefore = Parse-StrictInt -Value $walletBefore.paid_pass_credits -Context "wallet.paid_pass_credits before grant"
+    if ($creditsBefore -ne 0) {
+        Fail ("Fresh wallet must initialize with paid_pass_credits=0. Got {0}" -f $creditsBefore)
     }
-    if ($credits -ne 0) {
-        Fail ("Fresh wallet must initialize with paid_pass_credits=0. Got {0}" -f $credits)
-    }
-    if ([string]::IsNullOrWhiteSpace("$($wallet.user_id)")) {
+    if ([string]::IsNullOrWhiteSpace("$($walletBefore.user_id)")) {
         Fail "GET /api/passes/me wallet missing user_id."
     }
     Write-Pass "Authenticated GET /api/passes/me returned a zero-balance wallet with paid_pass_credits."
+
+    Write-Step "Enabled mode checks: POST /api/passes/google/validate (stub grant)"
+    $suffix = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds().ToString()
+    $syntheticToken = "stub-pass_pack_5-$suffix"
+    $syntheticOrderId = "STUB-PASS-PACK-5-$suffix"
+    $grantBody = @{
+        product_id     = "pass_pack_5"
+        purchase_token = $syntheticToken
+        order_id       = $syntheticOrderId
+        platform       = "android"
+    }
+    $grantResult = Invoke-JsonApi -Method POST -Uri "$BaseUrl/api/passes/google/validate" -Headers $headers -Body $grantBody
+    if (-not $grantResult.Ok) {
+        $detail = Try-GetDetailMessage -RawErrorText "$($grantResult.ErrorText)"
+        Fail ("POST /api/passes/google/validate failed. HTTP {0}; detail/error: {1}" -f $grantResult.Status, $detail)
+    }
+
+    if ([bool] $grantResult.Body.already_granted) {
+        Fail "First stub validation must return already_granted=false."
+    }
+    if ("$($grantResult.Body.provider_mode)" -ne "stub") {
+        Fail ("Validation response provider_mode must be 'stub'. Got '{0}'." -f "$($grantResult.Body.provider_mode)")
+    }
+    if ("$($grantResult.Body.product_id)" -ne "pass_pack_5") {
+        Fail ("Validation response product_id mismatch. Got '{0}'." -f "$($grantResult.Body.product_id)")
+    }
+
+    $grantedUnits = Parse-StrictInt -Value $grantResult.Body.granted_units -Context "validation.granted_units"
+    if ($grantedUnits -ne 5) {
+        Fail ("Validation must grant 5 units for pass_pack_5. Got {0}" -f $grantedUnits)
+    }
+
+    $grantWallet = $grantResult.Body.wallet
+    if ($null -eq $grantWallet) {
+        Fail "Validation response missing wallet payload."
+    }
+    $creditsAfterGrant = Parse-StrictInt -Value $grantWallet.paid_pass_credits -Context "wallet.paid_pass_credits after grant"
+    if ($creditsAfterGrant -ne ($creditsBefore + 5)) {
+        Fail ("Wallet after grant must be {0}. Got {1}" -f ($creditsBefore + 5), $creditsAfterGrant)
+    }
+
+    $grantPurchase = $grantResult.Body.purchase
+    if ($null -eq $grantPurchase) {
+        Fail "Validation response missing purchase payload."
+    }
+    if ("$($grantPurchase.purchase_state)" -ne "PURCHASED") {
+        Fail ("Validation response purchase.purchase_state must be PURCHASED. Got '{0}'." -f "$($grantPurchase.purchase_state)")
+    }
+    if ("$($grantPurchase.grant_state)" -ne "granted") {
+        Fail ("Validation response purchase.grant_state must be granted. Got '{0}'." -f "$($grantPurchase.grant_state)")
+    }
+    if (-not [bool] $grantPurchase.is_test_purchase) {
+        Fail "Stub validation response must mark purchase.is_test_purchase=true."
+    }
+    if ("$($grantPurchase.play_finalization_state)" -ne "not_applicable") {
+        Fail ("Stub validation response purchase.play_finalization_state must be not_applicable. Got '{0}'." -f "$($grantPurchase.play_finalization_state)")
+    }
+    Write-Pass ("Stub validation granted {0} paid credits. Wallet before={1}, after={2}." -f $grantedUnits, $creditsBefore, $creditsAfterGrant)
+
+    Write-Step "Enabled mode checks: wallet read after stub grant"
+    $meAfterGrant = Invoke-JsonApi -Method GET -Uri "$BaseUrl/api/passes/me" -Headers $headers
+    if (-not $meAfterGrant.Ok) {
+        $detail = Try-GetDetailMessage -RawErrorText "$($meAfterGrant.ErrorText)"
+        Fail ("GET /api/passes/me after grant failed. HTTP {0}; detail/error: {1}" -f $meAfterGrant.Status, $detail)
+    }
+    $walletAfterGrantRead = $meAfterGrant.Body.wallet
+    $creditsAfterGrantRead = Parse-StrictInt -Value $walletAfterGrantRead.paid_pass_credits -Context "wallet.paid_pass_credits after grant readback"
+    if ($creditsAfterGrantRead -ne $creditsAfterGrant) {
+        Fail ("Wallet readback must match validation response balance {0}. Got {1}" -f $creditsAfterGrant, $creditsAfterGrantRead)
+    }
+    Write-Pass ("Wallet read after stub grant remained at {0} paid credits." -f $creditsAfterGrantRead)
+
+    Write-Step "Enabled mode checks: duplicate validation idempotency"
+    $grantRetry = Invoke-JsonApi -Method POST -Uri "$BaseUrl/api/passes/google/validate" -Headers $headers -Body $grantBody
+    if (-not $grantRetry.Ok) {
+        $detail = Try-GetDetailMessage -RawErrorText "$($grantRetry.ErrorText)"
+        Fail ("Duplicate POST /api/passes/google/validate failed. HTTP {0}; detail/error: {1}" -f $grantRetry.Status, $detail)
+    }
+    if (-not [bool] $grantRetry.Body.already_granted) {
+        Fail "Duplicate validation must return already_granted=true."
+    }
+
+    $retryGrantedUnits = Parse-StrictInt -Value $grantRetry.Body.granted_units -Context "duplicate validation.granted_units"
+    if ($retryGrantedUnits -ne 5) {
+        Fail ("Duplicate validation must continue to report 5 units for pass_pack_5. Got {0}" -f $retryGrantedUnits)
+    }
+
+    $retryWalletCredits = Parse-StrictInt -Value $grantRetry.Body.wallet.paid_pass_credits -Context "duplicate wallet.paid_pass_credits"
+    if ($retryWalletCredits -ne $creditsAfterGrant) {
+        Fail ("Duplicate validation must not change the wallet balance. Expected {0}, got {1}" -f $creditsAfterGrant, $retryWalletCredits)
+    }
+    if ("$($grantRetry.Body.purchase.grant_state)" -ne "granted") {
+        Fail ("Duplicate validation purchase.grant_state must remain granted. Got '{0}'." -f "$($grantRetry.Body.purchase.grant_state)")
+    }
+    Write-Pass ("Duplicate stub validation was idempotent. Wallet stayed at {0} paid credits." -f $retryWalletCredits)
 
     Write-Host ""
     Write-Host "PASS: passes contract verified (enabled mode)." -ForegroundColor Green
