@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,39 +28,41 @@ export default function PhoneLoginScreen() {
 
     return (
         <SafeAreaView style={styles.container}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                <Ionicons name="arrow-back" size={24} color={COLORS.primaryText} />
-            </TouchableOpacity>
+            <KeyboardAvoidingView style={styles.keyboardAvoidingView} behavior="height">
+                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                    <Ionicons name="arrow-back" size={24} color={COLORS.primaryText} />
+                </TouchableOpacity>
 
-            <Text style={styles.title}>What's your number?</Text>
+                <Text style={styles.title}>What&apos;s your number?</Text>
 
-            <Input
-                placeholder="00000 00000"
-                keyboardType="phone-pad"
-                autoFocus
-                value={phone}
-                onChangeText={(text) => setPhone(text.replace(/[^0-9]/g, ''))}
-                maxLength={10}
-                leftSlot={(
-                    <View style={styles.countryCode}>
-                        <Text style={styles.countryText}>IN +91</Text>
-                    </View>
+                <Input
+                    placeholder="00000 00000"
+                    keyboardType="phone-pad"
+                    autoFocus={false}
+                    value={phone}
+                    onChangeText={(text) => setPhone(text.replace(/[^0-9]/g, ''))}
+                    maxLength={10}
+                    leftSlot={(
+                        <View style={styles.countryCode}>
+                            <Text style={styles.countryText}>IN +91</Text>
+                        </View>
+                    )}
+                />
+
+                {phone.length > 0 && phone.length < 10 && (
+                    <Text style={styles.errorText}>Please enter a valid 10-digit number</Text>
                 )}
-            />
 
-            {phone.length > 0 && phone.length < 10 && (
-                <Text style={styles.errorText}>Please enter a valid 10-digit number</Text>
-            )}
+                <Text style={styles.note}>We&apos;ll send a text with a verification code. Message and data rates may apply.</Text>
 
-            <Text style={styles.note}>We'll send a text with a verification code. Message and data rates may apply.</Text>
-
-            <TouchableOpacity
-                style={[styles.nextButton, { opacity: phone.length >= 10 ? 1 : 0.5 }]}
-                onPress={handleNext}
-                disabled={phone.length < 10}
-            >
-                <Ionicons name="arrow-forward" size={24} color={COLORS.brandBase} />
-            </TouchableOpacity>
+                <TouchableOpacity
+                    style={[styles.nextButton, { opacity: phone.length >= 10 ? 1 : 0.5 }]}
+                    onPress={handleNext}
+                    disabled={phone.length < 10}
+                >
+                    <Ionicons name="arrow-forward" size={24} color={COLORS.brandBase} />
+                </TouchableOpacity>
+            </KeyboardAvoidingView>
         </SafeAreaView>
     );
 }
@@ -70,6 +72,9 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: COLORS.background,
         padding: SPACING.screen
+    },
+    keyboardAvoidingView: {
+        flex: 1,
     },
     backButton: {
         marginBottom: SPACING.xl
