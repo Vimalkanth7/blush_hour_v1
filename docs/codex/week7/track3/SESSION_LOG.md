@@ -9,6 +9,61 @@
 - Risks or follow-ups
 
 ## Entries
+## 2026-03-15 - W7-T3-D closeout recorded complete
+What changed:
+- Updated Track 3 docs only:
+  - `docs/codex/week7/track3/PENDING_TASKS.md`
+  - `docs/codex/week7/track3/COMPLETED_TASKS.md`
+  - `docs/codex/week7/track3/SESSION_LOG.md`
+- Marked `W7-T3-D = DONE`.
+- Recorded the shipped backend files for backend Google Play purchase validation:
+  - `backend/app/core/config.py`
+  - `backend/app/main.py`
+  - `backend/app/models/passes.py`
+  - `backend/app/schemas/passes.py`
+  - `backend/app/services/passes.py`
+  - `backend/app/services/google_play.py`
+  - `backend/app/routers/passes.py`
+  - `backend/verify_passes_contract.ps1`
+- Recorded verified T3-D behavior:
+  - stub validation grant works
+  - wallet increments correctly
+  - duplicate retry is idempotent
+  - disabled mode returns `503`
+  - Google mode without credentials fails safely with controlled `503`
+- Moved the next active marker to `W7-T3-E - Android billing integration`.
+
+Decisions:
+- Preserved the confirmed Track 3 rules unchanged:
+  - free daily passes remain separate from paid credits
+  - spend order remains locked as free passes first, paid credits second
+  - extension remains phase 2 only
+- Recorded backend Google Play purchase validation as shipped, but left real end-to-end Google purchase validation marked as still pending.
+- Kept Chat Night pass consumption out of `W7-T3-D`; that remains later backend work.
+
+How verified:
+- Source packet evidence recorded into docs:
+  - `PARSE_OK`
+  - `PASS: passes contract verified (enabled mode).`
+  - `PASS: passes contract verified (disabled mode).`
+  - wallet before `0`, after `5`
+  - duplicate retry `already_granted=true`, wallet stayed `5`
+  - controlled Google-mode `503` when `GOOGLE_PLAY_PACKAGE_NAME` is missing
+  - `PASS: profile_strength contract verified.`
+  - `PASS: chat night icebreakers contract verified (W6-B3)`
+  - `PASS: talk room engage sync verified.`
+  - `PASS: safety/admin contract verifier completed (enabled mode).`
+- Docs-only verification:
+  - `git diff --name-only`
+  - `git status`
+
+PR or branch refs:
+- Working branch: `chore/docs-week7-track3-t3d-closeout`
+
+Risks or follow-ups:
+- Real Google Play test purchase validation is still pending before frontend billing integration is considered fully exercised.
+- `W7-T3-E - Android billing integration` is the next active packet after this docs closeout.
+
 ## 2026-03-15 - W7-T3-DOCS-CONFLICT-RESOLVE completed
 What changed:
 - Merged `origin/main` into the docs branch locally.

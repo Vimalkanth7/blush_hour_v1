@@ -10,8 +10,9 @@ Plan: `docs/codex/week7/track3/PLAN.md`
 - Closed out in docs:
   - `W7-T3-A / W7-T3-DOCS` - DONE
   - `W7-T3-B` - DONE
+  - `W7-T3-D` - DONE
 - Next active item:
-  - `W7-T3-C - Frontend passes shell`
+  - `W7-T3-E - Android billing integration`
 
 ## Locked Decisions
 - Android-first / Google Play Billing for paid passes.
@@ -21,19 +22,17 @@ Plan: `docs/codex/week7/track3/PLAN.md`
   - consume free passes first
   - consume paid credits second
 - Extension is phase 2 only.
-- Google Play purchase validation is still pending.
+- Backend Google Play purchase validation is shipped.
+- Real end-to-end Google test purchase validation is still pending.
 - Subscriptions are out of scope for v1.
 
 ## Remaining Tasks
-- [ ] `W7-T3-C` - Frontend passes shell
-  - Scope: frontend only
-  - Goal: expose a passes screen and wallet state using `GET /api/passes/catalog` and `GET /api/passes/me`
-- [ ] `W7-T3-D` - Backend Google Play purchase validation
-  - Scope: backend only
-  - Goal: verify Google Play purchase tokens server-side, enforce idempotency, and grant paid credits safely
 - [ ] `W7-T3-E` - Android billing integration
   - Scope: frontend only
   - Goal: launch Google Play Billing purchase flows and hand validated purchase data to the backend
+- [ ] `W7-T3-C` - Frontend passes shell
+  - Scope: frontend only
+  - Goal: expose a passes screen and wallet state using `GET /api/passes/catalog` and `GET /api/passes/me`
 - [ ] `W7-T3-F` - Chat Night pass consumption
   - Scope: backend only
   - Goal: enforce free passes first and paid credits second through backend wallet rules
@@ -53,4 +52,5 @@ Plan: `docs/codex/week7/track3/PLAN.md`
 ## Rollback / Kill Switch
 - `BH_PASSES_ENABLED=true` (default)
 - If false: passes UI and passes endpoints should disable gracefully.
-- `BH_PASSES_PROVIDER_MODE=stub` until Google Play validation is implemented.
+- `BH_PASSES_PROVIDER_MODE=stub|google`
+- Keep `stub` for local verification; switch to `google` only when Play credentials are configured.
