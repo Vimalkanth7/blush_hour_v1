@@ -1,5 +1,55 @@
 # Week 7 - Track 3 Completed Tasks
 
+## W7-T3-D - Backend Google Play purchase validation
+Status: DONE  
+Date: 2026-03-15  
+Branch: `feat/backend-w7-t3d-google-play-validation`  
+Scope: backend only
+
+What shipped:
+- Added secure backend Google Play validation support for one-time pass products.
+- Shipped backend files:
+  - `backend/app/core/config.py`
+  - `backend/app/main.py`
+  - `backend/app/models/passes.py`
+  - `backend/app/schemas/passes.py`
+  - `backend/app/services/passes.py`
+  - `backend/app/services/google_play.py`
+  - `backend/app/routers/passes.py`
+  - `backend/verify_passes_contract.ps1`
+- Added authenticated `POST /api/passes/google/validate`.
+- Added purchase-state persistence and idempotent grant handling keyed by `purchase_token`.
+- Granted paid pass credits into the wallet without touching free daily passes.
+- Wrote ledger-backed purchase grant records for paid credits.
+- Preserved Track 3 rules:
+  - free daily passes remain separate from paid credits
+  - spend order remains locked as free passes first, paid credits second
+  - Chat Night consumption is not implemented in this packet
+  - extension credits are not implemented in this packet
+- Preserved safe local verification via `BH_PASSES_PROVIDER_MODE=stub`.
+
+How verified:
+- `PARSE_OK`
+- `PASS: passes contract verified (enabled mode).`
+- `PASS: passes contract verified (disabled mode).`
+- Stub grant evidence:
+  - wallet before `0`, after `5`
+  - duplicate retry returned `already_granted=true`, wallet stayed `5`
+- Disabled mode evidence:
+  - passes endpoints and validation endpoint returned controlled `503`
+- Google-mode safety evidence:
+  - validation returned controlled `503` when `GOOGLE_PLAY_PACKAGE_NAME` was missing
+- Regression guards:
+  - `PASS: profile_strength contract verified.`
+  - `PASS: chat night icebreakers contract verified (W6-B3)`
+  - `PASS: talk room engage sync verified.`
+  - `PASS: safety/admin contract verifier completed (enabled mode).`
+
+Notes / follow-ups:
+- Real end-to-end Google test purchase validation is still pending and must be exercised with valid Play credentials plus a real test purchase token.
+- `W7-T3-E - Android billing integration` is now the next active item.
+- RTDN, refund/revocation handling, and Chat Night pass consumption remain later Track 3 work.
+
 ## W7-T3-A / W7-T3-DOCS - Track 3 planning and docs init
 Status: DONE  
 Date: 2026-03-14  
