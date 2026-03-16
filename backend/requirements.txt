@@ -1,7 +1,7 @@
 annotated-types==0.7.0
 anyio==4.4.0
 bcrypt==4.0.1
-beanie==1.24.0
+beanie==1.26.0
 boto3==1.34.0
 certifi==2024.2.2
 charset-normalizer==3.3.2
@@ -16,7 +16,7 @@ httpcore==1.0.5
 httptools==0.6.1
 httpx==0.27.0
 idna==3.7
-lazy-model==0.4.0
+lazy-model==0.2.0
 livekit-api==0.7.1
 langchain==0.2.16
 langchain-openai==0.1.25
