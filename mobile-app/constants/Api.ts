@@ -73,6 +73,26 @@ export interface PassesMeResponse {
     wallet?: UserPassWallet | null;
 }
 
+export interface PassPurchaseRead {
+    purchase_state: string;
+    grant_state: string;
+    order_id?: string | null;
+    quantity: number;
+    is_test_purchase: boolean;
+    play_finalization_state?: string | null;
+}
+
+export interface PassPurchaseValidationResponse {
+    passes_enabled: boolean;
+    provider_mode: string;
+    platform: string;
+    product_id: string;
+    granted_units: number;
+    already_granted: boolean;
+    wallet: UserPassWallet;
+    purchase: PassPurchaseRead;
+}
+
 export type SafetyReportCategory =
     | 'harassment'
     | 'spam'
@@ -424,6 +444,32 @@ export const getMyPasses = async (token: string): Promise<PassesMeResponse> => {
         '/api/passes/me',
         token,
         'Unable to load your passes right now.',
+    );
+};
+
+export interface ValidateGooglePassPurchaseInput {
+    orderId?: string;
+    productId: string;
+    purchaseToken: string;
+    token: string;
+}
+
+export const validateGooglePassPurchase = async ({
+    orderId,
+    productId,
+    purchaseToken,
+    token,
+}: ValidateGooglePassPurchaseInput): Promise<PassPurchaseValidationResponse> => {
+    return postJsonAuthenticated<PassPurchaseValidationResponse>(
+        '/api/passes/google/validate',
+        {
+            order_id: orderId,
+            platform: 'android',
+            product_id: productId,
+            purchase_token: purchaseToken,
+        },
+        token,
+        'Unable to validate this pass purchase right now.',
     );
 };
 

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
+    Platform,
     ScrollView,
     StyleSheet,
     Text,
@@ -20,16 +21,31 @@ import {
 } from '../constants/Api';
 import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../constants/Theme';
 import { useAuth } from '../context/AuthContext';
+import { usePassesBilling } from '../context/PassesBillingContext';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import Skeleton from '../components/ui/Skeleton';
 
 type ScreenState = 'loading' | 'ready' | 'error' | 'disabled';
-
-const noop = () => { };
+type ReadyNoticeTone = 'error' | 'info' | 'success';
+type ProductActionState = {
+    buttonLabel: string;
+    disabled: boolean;
+    helperText: string;
+    loading: boolean;
+    priceLabel: string | null;
+};
 
 const formatUnitsLabel = (units: number) => {
     return `${units} ${units === 1 ? 'pass credit' : 'pass credits'} per purchase`;
+};
+
+const formatCurrencyLabel = (displayPrice: string | null) => {
+    if (!displayPrice) {
+        return 'Price unavailable';
+    }
+
+    return displayPrice;
 };
 
 const formatPlatformLabel = (platform: string | null) => {
@@ -56,9 +72,31 @@ const getPassesErrorMessage = (error: unknown) => {
     return error.detail || 'Unable to load passes right now.';
 };
 
+const getReadyNoticeTone = (kind: 'error' | 'info' | 'success'): ReadyNoticeTone => {
+    return kind;
+};
+
 export default function PassesScreen() {
     const router = useRouter();
     const { token, signOut } = useAuth();
+    const {
+        activePurchase,
+        clearNotice,
+        isAndroidBilling,
+        isRecoveryInProgress,
+        lastNotice,
+        lastWalletRefresh,
+        lastWalletRefreshAt,
+        productLoadMessage,
+        productLoadState,
+        recoverPurchases,
+        recoveryMessage,
+        requestPassPurchase,
+        storeProductsById,
+        supportMessage,
+        supportState,
+        syncCatalog,
+    } = usePassesBilling();
     const signOutRef = useRef(signOut);
 
     const [screenState, setScreenState] = useState<ScreenState>('loading');
@@ -118,9 +156,31 @@ export default function PassesScreen() {
         void loadPasses();
     }, [token, loadPasses]);
 
+    useEffect(() => {
+        if (screenState !== 'ready') {
+            return;
+        }
+
+        void syncCatalog(products, providerMode, platform);
+    }, [platform, products, providerMode, screenState, syncCatalog]);
+
+    useEffect(() => {
+        if (!lastWalletRefresh || !lastWalletRefreshAt) {
+            return;
+        }
+
+        setPaidCredits(lastWalletRefresh.wallet?.paid_pass_credits ?? 0);
+        setWalletMissing(!lastWalletRefresh.wallet);
+    }, [lastWalletRefresh, lastWalletRefreshAt]);
+
     const handleBack = () => {
         router.replace('/(tabs)/profile');
     };
+
+    const handlePurchasePress = useCallback((productId: string) => {
+        clearNotice();
+        void requestPassPurchase(productId);
+    }, [clearNotice, requestPassPurchase]);
 
     const renderStateCard = (
         iconName: React.ComponentProps<typeof Ionicons>['name'],
@@ -214,17 +274,281 @@ export default function PassesScreen() {
                 </View>
             ) : null}
 
-            {providerMode === 'stub' ? (
+            {providerMode ? (
                 <View style={styles.providerBadge}>
-                    <Ionicons name="flask-outline" size={14} color={COLORS.secondaryText} />
+                    <Ionicons
+                        name={providerMode === 'stub' ? 'flask-outline' : 'logo-google-playstore'}
+                        size={14}
+                        color={COLORS.secondaryText}
+                    />
                     <Text style={styles.providerBadgeText}>
-                        Test mode
+                        {providerMode === 'stub' ? 'Test mode' : 'Google Play'}
                         {platform ? ` / ${formatPlatformLabel(platform)}` : ''}
                     </Text>
                 </View>
             ) : null}
         </Card>
     );
+
+    const readyNotices = [
+        Platform.OS !== 'android'
+            ? {
+                key: 'android-only',
+                message: 'Paid pass purchases are Android-only and require a native Android development build or installed Android app.',
+                tone: 'info' as ReadyNoticeTone,
+            }
+            : null,
+        providerMode && providerMode !== 'google'
+            ? {
+                key: 'provider-mode',
+                message: 'Google Play billing is not enabled for this environment.',
+                tone: 'info' as ReadyNoticeTone,
+            }
+            : null,
+        platform && platform !== 'android'
+            ? {
+                key: 'platform',
+                message: 'This paid pass catalog is not configured for Android purchases.',
+                tone: 'info' as ReadyNoticeTone,
+            }
+            : null,
+        supportState === 'error' && supportMessage
+            ? {
+                key: 'support-error',
+                message: supportMessage,
+                tone: 'error' as ReadyNoticeTone,
+            }
+            : null,
+        supportState === 'initializing'
+            ? {
+                key: 'support-loading',
+                message: supportMessage || 'Connecting to Google Play billing.',
+                tone: 'info' as ReadyNoticeTone,
+            }
+            : null,
+        productLoadMessage
+            ? {
+                key: 'product-load',
+                message: productLoadMessage,
+                tone: productLoadState === 'error' ? 'error' as ReadyNoticeTone : 'info' as ReadyNoticeTone,
+            }
+            : null,
+        isRecoveryInProgress
+            ? {
+                key: 'recovery-running',
+                message: 'Checking Google Play for unfinished purchases.',
+                tone: 'info' as ReadyNoticeTone,
+            }
+            : null,
+        recoveryMessage
+            ? {
+                key: 'recovery-message',
+                message: recoveryMessage,
+                tone: recoveryMessage.toLowerCase().includes('could not') ? 'error' as ReadyNoticeTone : 'info' as ReadyNoticeTone,
+            }
+            : null,
+        lastNotice
+            ? {
+                key: 'last-notice',
+                message: lastNotice.message,
+                tone: getReadyNoticeTone(lastNotice.kind),
+            }
+            : null,
+    ].filter((notice): notice is { key: string; message: string; tone: ReadyNoticeTone } => Boolean(notice));
+
+    const renderReadyNotice = (key: string, tone: ReadyNoticeTone, message: string) => (
+        <Card
+            key={key}
+            style={[
+                styles.readyNoticeCard,
+                tone === 'success'
+                    ? styles.readyNoticeSuccess
+                    : tone === 'error'
+                        ? styles.readyNoticeError
+                        : styles.readyNoticeInfo,
+            ]}
+        >
+            <View style={styles.readyNoticeRow}>
+                <Ionicons
+                    name={
+                        tone === 'success'
+                            ? 'checkmark-circle-outline'
+                            : tone === 'error'
+                                ? 'alert-circle-outline'
+                                : 'information-circle-outline'
+                    }
+                    size={18}
+                    color={
+                        tone === 'success'
+                            ? COLORS.primary
+                            : tone === 'error'
+                                ? COLORS.destructive
+                                : COLORS.secondaryText
+                    }
+                />
+                <Text style={styles.readyNoticeText}>{message}</Text>
+            </View>
+        </Card>
+    );
+
+    const getProductActionState = (product: PassCatalogProduct): ProductActionState => {
+        const storeProduct = storeProductsById[product.product_id];
+        const priceLabel = formatCurrencyLabel(storeProduct?.displayPrice ?? null);
+        const isBusyOnAnotherProduct = (
+            activePurchase.productId !== product.product_id
+            && ['launching', 'pending', 'validating'].includes(activePurchase.state)
+        );
+
+        if (Platform.OS !== 'android' || !isAndroidBilling) {
+            return {
+                buttonLabel: 'Android only',
+                disabled: true,
+                helperText: 'Paid pass purchases only work in an Android app build. Web and iOS stay view-only here.',
+                loading: false,
+                priceLabel: null,
+            };
+        }
+
+        if (providerMode !== 'google') {
+            return {
+                buttonLabel: 'Unavailable here',
+                disabled: true,
+                helperText: 'Google Play billing is not enabled for this environment.',
+                loading: false,
+                priceLabel: null,
+            };
+        }
+
+        if (platform !== 'android') {
+            return {
+                buttonLabel: 'Unavailable',
+                disabled: true,
+                helperText: 'This paid pass catalog is not configured for Android purchases.',
+                loading: false,
+                priceLabel: null,
+            };
+        }
+
+        if (supportState === 'initializing') {
+            return {
+                buttonLabel: 'Connecting',
+                disabled: true,
+                helperText: supportMessage || 'Connecting to Google Play billing.',
+                loading: true,
+                priceLabel: storeProduct?.displayPrice ?? null,
+            };
+        }
+
+        if (supportState === 'error') {
+            return {
+                buttonLabel: 'Billing unavailable',
+                disabled: true,
+                helperText: supportMessage || 'Google Play billing is unavailable on this device.',
+                loading: false,
+                priceLabel: null,
+            };
+        }
+
+        if (productLoadState === 'loading' && !storeProduct) {
+            return {
+                buttonLabel: 'Loading price',
+                disabled: true,
+                helperText: 'Loading this pass pack from Google Play.',
+                loading: true,
+                priceLabel: null,
+            };
+        }
+
+        if (productLoadState === 'error') {
+            return {
+                buttonLabel: 'Unavailable',
+                disabled: true,
+                helperText: productLoadMessage || 'Could not load Google Play product details.',
+                loading: false,
+                priceLabel: null,
+            };
+        }
+
+        if (!storeProduct) {
+            return {
+                buttonLabel: 'Unavailable',
+                disabled: true,
+                helperText: 'This pass pack is not currently available in Google Play.',
+                loading: false,
+                priceLabel: null,
+            };
+        }
+
+        if (activePurchase.productId === product.product_id) {
+            if (activePurchase.state === 'launching') {
+                return {
+                    buttonLabel: 'Opening Google Play',
+                    disabled: true,
+                    helperText: activePurchase.message || 'Opening Google Play.',
+                    loading: true,
+                    priceLabel,
+                };
+            }
+
+            if (activePurchase.state === 'pending') {
+                return {
+                    buttonLabel: 'Pending in Play',
+                    disabled: true,
+                    helperText: activePurchase.message || 'Purchase is still pending in Google Play.',
+                    loading: false,
+                    priceLabel,
+                };
+            }
+
+            if (activePurchase.state === 'validating') {
+                return {
+                    buttonLabel: 'Validating',
+                    disabled: true,
+                    helperText: activePurchase.message || 'Validating your purchase with the backend.',
+                    loading: true,
+                    priceLabel,
+                };
+            }
+
+            if (activePurchase.state === 'success') {
+                return {
+                    buttonLabel: `Buy again • ${priceLabel}`,
+                    disabled: false,
+                    helperText: activePurchase.message || 'Wallet refreshed after backend validation.',
+                    loading: false,
+                    priceLabel,
+                };
+            }
+
+            if (activePurchase.state === 'cancelled' || activePurchase.state === 'error') {
+                return {
+                    buttonLabel: `Buy • ${priceLabel}`,
+                    disabled: false,
+                    helperText: activePurchase.message || 'Try the Google Play purchase flow again.',
+                    loading: false,
+                    priceLabel,
+                };
+            }
+        }
+
+        if (isBusyOnAnotherProduct) {
+            return {
+                buttonLabel: 'Purchase in progress',
+                disabled: true,
+                helperText: 'Finish the current purchase flow before starting another one.',
+                loading: false,
+                priceLabel,
+            };
+        }
+
+        return {
+            buttonLabel: `Buy • ${priceLabel}`,
+            disabled: false,
+            helperText: 'Credits are added only after backend validation succeeds.',
+            loading: false,
+            priceLabel,
+        };
+    };
 
     const renderCatalog = () => {
         if (products.length === 0) {
@@ -239,31 +563,41 @@ export default function PassesScreen() {
             );
         }
 
-        return products.map((product) => (
-            <Card key={product.product_id} style={styles.productCard}>
-                <View style={styles.productHeader}>
-                    <View style={styles.productCopy}>
-                        <Text style={styles.productTitle}>{product.title}</Text>
-                        <Text style={styles.productMeta}>{formatUnitsLabel(product.units_per_purchase)}</Text>
-                    </View>
-                    <View style={styles.productUnitsBadge}>
-                        <Text style={styles.productUnitsText}>+{product.units_per_purchase}</Text>
-                    </View>
-                </View>
+        return products.map((product) => {
+            const action = getProductActionState(product);
 
-                <Text style={styles.productHint}>
-                    Purchase flow coming soon. This button stays disabled until Google Play billing is wired in.
-                </Text>
+            return (
+                <Card key={product.product_id} style={styles.productCard}>
+                    <View style={styles.productHeader}>
+                        <View style={styles.productCopy}>
+                            <Text style={styles.productTitle}>{product.title}</Text>
+                            <Text style={styles.productMeta}>{formatUnitsLabel(product.units_per_purchase)}</Text>
+                        </View>
+                        <View style={styles.productUnitsBadge}>
+                            <Text style={styles.productUnitsText}>+{product.units_per_purchase}</Text>
+                        </View>
+                    </View>
 
-                <Button
-                    label="Coming soon"
-                    onPress={noop}
-                    disabled
-                    variant="secondary"
-                    style={styles.productButton}
-                />
-            </Card>
-        ));
+                    <View style={styles.productDetailsRow}>
+                        <Text style={styles.productPriceLabel}>{action.priceLabel || 'Google Play price unavailable'}</Text>
+                        <Text style={styles.productSkuLabel}>{product.product_id}</Text>
+                    </View>
+
+                    <Text style={styles.productHint}>{action.helperText}</Text>
+
+                    <Button
+                        label={action.buttonLabel}
+                        onPress={() => {
+                            handlePurchasePress(product.product_id);
+                        }}
+                        disabled={action.disabled}
+                        loading={action.loading}
+                        variant={action.disabled ? 'secondary' : 'primary'}
+                        style={styles.productButton}
+                    />
+                </Card>
+            );
+        });
     };
 
     if (!token) {
@@ -309,11 +643,30 @@ export default function PassesScreen() {
 
                 {screenState === 'ready' ? (
                     <>
+                        {readyNotices.map((notice) => renderReadyNotice(notice.key, notice.tone, notice.message))}
+
                         {renderWallet()}
 
                         <View style={styles.sectionHeader}>
-                            <Text style={styles.sectionTitle}>Available pass packs</Text>
-                            <Text style={styles.sectionSubtitle}>Each pack adds paid credits. Free daily passes still go first.</Text>
+                            <View style={styles.sectionTitleRow}>
+                                <View style={styles.sectionTitleCopy}>
+                                    <Text style={styles.sectionTitle}>Available pass packs</Text>
+                                    <Text style={styles.sectionSubtitle}>Each pack adds paid credits. Free daily passes still go first.</Text>
+                                </View>
+                                {Platform.OS === 'android' && providerMode === 'google' ? (
+                                    <TouchableOpacity
+                                        style={styles.recoveryButton}
+                                        onPress={() => {
+                                            clearNotice();
+                                            void recoverPurchases();
+                                        }}
+                                        activeOpacity={0.8}
+                                    >
+                                        <Ionicons name="refresh-outline" size={16} color={COLORS.primary} />
+                                        <Text style={styles.recoveryButtonText}>Check purchases</Text>
+                                    </TouchableOpacity>
+                                ) : null}
+                            </View>
                         </View>
 
                         {renderCatalog()}
@@ -464,8 +817,42 @@ const styles = StyleSheet.create({
         ...TYPOGRAPHY.caption,
         color: COLORS.secondaryText,
     },
+    readyNoticeCard: {
+        marginBottom: SPACING.md,
+        borderWidth: 1,
+    },
+    readyNoticeInfo: {
+        borderColor: 'rgba(245,240,255,0.08)',
+    },
+    readyNoticeError: {
+        borderColor: 'rgba(255,98,98,0.3)',
+        backgroundColor: 'rgba(255,98,98,0.06)',
+    },
+    readyNoticeSuccess: {
+        borderColor: 'rgba(255,107,157,0.28)',
+        backgroundColor: 'rgba(255,107,157,0.06)',
+    },
+    readyNoticeRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: SPACING.sm,
+    },
+    readyNoticeText: {
+        ...TYPOGRAPHY.caption,
+        flex: 1,
+        color: COLORS.secondaryText,
+    },
     sectionHeader: {
         marginBottom: SPACING.md,
+    },
+    sectionTitleRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+        gap: SPACING.md,
+    },
+    sectionTitleCopy: {
+        flex: 1,
     },
     sectionTitle: {
         ...TYPOGRAPHY.h2,
@@ -475,6 +862,22 @@ const styles = StyleSheet.create({
     sectionSubtitle: {
         ...TYPOGRAPHY.caption,
         color: COLORS.secondaryText,
+    },
+    recoveryButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: SPACING.xs,
+        paddingHorizontal: SPACING.md,
+        paddingVertical: SPACING.sm,
+        borderRadius: RADIUS.pill,
+        borderWidth: 1,
+        borderColor: 'rgba(255,107,157,0.24)',
+        backgroundColor: 'rgba(255,107,157,0.08)',
+    },
+    recoveryButtonText: {
+        ...TYPOGRAPHY.caption,
+        color: COLORS.primary,
+        fontWeight: '700',
     },
     productCard: {
         marginBottom: SPACING.md,
@@ -497,6 +900,22 @@ const styles = StyleSheet.create({
     productMeta: {
         ...TYPOGRAPHY.caption,
         color: COLORS.secondaryText,
+    },
+    productDetailsRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: SPACING.md,
+        marginBottom: SPACING.sm,
+    },
+    productPriceLabel: {
+        ...TYPOGRAPHY.bodyBase,
+        color: COLORS.primaryText,
+        fontWeight: '700',
+    },
+    productSkuLabel: {
+        ...TYPOGRAPHY.caption,
+        color: COLORS.disabledText,
     },
     productUnitsBadge: {
         minWidth: 58,

@@ -5,6 +5,8 @@ import { useRouter, useSegments } from 'expo-router';
 import { Platform, Alert } from 'react-native';
 
 interface UserProfile {
+    _id?: string;
+    id?: string;
     phone_number: string;
     first_name?: string;
     description?: string; // Sometimes used for role in some systems, but let's be explicit
