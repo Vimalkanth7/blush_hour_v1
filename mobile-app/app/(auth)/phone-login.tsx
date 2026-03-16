@@ -39,6 +39,10 @@ export default function PhoneLoginScreen() {
                     placeholder="00000 00000"
                     keyboardType="phone-pad"
                     autoFocus={false}
+                    autoComplete="tel"
+                    blurOnSubmit={false}
+                    showSoftInputOnFocus
+                    textContentType="telephoneNumber"
                     value={phone}
                     onChangeText={(text) => setPhone(text.replace(/[^0-9]/g, ''))}
                     maxLength={10}

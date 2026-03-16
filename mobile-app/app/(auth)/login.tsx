@@ -28,10 +28,15 @@ const normalizePrefillPhone = (value: string | undefined): string => {
 
 const sanitizePhoneInput = (value: string): string => {
     if (!value) return '';
-    if (value.startsWith('+')) {
-        return `+${value.slice(1).replace(/\D/g, '')}`;
+
+    const trimmed = value.trim();
+    const digits = trimmed.replace(/\D/g, '');
+
+    if (!digits) {
+        return trimmed.startsWith('+') ? '+' : '';
     }
-    return value.replace(/\D/g, '');
+
+    return `+${digits}`;
 };
 
 const mapOtpStartError = (error: unknown): string => {
@@ -107,6 +112,7 @@ export default function LoginScreen() {
                 <ScrollView
                     style={{ flex: 1 }}
                     contentContainerStyle={{ paddingBottom: 100 }}
+                    keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}
                 >
                     <TouchableOpacity onPress={handleBack} style={styles.backButton}>
@@ -123,7 +129,11 @@ export default function LoginScreen() {
                             keyboardType="phone-pad"
                             autoFocus={false}
                             autoCapitalize="none"
+                            autoComplete="tel"
                             autoCorrect={false}
+                            blurOnSubmit={false}
+                            showSoftInputOnFocus
+                            textContentType="telephoneNumber"
                             value={phone}
                             onChangeText={(value) => {
                                 setPhone(sanitizePhoneInput(value));

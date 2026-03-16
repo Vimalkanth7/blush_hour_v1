@@ -55,8 +55,7 @@
       ],
       "expo-secure-store",
       "@livekit/react-native-expo-plugin",
-      "@config-plugins/react-native-webrtc",
-      "expo-iap"
+      "@config-plugins/react-native-webrtc"
     ],
     "experiments": {
       "typedRoutes": true,
@@ -67,7 +66,6 @@
       "eas": {
         "projectId": "9d203bce-ed3d-4277-861a-8cb8d217764f"
       }
-    },
-    "owner": "vimalkanth"
+    }
   }
 }
