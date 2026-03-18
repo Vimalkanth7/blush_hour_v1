@@ -1,14 +1,17 @@
 import hashlib
+import os
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any, Optional
 
+from beanie import PydanticObjectId
 from fastapi import HTTPException
 from pymongo import ReturnDocument
 from pymongo.errors import DuplicateKeyError
 
 from app.core.config import settings
+from app.models.chat_night import ChatNightPass
 from app.models.passes import PassCreditLedgerEntry, PassPurchase, UserPassWallet
 from app.models.user import User
 from app.schemas.passes import (
@@ -83,7 +86,12 @@ PLAY_FINALIZATION_STATE_ALREADY_CONSUMED = "already_consumed"
 PLAY_FINALIZATION_STATE_CONSUME_PENDING = "consume_pending"
 
 LEDGER_ENTRY_TYPE_PURCHASE_GRANT = "purchase_grant"
+LEDGER_ENTRY_TYPE_CHAT_NIGHT_ENTRY_SPEND = "chat_night_entry_spend"
+LEDGER_SOURCE_CHAT_NIGHT_ENTRY = "chat_night_entry"
 PURCHASE_GRANT_LOCK_TIMEOUT = timedelta(minutes=5)
+CHAT_NIGHT_ENTRY_SOURCE_FREE_DAILY = "free_daily"
+CHAT_NIGHT_ENTRY_SOURCE_PAID_CREDIT = "paid_credit"
+CHAT_NIGHT_ENTRY_SOURCE_NONE = "none"
 STUB_PURCHASE_TOKEN_REGEX = re.compile(
     r"^stub[:._-](?P<product_id>[a-z0-9_]+)[:._-](?P<suffix>[a-z0-9_-]{6,})$",
     re.IGNORECASE,
@@ -101,8 +109,273 @@ class ValidatedPurchase:
     purchase_completion_time: Optional[str] = None
 
 
+@dataclass
+class ChatNightEntryEntitlement:
+    user_id: str
+    date_ist: str
+    free_passes_total: int
+    free_passes_used: int
+    free_passes_remaining: int
+    paid_pass_credits: int
+    effective_passes_remaining: int
+    next_spend_source: str
+
+
+@dataclass
+class ChatNightEntryConsumption:
+    user_id: str
+    date_ist: str
+    spend_source: str
+    room_id: Optional[str] = None
+    ledger_entry_id: Optional[str] = None
+
+
 def _utcnow() -> datetime:
     return datetime.utcnow()
+
+
+def _normalize_phone_last_10(phone: str) -> str:
+    digits = re.sub(r"\D", "", phone or "")
+    if len(digits) >= 10:
+        return digits[-10:]
+    return digits
+
+
+def _is_chat_night_test_whitelisted(user: User) -> bool:
+    if not user or not user.phone_number:
+        return False
+
+    whitelist_str = os.getenv("CHAT_NIGHT_TEST_USERS", "")
+    if not whitelist_str:
+        return False
+
+    user_norm = _normalize_phone_last_10(user.phone_number)
+    return any(
+        _normalize_phone_last_10(raw_value.strip()) == user_norm
+        for raw_value in whitelist_str.split(",")
+        if raw_value.strip()
+    )
+
+
+def _get_chat_night_default_pass_total(user: User) -> int:
+    total = 0
+
+    if settings.CHAT_NIGHT_TEST_PASSES is not None:
+        total = settings.CHAT_NIGHT_TEST_PASSES
+    elif _is_chat_night_test_whitelisted(user):
+        test_passes = os.getenv("CHAT_NIGHT_TEST_PASSES")
+        if test_passes and test_passes.isdigit():
+            total = int(test_passes)
+
+    if total == 0:
+        total = settings.CHAT_NIGHT_PASS_FEMALE if user.gender == "Woman" else settings.CHAT_NIGHT_PASS_MALE
+
+    return max(int(total), 0)
+
+
+async def get_or_create_chat_night_pass(user: User, date_ist: str) -> ChatNightPass:
+    user_id = str(user.id)
+    daily_pass = await ChatNightPass.find_one(
+        ChatNightPass.user_id == user_id,
+        ChatNightPass.date_ist == date_ist,
+    )
+
+    desired_total = _get_chat_night_default_pass_total(user)
+    if daily_pass is None:
+        daily_pass = ChatNightPass(
+            user_id=user_id,
+            date_ist=date_ist,
+            passes_total=desired_total,
+            passes_used=0,
+        )
+        await daily_pass.insert()
+        return daily_pass
+
+    if daily_pass.passes_total != desired_total:
+        daily_pass.passes_total = desired_total
+        daily_pass.updated_at = _utcnow()
+        await daily_pass.save()
+
+    return daily_pass
+
+
+async def _load_chat_night_user(user_id: str) -> Optional[User]:
+    try:
+        user_object_id = PydanticObjectId(user_id)
+    except Exception:
+        return None
+    try:
+        return await User.get(user_object_id)
+    except Exception:
+        return None
+
+
+async def get_chat_night_entry_entitlement(
+    user: User,
+    date_ist: str,
+) -> ChatNightEntryEntitlement:
+    daily_pass = await get_or_create_chat_night_pass(user, date_ist)
+    free_passes_remaining = max(int(daily_pass.passes_total) - int(daily_pass.passes_used), 0)
+
+    paid_pass_credits = 0
+    if settings.BH_PASSES_ENABLED:
+        wallet = await UserPassWallet.find_one(UserPassWallet.user_id == str(user.id))
+        if wallet is not None:
+            paid_pass_credits = max(int(wallet.paid_pass_credits), 0)
+
+    next_spend_source = CHAT_NIGHT_ENTRY_SOURCE_NONE
+    if free_passes_remaining > 0:
+        next_spend_source = CHAT_NIGHT_ENTRY_SOURCE_FREE_DAILY
+    elif paid_pass_credits > 0:
+        next_spend_source = CHAT_NIGHT_ENTRY_SOURCE_PAID_CREDIT
+
+    return ChatNightEntryEntitlement(
+        user_id=str(user.id),
+        date_ist=date_ist,
+        free_passes_total=int(daily_pass.passes_total),
+        free_passes_used=int(daily_pass.passes_used),
+        free_passes_remaining=free_passes_remaining,
+        paid_pass_credits=paid_pass_credits,
+        effective_passes_remaining=free_passes_remaining + paid_pass_credits,
+        next_spend_source=next_spend_source,
+    )
+
+
+async def get_chat_night_entry_entitlement_by_user_id(
+    user_id: str,
+    date_ist: str,
+    user: Optional[User] = None,
+) -> Optional[ChatNightEntryEntitlement]:
+    target_user = user or await _load_chat_night_user(user_id)
+    if target_user is None:
+        return None
+    return await get_chat_night_entry_entitlement(target_user, date_ist)
+
+
+async def consume_chat_night_entry_entitlement(
+    user: User,
+    date_ist: str,
+    room_id: Optional[str] = None,
+) -> Optional[ChatNightEntryConsumption]:
+    user_id = str(user.id)
+    await get_or_create_chat_night_pass(user, date_ist)
+    now = _utcnow()
+
+    updated_pass = await ChatNightPass.get_pymongo_collection().find_one_and_update(
+        {
+            "user_id": user_id,
+            "date_ist": date_ist,
+            "$expr": {"$lt": ["$passes_used", "$passes_total"]},
+        },
+        {
+            "$inc": {"passes_used": 1},
+            "$set": {"updated_at": now},
+        },
+        return_document=ReturnDocument.AFTER,
+    )
+    if updated_pass is not None:
+        return ChatNightEntryConsumption(
+            user_id=user_id,
+            date_ist=date_ist,
+            spend_source=CHAT_NIGHT_ENTRY_SOURCE_FREE_DAILY,
+            room_id=room_id,
+        )
+
+    if not settings.BH_PASSES_ENABLED:
+        return None
+
+    await get_or_create_user_pass_wallet(user_id)
+    updated_wallet = await UserPassWallet.get_pymongo_collection().find_one_and_update(
+        {"user_id": user_id, "paid_pass_credits": {"$gte": 1}},
+        {"$inc": {"paid_pass_credits": -1}, "$set": {"updated_at": now}},
+        return_document=ReturnDocument.AFTER,
+    )
+    if updated_wallet is None:
+        return None
+
+    wallet = UserPassWallet.model_validate(updated_wallet)
+    ledger_entry = PassCreditLedgerEntry(
+        user_id=user_id,
+        wallet_id=str(wallet.id) if wallet.id is not None else None,
+        entry_type=LEDGER_ENTRY_TYPE_CHAT_NIGHT_ENTRY_SPEND,
+        delta_paid_pass_credits=-1,
+        balance_after=wallet.paid_pass_credits,
+        source=LEDGER_SOURCE_CHAT_NIGHT_ENTRY,
+        source_ref=room_id,
+        note="Chat Night entry spend",
+    )
+    try:
+        await ledger_entry.insert()
+    except Exception as exc:
+        try:
+            await _adjust_user_pass_wallet(user_id, 1)
+        except Exception as rollback_exc:
+            raise HTTPException(
+                status_code=500,
+                detail="Chat Night paid credit spend could not be finalized safely. Manual review is required.",
+            ) from rollback_exc
+        raise HTTPException(status_code=500, detail="Could not record Chat Night paid credit spend.") from exc
+
+    return ChatNightEntryConsumption(
+        user_id=user_id,
+        date_ist=date_ist,
+        spend_source=CHAT_NIGHT_ENTRY_SOURCE_PAID_CREDIT,
+        room_id=room_id,
+        ledger_entry_id=str(ledger_entry.id) if ledger_entry.id is not None else None,
+    )
+
+
+async def rollback_chat_night_entry_consumption(consumption: Optional[ChatNightEntryConsumption]) -> None:
+    if consumption is None:
+        return
+
+    if consumption.spend_source == CHAT_NIGHT_ENTRY_SOURCE_FREE_DAILY:
+        await ChatNightPass.get_pymongo_collection().find_one_and_update(
+            {
+                "user_id": consumption.user_id,
+                "date_ist": consumption.date_ist,
+                "passes_used": {"$gte": 1},
+            },
+            {
+                "$inc": {"passes_used": -1},
+                "$set": {"updated_at": _utcnow()},
+            },
+            return_document=ReturnDocument.AFTER,
+        )
+        return
+
+    if consumption.spend_source != CHAT_NIGHT_ENTRY_SOURCE_PAID_CREDIT:
+        return
+
+    ledger_entry = None
+    if consumption.ledger_entry_id:
+        try:
+            ledger_entry = await PassCreditLedgerEntry.get(PydanticObjectId(consumption.ledger_entry_id))
+        except Exception:
+            ledger_entry = None
+
+    if ledger_entry is None and consumption.room_id:
+        ledger_entry = await PassCreditLedgerEntry.find_one(
+            PassCreditLedgerEntry.user_id == consumption.user_id,
+            PassCreditLedgerEntry.source == LEDGER_SOURCE_CHAT_NIGHT_ENTRY,
+            PassCreditLedgerEntry.source_ref == consumption.room_id,
+        )
+
+    await _adjust_user_pass_wallet(consumption.user_id, 1)
+    if ledger_entry is None:
+        return
+
+    try:
+        await ledger_entry.delete()
+    except Exception as exc:
+        try:
+            await _adjust_user_pass_wallet(consumption.user_id, -1)
+        except Exception as rollback_exc:
+            raise HTTPException(
+                status_code=500,
+                detail="Chat Night paid credit rollback could not be finalized safely. Manual review is required.",
+            ) from rollback_exc
+        raise HTTPException(status_code=500, detail="Could not rollback Chat Night paid credit ledger.") from exc
 
 
 def ensure_passes_enabled() -> None:

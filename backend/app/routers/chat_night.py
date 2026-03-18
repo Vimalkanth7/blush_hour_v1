@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Body
 from app.models.user import User
-from app.models.chat_night import ChatNightPass, ChatNightRoom, MatchUnlocked, ChatNightIcebreakers
+from app.models.chat_night import ChatNightRoom, MatchUnlocked, ChatNightIcebreakers
 from app.models.chat import ChatThread
 from app.models.safety import UserBlock
 from app.schemas.chat_night import (
@@ -26,6 +26,13 @@ from app.services.ai_icebreakers import (
     fallback_icebreakers_response,
     generate_icebreakers,
 )
+from app.services.passes import (
+    CHAT_NIGHT_ENTRY_SOURCE_NONE,
+    consume_chat_night_entry_entitlement,
+    get_chat_night_entry_entitlement,
+    get_chat_night_entry_entitlement_by_user_id,
+    rollback_chat_night_entry_consumption,
+)
 from app.core.config import settings
 
 router = APIRouter()
@@ -41,6 +48,7 @@ men_queue = []
 women_queue = []
 queue_wait_since: Dict[str, datetime] = {}
 LIVE_ROOM_STATES = {"active", "engaged"}
+CHAT_NIGHT_NO_ENTITLEMENT_DETAIL = "No Chat Night passes remaining"
 
 # --- Helpers ---
 
@@ -284,6 +292,17 @@ async def enforce_room_not_blocked(room: ChatNightRoom, detail: str) -> None:
         await room.save()
     raise HTTPException(status_code=403, detail=detail)
 
+
+def remove_user_from_queue(queue: List[str], user_id: str) -> None:
+    while user_id in queue:
+        queue.remove(user_id)
+
+
+def remove_user_from_all_queues(user_id: str) -> None:
+    remove_user_from_queue(men_queue, user_id)
+    remove_user_from_queue(women_queue, user_id)
+    queue_wait_since.pop(user_id, None)
+
 # NOTE: Keeping is_whitelisted_for_testing for legacy individual whitelist support if needed,
 # but new settings apply globally or complement it.
 
@@ -334,160 +353,166 @@ def get_chat_window_status(user: User = None):
         
     return is_open, today_ist_str, sec_open, sec_close
 
-async def get_or_create_pass(user: User, date_ist: str) -> ChatNightPass:
-    p = await ChatNightPass.find_one(ChatNightPass.user_id == str(user.id), ChatNightPass.date_ist == date_ist)
-    if not p:
-        total = 0
-        
-        # Priority 1: Global Test Passes (Env)
-        if settings.CHAT_NIGHT_TEST_PASSES is not None:
-             total = settings.CHAT_NIGHT_TEST_PASSES
-        
-        # Priority 2: Whitelist (Legacy)
-        elif is_whitelisted_for_testing(user):
-             test_passes = os.getenv("CHAT_NIGHT_TEST_PASSES")
-             if test_passes and test_passes.isdigit():
-                 total = int(test_passes)
-        
-        # Priority 3: Standard Defaults
-        if total == 0:
-             total = settings.CHAT_NIGHT_PASS_FEMALE if user.gender == "Woman" else settings.CHAT_NIGHT_PASS_MALE
-             
-        p = ChatNightPass(
-            user_id=str(user.id),
-            date_ist=date_ist,
-            passes_total=total,
-            passes_used=0
-        )
-        await p.insert()
-        
-    # ALWAYS Force Override (In-Memory) for Global Test Mode
-    # This allows changing env var to immediately affect existing passes
-    if settings.CHAT_NIGHT_TEST_PASSES is not None:
-         p.passes_total = settings.CHAT_NIGHT_TEST_PASSES
-         # We don't reset passes_used here to preserve usage history, 
-         # unless we want to reset daily? Requirement says "effectively have 100 passes". 
-         # If existing user used 2/2, and we set 100, they have 98 left. Good.
-         
-    # Legacy Whitelist override
-    elif is_whitelisted_for_testing(user):
-        test_passes = os.getenv("CHAT_NIGHT_TEST_PASSES")
-        if test_passes and test_passes.isdigit():
-             p.passes_total = int(test_passes)
-
-    return p
-
 # --- Logic: Room Creation ---
-async def try_match_and_create_room(user_id: str, gender: str, date_ist: str):
+async def try_match_and_create_room(current_user: User, date_ist: str):
     # Based on gender, look at OPPOSITE queue
-    # FIFO: Pop index 0
-    
+    # FIFO fallback: pick the longest-waiting eligible opposite-side user.
+
+    user_id = str(current_user.id)
+    gender = current_user.gender or "Man"
     partner_id: Optional[str] = None
+    partner_user: Optional[User] = None
+    partner_queue_index: Optional[int] = None
     match_algo = "fifo"
     score: Optional[int] = None
     reason_tags: Optional[List[str]] = None
     wait_seconds: Optional[int] = None
     wait_boost: Optional[int] = None
-    
+
     opposite_queue = men_queue if gender == "Woman" else women_queue
-    
+
     if len(opposite_queue) == 0:
         return None, None
 
     cooldown_set = await get_recent_partner_ids(user_id, pair_cooldown_minutes())
     blocked_pair_user_ids = await get_blocked_pair_user_ids(user_id)
     selection_now = get_now_utc()
-    
+
+    def restore_partner_to_queue() -> None:
+        if partner_id is None or partner_queue_index is None or partner_id in opposite_queue:
+            return
+        insert_index = min(max(partner_queue_index, 0), len(opposite_queue))
+        opposite_queue.insert(insert_index, partner_id)
+
     if v5_enabled():
-        current_user_obj: Optional[User] = None
-        try:
-            current_user_obj = await User.get(PydanticObjectId(user_id))
-        except Exception:
-            current_user_obj = None
-            
-        if current_user_obj:
-            max_candidates = v5_max_candidates()
-            candidates = await load_users_from_ids(opposite_queue, max_candidates)
-            eligible_candidates = [
-                candidate for candidate in candidates
-                if str(candidate.id) != user_id and str(candidate.id) not in cooldown_set
-                and str(candidate.id) not in blocked_pair_user_ids
-            ]
-            if eligible_candidates:
-                min_score = v5_min_score()
-                ranked = rank_candidates(current_user_obj, eligible_candidates, now=selection_now, limit=max_candidates)
-                best = None
-                best_effective = -1
-                best_wait_seconds = -1
-                best_wait_boost = 0
-                for item in ranked:
-                    base_score = int(item.get("score", 0))
-                    if base_score < min_score:
-                        continue
-                    candidate_obj = item.get("candidate")
-                    if not candidate_obj:
-                        continue
-                    candidate_id = str(candidate_obj.id)
-                    if candidate_id == user_id:
-                        continue
-                    candidate_wait_seconds = get_wait_seconds(candidate_id, selection_now)
-                    candidate_boost = compute_wait_boost(candidate_wait_seconds)
-                    effective_score = min(100, base_score + candidate_boost)
-                    if (
-                        effective_score > best_effective
-                        or (effective_score == best_effective and candidate_wait_seconds > best_wait_seconds)
-                    ):
-                        best = item
-                        best_effective = effective_score
-                        best_wait_seconds = candidate_wait_seconds
-                        best_wait_boost = candidate_boost
-                if best:
-                    candidate_obj = best.get("candidate")
-                    if candidate_obj:
-                        candidate_id = str(candidate_obj.id)
-                        if candidate_id != user_id:
-                            try:
-                                opposite_queue.remove(candidate_id)
-                                partner_id = candidate_id
-                                match_algo = "v5"
-                                score = int(best.get("score", 0))
-                                reason_tags = best.get("reason_tags") or []
-                                wait_seconds = best_wait_seconds
-                                wait_boost = best_wait_boost
-                            except ValueError:
-                                partner_id = None
-    
-    if partner_id is None:
-        if len(opposite_queue) > 0:
-            max_scan = v5_max_candidates()
-            selected_index = None
-            selected_wait_seconds = -1
-            for idx, cid in enumerate(opposite_queue[:max_scan]):
-                if cid == user_id or cid in cooldown_set or cid in blocked_pair_user_ids:
+        max_candidates = v5_max_candidates()
+        candidates = await load_users_from_ids(opposite_queue, max_candidates)
+        eligible_candidates = [
+            candidate for candidate in candidates
+            if str(candidate.id) != user_id
+            and str(candidate.id) not in cooldown_set
+            and str(candidate.id) not in blocked_pair_user_ids
+        ]
+        if eligible_candidates:
+            min_score = v5_min_score()
+            ranked = rank_candidates(current_user, eligible_candidates, now=selection_now, limit=max_candidates)
+            for item in ranked:
+                base_score = int(item.get("score", 0))
+                if base_score < min_score:
                     continue
-                candidate_wait_seconds = get_wait_seconds(cid, selection_now)
-                if candidate_wait_seconds > selected_wait_seconds:
-                    selected_index = idx
-                    selected_wait_seconds = candidate_wait_seconds
-            if selected_index is not None:
-                partner_id = opposite_queue.pop(selected_index)
+
+                candidate_obj = item.get("candidate")
+                if not candidate_obj:
+                    continue
+
+                candidate_id = str(candidate_obj.id)
+                if candidate_id == user_id:
+                    continue
+
+                candidate_entitlement = await get_chat_night_entry_entitlement(candidate_obj, date_ist)
+                if candidate_entitlement.next_spend_source == CHAT_NIGHT_ENTRY_SOURCE_NONE:
+                    remove_user_from_queue(opposite_queue, candidate_id)
+                    queue_wait_since.pop(candidate_id, None)
+                    continue
+
+                candidate_wait_seconds = get_wait_seconds(candidate_id, selection_now)
+                candidate_boost = compute_wait_boost(candidate_wait_seconds)
+                try:
+                    partner_queue_index = opposite_queue.index(candidate_id)
+                except ValueError:
+                    continue
+
+                opposite_queue.pop(partner_queue_index)
+                partner_id = candidate_id
+                partner_user = candidate_obj
+                match_algo = "v5"
+                score = base_score
+                reason_tags = item.get("reason_tags") or []
+                wait_seconds = candidate_wait_seconds
+                wait_boost = candidate_boost
+                break
+
+    if partner_id is None:
+        max_scan = v5_max_candidates()
+        selected_candidate_id: Optional[str] = None
+        selected_wait_seconds = -1
+        for cid in list(opposite_queue[:max_scan]):
+            if cid == user_id or cid in cooldown_set or cid in blocked_pair_user_ids:
+                continue
+
+            candidate_entitlement = await get_chat_night_entry_entitlement_by_user_id(cid, date_ist)
+            if candidate_entitlement is None or candidate_entitlement.next_spend_source == CHAT_NIGHT_ENTRY_SOURCE_NONE:
+                remove_user_from_queue(opposite_queue, cid)
+                queue_wait_since.pop(cid, None)
+                continue
+
+            candidate_wait_seconds = get_wait_seconds(cid, selection_now)
+            if candidate_wait_seconds > selected_wait_seconds:
+                selected_candidate_id = cid
+                selected_wait_seconds = candidate_wait_seconds
+
+        if selected_candidate_id is not None:
+            try:
+                partner_queue_index = opposite_queue.index(selected_candidate_id)
+            except ValueError:
+                selected_candidate_id = None
+            else:
+                partner_id = opposite_queue.pop(partner_queue_index)
                 wait_seconds = selected_wait_seconds
                 wait_boost = compute_wait_boost(wait_seconds)
-            
+
     if partner_id:
-        queue_wait_since.pop(user_id, None)
-        queue_wait_since.pop(partner_id, None)
-        # Create Room
+        current_consumption = None
+        partner_consumption = None
+        room_id = str(uuid.uuid4())
+
+        if partner_user is None:
+            partner_oid = _to_object_id(partner_id)
+            if partner_oid is not None:
+                try:
+                    partner_user = await User.get(partner_oid)
+                except Exception:
+                    partner_user = None
+        if partner_user is None:
+            remove_user_from_all_queues(partner_id)
+            return None, None
+
+        current_consumption = await consume_chat_night_entry_entitlement(current_user, date_ist, room_id=room_id)
+        if current_consumption is None:
+            restore_partner_to_queue()
+            return None, None
+
+        try:
+            partner_consumption = await consume_chat_night_entry_entitlement(partner_user, date_ist, room_id=room_id)
+        except Exception:
+            await rollback_chat_night_entry_consumption(current_consumption)
+            restore_partner_to_queue()
+            raise
+
+        if partner_consumption is None:
+            await rollback_chat_night_entry_consumption(current_consumption)
+            remove_user_from_all_queues(partner_id)
+            return None, None
+
         now = get_now_utc()
         room = ChatNightRoom(
-            room_id=str(uuid.uuid4()),
+            room_id=room_id,
             male_user_id=user_id if gender != "Woman" else partner_id,
             female_user_id=user_id if gender == "Woman" else partner_id,
             starts_at=now,
             ends_at=now + timedelta(minutes=ROOM_DURATION_MINUTES),
             state="active"
         )
-        await room.insert()
+        try:
+            await room.insert()
+        except Exception:
+            await rollback_chat_night_entry_consumption(partner_consumption)
+            await rollback_chat_night_entry_consumption(current_consumption)
+            restore_partner_to_queue()
+            raise
+
+        queue_wait_since.pop(user_id, None)
+        queue_wait_since.pop(partner_id, None)
         
         # Log Match
         match_meta = {
@@ -507,23 +532,7 @@ async def try_match_and_create_room(user_id: str, gender: str, date_ist: str):
                 **match_meta,
             },
         )
-        
-        # CONSUME PASSES for BOTH
-        # We need to find pass doc for partner too
-        # Caller pass is handled by caller wrapper but safer to do both here atomically-ish
-        
-        # Update User A Pass
-        pass_a = await ChatNightPass.find_one(ChatNightPass.user_id == user_id, ChatNightPass.date_ist == date_ist)
-        if pass_a: 
-            pass_a.passes_used += 1
-            await pass_a.save()
-            
-        # Update User B Pass
-        pass_b = await ChatNightPass.find_one(ChatNightPass.user_id == partner_id, ChatNightPass.date_ist == date_ist)
-        if pass_b:
-            pass_b.passes_used += 1
-            await pass_b.save()
-            
+
         return room, match_meta
     
     return None, None
@@ -569,8 +578,7 @@ async def get_status(current_user: User = Depends(get_current_user)):
             status = "gated"
             gate_detail = f"Complete your profile ({min_score}% required) to use Chat Night"
     
-    # Get Pass Info
-    p = await get_or_create_pass(current_user, date_ist)
+    entitlement = await get_chat_night_entry_entitlement(current_user, date_ist)
     
     # Get Active Room?
     active_room = await find_active_room_for_user(str(current_user.id))
@@ -590,12 +598,15 @@ async def get_status(current_user: User = Depends(get_current_user)):
         date_ist=date_ist,
         seconds_until_open=sec_open,
         seconds_until_close=sec_close,
-        passes_total=p.passes_total,
-        passes_used=p.passes_used,
-        passes_remaining=p.passes_total - p.passes_used,
-        passes_remaining_today=p.passes_total - p.passes_used,
-        passes_used_today=p.passes_used,
-        passes_total_today=p.passes_total,
+        passes_total=entitlement.free_passes_total,
+        passes_used=entitlement.free_passes_used,
+        passes_remaining=entitlement.free_passes_remaining,
+        passes_remaining_today=entitlement.free_passes_remaining,
+        passes_used_today=entitlement.free_passes_used,
+        passes_total_today=entitlement.free_passes_total,
+        paid_pass_credits=entitlement.paid_pass_credits,
+        effective_passes_remaining=entitlement.effective_passes_remaining,
+        next_spend_source=entitlement.next_spend_source,
         active_room_id=active_room.room_id if active_room else None,
         queue_status=q_status
     )
@@ -637,15 +648,15 @@ async def enter_pool(request: Request, current_user: User = Depends(get_current_
             queue_wait_since[uid] = get_now_utc()
         return {"status": "queued"}
         
-    # 3. Check Pass Availability
-    p = await get_or_create_pass(current_user, date_ist)
-    if p.passes_used >= p.passes_total:
-        raise HTTPException(status_code=403, detail="No passes remaining")
+    # 3. Check Entry Availability
+    entitlement = await get_chat_night_entry_entitlement(current_user, date_ist)
+    if entitlement.next_spend_source == CHAT_NIGHT_ENTRY_SOURCE_NONE:
+        raise HTTPException(status_code=403, detail=CHAT_NIGHT_NO_ENTITLEMENT_DETAIL)
         
     # 4. Attempt Match (Consumes pass if successful)
     gender = current_user.gender or "Man" # Fallback
     
-    room, match_meta = await try_match_and_create_room(uid, gender, date_ist)
+    room, match_meta = await try_match_and_create_room(current_user, date_ist)
     
     if room:
         response = {"status": "match_found", "room_id": room.room_id}
@@ -659,6 +670,9 @@ async def enter_pool(request: Request, current_user: User = Depends(get_current_
             }
         return response
     else:
+        entitlement = await get_chat_night_entry_entitlement(current_user, date_ist)
+        if entitlement.next_spend_source == CHAT_NIGHT_ENTRY_SOURCE_NONE:
+            raise HTTPException(status_code=403, detail=CHAT_NIGHT_NO_ENTITLEMENT_DETAIL)
         # Enqueue
         now = get_now_utc()
         if gender == "Woman":
