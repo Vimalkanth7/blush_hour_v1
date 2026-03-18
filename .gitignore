@@ -13,3 +13,5 @@ node_modules/
 mobile-app/*.apk
 
 .env
+mobile-app/.env
+*.aab
