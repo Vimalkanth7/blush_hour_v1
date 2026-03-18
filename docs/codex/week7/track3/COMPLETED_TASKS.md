@@ -1,5 +1,57 @@
 # Week 7 - Track 3 Completed Tasks
 
+## W7-T3-F - Chat Night pass consumption
+Status: DONE  
+Date: 2026-03-18  
+Branch: `feat/backend-w7-t3f-chat-night-pass-consumption`  
+Feature commit: `6ba556e`  
+Merge commit: `973d402`  
+Scope: backend only
+
+What shipped:
+- Added backend Chat Night pass consumption that spends free daily passes first and falls back to paid credits only after free passes are exhausted.
+- Shipped backend files:
+  - `backend/app/routers/chat_night.py`
+  - `backend/app/services/passes.py`
+  - `backend/app/schemas/chat_night.py`
+  - `backend/verify_chat_night_pass_consumption_contract.ps1`
+- Shipped and verified the required Chat Night spend behavior:
+  - free-first pass spend
+  - paid-fallback spend
+  - ledger writes for paid fallback
+  - no-entitlement rejection
+  - match-side correctness
+  - idempotent retry proof
+- Rejected Chat Night entry with controlled `403` once both free daily passes and paid credits were exhausted.
+- Wrote `chat_night_entry` ledger rows for paid-fallback spends without altering exhausted free counters.
+- Preserved match-side correctness by skipping queued zero-entitlement users during room formation.
+
+How verified:
+- `PARSE_OK`
+- `PASS: Free-first proof: ...`
+- `PASS: Paid-fallback proof: ...`
+- `PASS: Ledger proof: ...`
+- `PASS: No-entitlement rejection proof: ...`
+- `PASS: Match-side correctness proof: ...`
+- `PASS: chat night pass consumption contract verified.`
+- Idempotent retry proof recorded from the paid-fallback verifier:
+  - repeated `/api/chat-night/enter` returned `active_room`
+  - the room id stayed stable
+  - wallet balance and ledger row counts stayed unchanged on retry
+- Regression guards:
+  - `PASS: passes contract verified (enabled mode).`
+  - `PASS: profile_strength contract verified.`
+  - `PASS: chat night icebreakers contract verified (W6-B3)`
+  - `PASS: talk room engage sync verified.`
+  - `PASS: safety/admin contract verifier completed (enabled mode).`
+
+Notes / follow-ups:
+- `W7-T3-E` frontend Android billing code is merged to `main` via `fb54123`, but real Google Play end-to-end billing verification is still externally blocked.
+- External blocker: Google Play Console identity/payments verification pending.
+- Track 3 remains in progress until real T3-E billing proof is completed and the remaining closeout items are resolved.
+- `Resume W7-T3-E real Play billing verification after Google approval` is the next active item.
+- `W7-T3-G` remains not started and pending final Track 3 closure sequencing.
+
 ## W7-T3-D - Backend Google Play purchase validation
 Status: DONE  
 Date: 2026-03-15  
@@ -49,6 +101,48 @@ Notes / follow-ups:
 - Real end-to-end Google test purchase validation is still pending and must be exercised with valid Play credentials plus a real test purchase token.
 - `W7-T3-E - Android billing integration` is now the next active item.
 - RTDN, refund/revocation handling, and Chat Night pass consumption remain later Track 3 work.
+
+## W7-T3-C - Frontend passes shell
+Status: DONE  
+Date: 2026-03-15  
+Branch: `feat/frontend-w7-t3c-passes-shell`  
+Scope: frontend only
+
+What shipped:
+- Added the first visible Passes screen and frontend passes API helpers:
+  - `mobile-app/app/passes.tsx`
+  - `mobile-app/constants/Api.ts`
+- Added one profile entry point into the new Passes screen:
+  - `mobile-app/app/(tabs)/profile.tsx`
+- Shipped the frontend shell against the completed backend foundation endpoints:
+  - `GET /api/passes/catalog`
+  - `GET /api/passes/me`
+- Rendered the paid wallet balance clearly and kept free daily passes explicitly separate from paid credits.
+- Rendered the 3 active backend products and kept purchase actions as placeholder-only disabled CTAs.
+- Added clean loading, disabled, empty, missing-wallet, and network error handling without adding any fake purchase success flow.
+
+How verified:
+- Frontend runtime:
+  - `cd mobile-app`
+  - `npm install`
+  - `npm run web -- --port 8082 --non-interactive`
+- Backend runtime used for frontend verification:
+  - `BH_PASSES_ENABLED=true`
+  - `BH_PASSES_PROVIDER_MODE=stub`
+- Verified behavior:
+  - wallet rendered
+  - 3 products rendered
+  - disabled state works when passes are off
+  - placeholder CTA only (`Coming soon`)
+  - profile entry-point navigation works
+- Verified runtime summary:
+  - `health`: `{"status":"healthy","database":"connected"}`
+  - authenticated passes check: `product_count=3`, `provider_mode=stub`, `platform=android`, `paid_pass_credits=0`, `wallet_present=true`
+
+Notes / follow-ups:
+- Repo-wide `npm run lint` and `npx tsc --noEmit` remain noisy due to unrelated pre-existing issues outside `W7-T3-C`.
+- Google Play purchase validation remains unimplemented and is the next active backend packet.
+- Android billing launch flow, paid-credit spend enforcement, out-of-passes UX, and extension work remain later Track 3 items.
 
 ## W7-T3-A / W7-T3-DOCS - Track 3 planning and docs init
 Status: DONE  

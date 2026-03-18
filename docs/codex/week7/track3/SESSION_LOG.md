@@ -9,6 +9,117 @@
 - Risks or follow-ups
 
 ## Entries
+## 2026-03-18 - W7-T3-F closeout recorded and Track 3 merged state reconciled
+What changed:
+- Updated Track 3 docs only:
+  - `docs/codex/week7/track3/PENDING_TASKS.md`
+  - `docs/codex/week7/track3/COMPLETED_TASKS.md`
+  - `docs/codex/week7/track3/SESSION_LOG.md`
+  - `docs/codex/week7/track3/PLAN.md`
+- Marked `W7-T3-F = DONE`.
+- Recorded the shipped backend files for Chat Night pass consumption:
+  - `backend/app/routers/chat_night.py`
+  - `backend/app/services/passes.py`
+  - `backend/app/schemas/chat_night.py`
+  - `backend/verify_chat_night_pass_consumption_contract.ps1`
+- Recorded the exact merged `W7-T3-F` commits:
+  - feature commit `6ba556e`
+  - merge commit `973d402`
+- Recorded the verified `W7-T3-F` behavior:
+  - free-first pass spend
+  - paid-fallback spend
+  - ledger writes for paid fallback
+  - no-entitlement rejection
+  - match-side correctness
+  - idempotent retry proof
+- Reconciled stale Track 3 docs so merged `W7-T3-C` is no longer shown as pending.
+- Preserved the real `W7-T3-E` merged state on `main`:
+  - code merged via `fb54123`
+  - real Google Play end-to-end billing verification is still externally blocked
+- Moved the next active item to `Resume W7-T3-E real Play billing verification after Google approval`.
+
+Decisions:
+- Kept Track 3 in progress because the real Google Play billing proof for `W7-T3-E` has not been completed yet.
+- Recorded `W7-T3-E` honestly as merged to `main` but still blocked on external verification, instead of marking it fully done.
+- Left `W7-T3-G` not started and pending final Track 3 closure sequencing.
+- Carried forward the existing `W7-T3-C` docs closeout state so the pending list matches the actual merged code state on `main`.
+
+How verified:
+- Source packet evidence recorded into docs:
+  - `PARSE_OK`
+  - `PASS: Free-first proof: ...`
+  - `PASS: Paid-fallback proof: ...`
+  - `PASS: Ledger proof: ...`
+  - `PASS: No-entitlement rejection proof: ...`
+  - `PASS: Match-side correctness proof: ...`
+  - `PASS: chat night pass consumption contract verified.`
+  - `PASS: passes contract verified (enabled mode).`
+  - `PASS: profile_strength contract verified.`
+  - `PASS: chat night icebreakers contract verified (W6-B3)`
+  - `PASS: talk room engage sync verified.`
+  - `PASS: safety/admin contract verifier completed (enabled mode).`
+- Merged-state verification from `main`:
+  - `fb54123` = `W7-T3-E` merged to `main`
+  - `973d402` = `W7-T3-F` merged to `main`
+- Docs-only verification:
+  - `git diff --name-only`
+  - `git status`
+  - `git diff --name-only -- docs/codex/week7/track3`
+
+PR or branch refs:
+- Working branch: `chore/docs-week7-track3-t3f-closeout`
+
+Risks or follow-ups:
+- Real Google Play billing verification remains externally blocked until Google Play Console identity/payments verification is approved.
+- `Resume W7-T3-E real Play billing verification after Google approval` is the next active item.
+- Track 3 must not be marked fully done until the real billing proof and remaining closure work are complete.
+
+## 2026-03-15 - W7-T3-C recorded complete
+What changed:
+- Closed out the frontend passes shell in Track 3 docs.
+- Recorded the shipped frontend files:
+  - `mobile-app/app/passes.tsx`
+  - `mobile-app/constants/Api.ts`
+  - `mobile-app/app/(tabs)/profile.tsx`
+- Captured the shipped frontend behavior:
+  - wallet rendered
+  - 3 products rendered
+  - disabled state works
+  - placeholder CTA only
+- Updated the Track 3 pending list so `W7-T3-D - Backend Google Play purchase validation` is now the next active item.
+
+Decisions:
+- Kept `W7-T3-C` documented as a frontend shell only with no real Google Play billing flow.
+- Preserved the wallet rules already locked in Track 3:
+  - free daily passes remain separate
+  - free passes are consumed first
+  - paid credits are consumed second
+- Carried forward repo-wide lint and TypeScript noise as an existing repo issue, not a blocker specific to the shipped passes shell.
+
+How verified:
+- Frontend verification commands recorded from the source packet:
+  - `cd mobile-app`
+  - `npm install`
+  - `npm run web -- --port 8082 --non-interactive`
+- Backend runtime flags used during frontend verification:
+  - `BH_PASSES_ENABLED=true`
+  - `BH_PASSES_PROVIDER_MODE=stub`
+- Verified runtime summary recorded from the packet:
+  - `health`: `{"status":"healthy","database":"connected"}`
+  - authenticated passes check: `product_count=3`, `provider_mode=stub`, `platform=android`, `paid_pass_credits=0`, `wallet_present=true`
+- Verified UI behavior recorded from the packet:
+  - wallet section rendered
+  - catalog section rendered with 3 products
+  - disabled state rendered cleanly when passes were off
+  - no fake purchase success flow was added
+
+PR or branch refs:
+- Source implementation branch: `feat/frontend-w7-t3c-passes-shell`
+
+Risks or follow-ups:
+- Repo-wide `npm run lint` and `npx tsc --noEmit` still report unrelated pre-existing issues outside the `W7-T3-C` scope.
+- `W7-T3-D - Backend Google Play purchase validation` is now the next active implementation packet.
+
 ## 2026-03-15 - W7-T3-D closeout recorded complete
 What changed:
 - Updated Track 3 docs only:

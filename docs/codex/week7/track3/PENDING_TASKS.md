@@ -7,12 +7,19 @@ Plan: `docs/codex/week7/track3/PLAN.md`
 
 ## Status
 - Track 3: IN PROGRESS
+- Track 3 cannot close yet because real `W7-T3-E` Google Play billing proof is still externally blocked.
 - Closed out in docs:
   - `W7-T3-A / W7-T3-DOCS` - DONE
   - `W7-T3-B` - DONE
+  - `W7-T3-C` - DONE
   - `W7-T3-D` - DONE
+  - `W7-T3-F` - DONE
+- Merged to `main`, but not fully closed in docs:
+  - `W7-T3-E` - Android billing integration merged via `fb54123`; real Play verification still blocked
 - Next active item:
-  - `W7-T3-E - Android billing integration`
+  - `Resume W7-T3-E real Play billing verification after Google approval`
+- External blocker:
+  - Google Play Console identity/payments verification pending
 
 ## Locked Decisions
 - Android-first / Google Play Billing for paid passes.
@@ -23,22 +30,19 @@ Plan: `docs/codex/week7/track3/PLAN.md`
   - consume paid credits second
 - Extension is phase 2 only.
 - Backend Google Play purchase validation is shipped.
-- Real end-to-end Google test purchase validation is still pending.
+- Frontend Android billing integration code is merged to `main` via `fb54123`.
+- Real end-to-end Google Play billing verification is still externally blocked pending Google Play Console identity/payments verification.
 - Subscriptions are out of scope for v1.
 
 ## Remaining Tasks
-- [ ] `W7-T3-E` - Android billing integration
-  - Scope: frontend only
-  - Goal: launch Google Play Billing purchase flows and hand validated purchase data to the backend
-- [ ] `W7-T3-C` - Frontend passes shell
-  - Scope: frontend only
-  - Goal: expose a passes screen and wallet state using `GET /api/passes/catalog` and `GET /api/passes/me`
-- [ ] `W7-T3-F` - Chat Night pass consumption
-  - Scope: backend only
-  - Goal: enforce free passes first and paid credits second through backend wallet rules
+- [ ] `W7-T3-E` - Resume real Play billing verification
+  - Scope: frontend verification / external unblock
+  - Goal: complete a real Google Play test purchase end-to-end against the merged Android billing code on `main`
+  - Blocker: Google Play Console identity/payments verification pending
 - [ ] `W7-T3-G` - Out-of-passes UX
   - Scope: frontend only
   - Goal: show clear wallet state and respectful purchase prompts when free and paid balances are exhausted
+  - Status: not started; keep pending until the real T3-E billing proof is completed
 - [ ] `W7-T3-H` - QA passes verifier
   - Scope: QA only
   - Goal: verify purchase validation, wallet grants, idempotency, and consumption order
