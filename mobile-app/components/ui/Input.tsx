@@ -1,5 +1,5 @@
-﻿import React, { useState } from 'react';
-import { Platform, StyleProp, StyleSheet, TextInput, TextInputProps, View, ViewStyle } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { Platform, Pressable, StyleProp, StyleSheet, TextInput, TextInputProps, View, ViewStyle } from 'react-native';
 import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../../constants/Theme';
 
 interface InputProps extends TextInputProps {
@@ -13,11 +13,16 @@ export function Input({
     leftSlot,
     rightSlot,
     style,
+    autoFocus = false,
+    blurOnSubmit = false,
+    editable = true,
+    showSoftInputOnFocus = true,
     onFocus,
     onBlur,
     ...props
 }: InputProps) {
     const [focused, setFocused] = useState(false);
+    const inputRef = useRef<TextInput>(null);
 
     const handleFocus = (event: any) => {
         setFocused(true);
@@ -27,6 +32,14 @@ export function Input({
     const handleBlur = (event: any) => {
         setFocused(false);
         onBlur?.(event);
+    };
+
+    const handlePress = () => {
+        if (!editable) {
+            return;
+        }
+
+        inputRef.current?.focus();
     };
 
     const webRingStyle = Platform.OS === 'web'
@@ -40,7 +53,9 @@ export function Input({
         };
 
     return (
-        <View
+        <Pressable
+            accessible={false}
+            onPress={handlePress}
             style={[
                 styles.container,
                 focused && styles.containerFocused,
@@ -50,14 +65,21 @@ export function Input({
         >
             {leftSlot ? <View style={styles.slotLeft}>{leftSlot}</View> : null}
             <TextInput
+                ref={inputRef}
                 {...props}
+                autoFocus={autoFocus}
+                blurOnSubmit={blurOnSubmit}
+                disableFullscreenUI={Platform.OS === 'android'}
+                editable={editable}
                 onFocus={handleFocus}
                 onBlur={handleBlur}
+                showSoftInputOnFocus={showSoftInputOnFocus}
                 style={[styles.input, style]}
                 placeholderTextColor={props.placeholderTextColor || COLORS.disabledText}
+                underlineColorAndroid="transparent"
             />
             {rightSlot ? <View style={styles.slotRight}>{rightSlot}</View> : null}
-        </View>
+        </Pressable>
     );
 }
 

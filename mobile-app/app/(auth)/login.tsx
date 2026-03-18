@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, KeyboardAvoidingView } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,10 +28,15 @@ const normalizePrefillPhone = (value: string | undefined): string => {
 
 const sanitizePhoneInput = (value: string): string => {
     if (!value) return '';
-    if (value.startsWith('+')) {
-        return `+${value.slice(1).replace(/\D/g, '')}`;
+
+    const trimmed = value.trim();
+    const digits = trimmed.replace(/\D/g, '');
+
+    if (!digits) {
+        return trimmed.startsWith('+') ? '+' : '';
     }
-    return value.replace(/\D/g, '');
+
+    return `+${digits}`;
 };
 
 const mapOtpStartError = (error: unknown): string => {
@@ -103,51 +108,58 @@ export default function LoginScreen() {
                 <Text style={styles.debugText}>API: {API_BASE_URL}</Text>
             </View>
 
-            <ScrollView
-                style={{ flex: 1 }}
-                contentContainerStyle={{ paddingBottom: 100 }}
-                showsVerticalScrollIndicator={false}
-            >
-                <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-                    <Ionicons name="arrow-back" size={24} color={COLORS.primaryText} />
-                </TouchableOpacity>
+            <KeyboardAvoidingView style={styles.keyboardAvoidingView} behavior="height">
+                <ScrollView
+                    style={{ flex: 1 }}
+                    contentContainerStyle={{ paddingBottom: 100 }}
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
+                >
+                    <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+                        <Ionicons name="arrow-back" size={24} color={COLORS.primaryText} />
+                    </TouchableOpacity>
 
-                <Text style={styles.title}>Log in with OTP</Text>
-                <Text style={styles.subtitle}>Enter your phone number in international format.</Text>
+                    <Text style={styles.title}>Log in with OTP</Text>
+                    <Text style={styles.subtitle}>Enter your phone number in international format.</Text>
 
-                <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Phone Number</Text>
-                    <Input
-                        placeholder="+14155550123"
-                        keyboardType="phone-pad"
-                        autoFocus
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                        value={phone}
-                        onChangeText={(value) => {
-                            setPhone(sanitizePhoneInput(value));
-                            if (statusMsg) setStatusMsg(null);
-                        }}
-                    />
-                    {!!phone && !isPhoneValid && (
-                        <Text style={styles.validationText}>Use E.164 format: + then country code and number</Text>
-                    )}
-                </View>
-
-                {statusMsg && (
-                    <View style={styles.toast}>
-                        <Text style={styles.toastText}>{statusMsg.text}</Text>
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Phone Number</Text>
+                        <Input
+                            placeholder="+14155550123"
+                            keyboardType="phone-pad"
+                            autoFocus={false}
+                            autoCapitalize="none"
+                            autoComplete="tel"
+                            autoCorrect={false}
+                            blurOnSubmit={false}
+                            showSoftInputOnFocus
+                            textContentType="telephoneNumber"
+                            value={phone}
+                            onChangeText={(value) => {
+                                setPhone(sanitizePhoneInput(value));
+                                if (statusMsg) setStatusMsg(null);
+                            }}
+                        />
+                        {!!phone && !isPhoneValid && (
+                            <Text style={styles.validationText}>Use E.164 format: + then country code and number</Text>
+                        )}
                     </View>
-                )}
 
-                <Button
-                    label="Send OTP"
-                    onPress={handleSendOtp}
-                    disabled={isLoading || !phone}
-                    loading={isLoading}
-                    style={styles.loginButton}
-                />
-            </ScrollView>
+                    {statusMsg && (
+                        <View style={styles.toast}>
+                            <Text style={styles.toastText}>{statusMsg.text}</Text>
+                        </View>
+                    )}
+
+                    <Button
+                        label="Send OTP"
+                        onPress={handleSendOtp}
+                        disabled={isLoading || !phone}
+                        loading={isLoading}
+                        style={styles.loginButton}
+                    />
+                </ScrollView>
+            </KeyboardAvoidingView>
         </SafeAreaView>
     );
 }
@@ -157,6 +169,9 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: COLORS.background,
         padding: SPACING.screen
+    },
+    keyboardAvoidingView: {
+        flex: 1,
     },
     debugContainer: {
         position: 'absolute',
