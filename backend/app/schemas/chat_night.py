@@ -15,6 +15,9 @@ class ChatNightStatus(BaseModel):
     passes_remaining_today: int
     passes_used_today: int
     passes_total_today: int
+    paid_pass_credits: int = 0
+    effective_passes_remaining: int = 0
+    next_spend_source: Optional[str] = None
 
     active_room_id: Optional[str] = None
     queue_status: Optional[str] = None # 'queued', 'none'
