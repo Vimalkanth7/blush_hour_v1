@@ -134,6 +134,18 @@ def _utcnow() -> datetime:
     return datetime.utcnow()
 
 
+def _get_beanie_collection(document_model: Any):
+    get_motor_collection = getattr(document_model, "get_motor_collection", None)
+    if callable(get_motor_collection):
+        return get_motor_collection()
+
+    get_pymongo_collection = getattr(document_model, "get_pymongo_collection", None)
+    if callable(get_pymongo_collection):
+        return get_pymongo_collection()
+
+    raise RuntimeError(f"{document_model.__name__} does not expose a supported Beanie collection accessor.")
+
+
 def _normalize_phone_last_10(phone: str) -> str:
     digits = re.sub(r"\D", "", phone or "")
     if len(digits) >= 10:
@@ -261,7 +273,7 @@ async def consume_chat_night_entry_entitlement(
     await get_or_create_chat_night_pass(user, date_ist)
     now = _utcnow()
 
-    updated_pass = await ChatNightPass.get_pymongo_collection().find_one_and_update(
+    updated_pass = await _get_beanie_collection(ChatNightPass).find_one_and_update(
         {
             "user_id": user_id,
             "date_ist": date_ist,
@@ -285,7 +297,7 @@ async def consume_chat_night_entry_entitlement(
         return None
 
     await get_or_create_user_pass_wallet(user_id)
-    updated_wallet = await UserPassWallet.get_pymongo_collection().find_one_and_update(
+    updated_wallet = await _get_beanie_collection(UserPassWallet).find_one_and_update(
         {"user_id": user_id, "paid_pass_credits": {"$gte": 1}},
         {"$inc": {"paid_pass_credits": -1}, "$set": {"updated_at": now}},
         return_document=ReturnDocument.AFTER,
@@ -330,7 +342,7 @@ async def rollback_chat_night_entry_consumption(consumption: Optional[ChatNightE
         return
 
     if consumption.spend_source == CHAT_NIGHT_ENTRY_SOURCE_FREE_DAILY:
-        await ChatNightPass.get_pymongo_collection().find_one_and_update(
+        await _get_beanie_collection(ChatNightPass).find_one_and_update(
             {
                 "user_id": consumption.user_id,
                 "date_ist": consumption.date_ist,
@@ -480,7 +492,7 @@ async def get_or_create_user_pass_wallet(user_id: str) -> UserPassWallet:
 async def _adjust_user_pass_wallet(user_id: str, delta: int) -> UserPassWallet:
     wallet = await get_or_create_user_pass_wallet(user_id)
     now = _utcnow()
-    updated_wallet = await UserPassWallet.get_pymongo_collection().find_one_and_update(
+    updated_wallet = await _get_beanie_collection(UserPassWallet).find_one_and_update(
         {"user_id": user_id},
         {"$inc": {"paid_pass_credits": delta}, "$set": {"updated_at": now}},
         return_document=ReturnDocument.AFTER,
@@ -585,7 +597,7 @@ async def _apply_validated_purchase_details(
 async def _claim_purchase_for_grant(purchase_token: str) -> Optional[PassPurchase]:
     now = _utcnow()
     stale_before = now - PURCHASE_GRANT_LOCK_TIMEOUT
-    claimed = await PassPurchase.get_pymongo_collection().find_one_and_update(
+    claimed = await _get_beanie_collection(PassPurchase).find_one_and_update(
         {
             "purchase_token": purchase_token,
             "$or": [
@@ -618,7 +630,7 @@ async def _mark_purchase_granted(
     wallet_balance_after_grant: int,
 ) -> PassPurchase:
     now = _utcnow()
-    updated_purchase = await PassPurchase.get_pymongo_collection().find_one_and_update(
+    updated_purchase = await _get_beanie_collection(PassPurchase).find_one_and_update(
         {"_id": purchase.id},
         {
             "$set": {
