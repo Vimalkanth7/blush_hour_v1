@@ -15,8 +15,9 @@ Plan: `docs/codex/week7/track3/PLAN.md`
   - `W7-T3-D` - DONE
   - `W7-T3-E` - DONE
   - `W7-T3-F` - DONE
+  - `W7-T3-H` - DONE
 - Next active item:
-  - `W7-T3-H` - QA passes verifier
+  - `W7-T3-G` - Out-of-passes UX
 - Final real Play billing proof recorded:
   - Play internal testing app installed from Play Store
   - real prices visible
@@ -31,6 +32,18 @@ Plan: `docs/codex/week7/track3/PLAN.md`
   - hotfix branch: `fix/backend-w7-t3e-purchase-validation-beanie-collection`
   - hotfix commit: `7c6499d`
   - hotfix purpose: Beanie collection accessor compatibility in `backend/app/services/passes.py`
+- T3-H regression coverage recorded:
+  - QA branch: `test/qa-w7-t3h-passes-verifier`
+  - QA commit: `2c71404`
+  - disabled-mode PASS
+  - stub-mode PASS
+  - google-mode smoke PASS
+  - delegated Chat Night spend-order PASS
+  - full suite PASS
+  - real Google validate intentionally reports `SKIP` when no real token is supplied
+- T3-H is additive QA coverage only:
+  - real purchase validation was already completed in `W7-T3-E`
+  - `W7-T3-H` adds repeatable regression coverage, not a replacement for real-device billing proof
 
 ## Locked Decisions
 - Android-first / Google Play Billing for paid passes.
@@ -46,14 +59,10 @@ Plan: `docs/codex/week7/track3/PLAN.md`
 - Subscriptions are out of scope for v1.
 
 ## Remaining Tasks
-- [ ] `W7-T3-H` - QA passes verifier
-  - Scope: QA only
-  - Goal: verify purchase validation, wallet grants, idempotency, and consumption order
-  - Status: next active item after `W7-T3-E` closeout
 - [ ] `W7-T3-G` - Out-of-passes UX
   - Scope: frontend only
   - Goal: show clear wallet state and respectful purchase prompts when free and paid balances are exhausted
-  - Status: not started; keep pending until the QA verifier and final Track 3 sequencing are complete
+  - Status: next active item after `W7-T3-H` closeout
 - [ ] `W7-T3-I` - Phase 2 extension design and implementation
   - Scope: docs first, implementation later
   - Goal: define extension rules only after wallet and billing flows are stable

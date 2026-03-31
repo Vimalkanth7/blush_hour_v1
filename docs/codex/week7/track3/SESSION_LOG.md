@@ -9,6 +9,62 @@
 - Risks or follow-ups
 
 ## Entries
+## 2026-03-31 - W7-T3-H closeout recorded complete
+What changed:
+- Updated Track 3 docs only:
+  - `docs/codex/week7/track3/PENDING_TASKS.md`
+  - `docs/codex/week7/track3/COMPLETED_TASKS.md`
+  - `docs/codex/week7/track3/SESSION_LOG.md`
+  - `docs/codex/week7/track3/PLAN.md`
+- Marked `W7-T3-H = DONE`.
+- Recorded the shipped QA-only files:
+  - `backend/verify_passes_contract.ps1`
+  - `backend/verify_passes_runtime_suite.ps1`
+- Recorded the `W7-T3-H` QA branch and commit:
+  - branch: `test/qa-w7-t3h-passes-verifier`
+  - commit: `2c71404`
+- Recorded the verified QA behavior:
+  - disabled-mode PASS
+  - stub-mode PASS
+  - Google-mode smoke PASS
+  - delegated Chat Night spend-order PASS
+  - full suite PASS
+  - real Google validate intentionally reports `SKIP` when no real token is supplied
+- Moved the next active item to `W7-T3-G - Out-of-passes UX`.
+
+Decisions:
+- Closed out `W7-T3-H` as QA-only regression coverage for monetization.
+- Preserved the honest Track 3 narrative:
+  - real purchase validation was already completed in `W7-T3-E`
+  - `W7-T3-H` adds repeatable regression coverage and does not replace the real-device billing proof
+- Kept `W7-T3-I` as Phase 2 only.
+- Kept `W7-T3-J` pending final docs/runbook closeout.
+
+How verified:
+- Source packet evidence recorded into docs:
+  - `PASSES_PARSE_OK`
+  - `SUITE_PARSE_OK`
+  - `PASS: passes contract verified (disabled mode).`
+  - `PASS: passes contract verified (enabled/stub mode).`
+  - `PASS: passes contract verified (enabled/google smoke mode).`
+  - `PASS: chat night pass consumption contract verified.`
+  - `PASS: all required checks passed.`
+  - `SKIP: real Google validate step skipped because no token was supplied.`
+- Docs-only verification:
+  - `git diff --name-only`
+  - `git status`
+  - `git diff --name-only -- docs/codex/week7/track3`
+
+PR or branch refs:
+- Working branch: `chore/docs-week7-track3-t3h-closeout`
+- Source QA branch: `test/qa-w7-t3h-passes-verifier`
+- Source QA commit: `2c71404`
+
+Risks or follow-ups:
+- `W7-T3-G - Out-of-passes UX` is now the next active Track 3 item.
+- `W7-T3-I` remains Phase 2 only.
+- `W7-T3-J` remains pending final docs/runbook work.
+
 ## 2026-03-31 - W7-T3-E closeout recorded complete
 What changed:
 - Updated Track 3 docs only:

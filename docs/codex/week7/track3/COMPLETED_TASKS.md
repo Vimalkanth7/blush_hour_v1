@@ -1,5 +1,47 @@
 # Week 7 - Track 3 Completed Tasks
 
+## W7-T3-H - QA passes verifier
+Status: DONE  
+Date: 2026-03-31  
+Branch: `test/qa-w7-t3h-passes-verifier`  
+Commit: `2c71404`  
+Scope: QA only
+
+What shipped:
+- Added repeatable QA verifier coverage for passes monetization without changing backend app code, frontend code, or Track 3 product behavior.
+- Shipped QA files:
+  - `backend/verify_passes_contract.ps1`
+  - `backend/verify_passes_runtime_suite.ps1`
+- Updated the passes contract verifier so it now covers:
+  - disabled mode
+  - enabled stub mode grant + idempotency
+  - enabled Google mode smoke verification
+- Added a runtime suite that runs the monetization QA stack in one readable order:
+  - health
+  - disabled-mode passes contract
+  - stub grant/idempotency contract
+  - Google-mode smoke contract
+  - delegated Chat Night spend-order proof
+- Recorded intentional `SKIP` behavior for the optional real Google validate step when no real purchase token is supplied.
+- Preserved honesty:
+  - real purchase validation was already completed in `W7-T3-E`
+  - `W7-T3-H` adds repeatable regression coverage and is not a replacement for real-device billing proof
+
+How verified:
+- `PASSES_PARSE_OK`
+- `SUITE_PARSE_OK`
+- `PASS: passes contract verified (disabled mode).`
+- `PASS: passes contract verified (enabled/stub mode).`
+- `PASS: passes contract verified (enabled/google smoke mode).`
+- `PASS: chat night pass consumption contract verified.`
+- `PASS: all required checks passed.`
+- `SKIP: real Google validate step skipped because no token was supplied.`
+
+Notes / follow-ups:
+- `W7-T3-G - Out-of-passes UX` is now the next active Track 3 item.
+- `W7-T3-I` remains Phase 2 only.
+- `W7-T3-J` remains pending final docs/runbook work.
+
 ## W7-T3-E - Android billing integration
 Status: DONE  
 Date: 2026-03-31  
@@ -43,7 +85,7 @@ How verified:
   - patched file `backend/app/services/passes.py`
 
 Notes / follow-ups:
-- `W7-T3-H - QA passes verifier` is the next active Track 3 item.
+- `W7-T3-H` is now closed out separately as repeatable QA regression coverage.
 - `W7-T3-G` and `W7-T3-J` remain later Track 3 work.
 - `W7-T3-I` remains Phase 2 only.
 
@@ -95,8 +137,8 @@ How verified:
 Notes / follow-ups:
 - `W7-T3-E` is now fully closed with real Play billing proof and the final validation hotfix recorded in the 2026-03-31 closeout entry.
 - Track 3 remains in progress for QA, UX, and final runbook work.
-- `W7-T3-H - QA passes verifier` is the next active item.
-- `W7-T3-G` remains not started and pending final Track 3 closure sequencing.
+- `W7-T3-H` is now closed out separately as the repeatable monetization QA verifier layer.
+- `W7-T3-G` remains not started and is now the next active Track 3 item.
 
 ## W7-T3-D - Backend Google Play purchase validation
 Status: DONE  
