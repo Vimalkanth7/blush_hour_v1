@@ -42,6 +42,33 @@ export interface VoiceTokenResponse {
     expires_in: number;
 }
 
+export type ChatNightSpendSource = 'free_daily' | 'paid_credit' | 'none';
+
+export interface ChatNightStatusResponse {
+    is_open: boolean;
+    date_ist: string;
+    seconds_until_open: number;
+    seconds_until_close: number;
+    passes_total: number;
+    passes_used: number;
+    passes_remaining: number;
+    passes_remaining_today: number;
+    passes_used_today: number;
+    passes_total_today: number;
+    paid_pass_credits: number;
+    effective_passes_remaining: number;
+    next_spend_source?: ChatNightSpendSource | null;
+    active_room_id?: string | null;
+    queue_status?: 'queued' | 'none' | null;
+    status: 'open' | 'closed' | 'gated';
+    min_completion?: number | null;
+    user_completion?: number | null;
+    detail?: string | null;
+    message?: string | null;
+    missing_fields?: string[];
+    next_start?: string | null;
+}
+
 export interface PassCatalogProduct {
     product_id: string;
     title: string;
@@ -429,6 +456,14 @@ export const voiceToken = async (token: string): Promise<VoiceTokenResponse> => 
     } catch (error) {
         throw mapVoiceTokenError(error);
     }
+};
+
+export const getChatNightStatus = async (token: string): Promise<ChatNightStatusResponse> => {
+    return getJsonAuthenticated<ChatNightStatusResponse>(
+        '/api/chat-night/status',
+        token,
+        'Unable to load Chat Night status right now.',
+    );
 };
 
 export const getPassesCatalog = async (token: string): Promise<PassesCatalogResponse> => {
