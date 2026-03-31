@@ -1,5 +1,52 @@
 # Week 7 - Track 3 Completed Tasks
 
+## W7-T3-E - Android billing integration
+Status: DONE  
+Date: 2026-03-31  
+Frontend merge to `main`: `fb54123`  
+Hotfix branch: `fix/backend-w7-t3e-purchase-validation-beanie-collection`  
+Hotfix commit: `7c6499d`  
+Scope: frontend billing closeout + backend validation unblock
+
+What shipped:
+- Closed out `W7-T3-E` using final real Google Play billing proof.
+- Recorded that the frontend Android billing integration was already merged to `main` via `fb54123`.
+- Recorded the backend hotfix that unblocked final purchase validation on Render:
+  - branch: `fix/backend-w7-t3e-purchase-validation-beanie-collection`
+  - commit: `7c6499d`
+  - file changed: `backend/app/services/passes.py`
+  - purpose: Beanie collection accessor compatibility for the purchase grant path
+- Recorded final real production-style verification evidence:
+  - Play internal testing app installed from Play Store
+  - real prices loaded on device
+  - purchase flow opened successfully
+  - purchase completed successfully
+  - backend `POST /api/passes/google/validate` returned `200 OK`
+  - wallet refreshed from `0 -> 1`
+  - app showed `Purchase validated. Wallet refreshed.`
+  - Render logs showed `POST /api/passes/google/validate HTTP/1.1" 200 OK`
+- Marked real end-to-end Google Play billing verification complete and `W7-T3-E` fully closed.
+
+How verified:
+- Source packet evidence recorded into docs:
+  - Play internal testing app installed from Play Store
+  - prices visible
+  - purchase flow opened successfully
+  - purchase completed successfully
+  - backend `/api/passes/google/validate` returned `200 OK`
+  - wallet changed `0 -> 1`
+  - app showed `Purchase validated. Wallet refreshed.`
+  - Render logs showed `POST /api/passes/google/validate HTTP/1.1" 200 OK`
+- Final unblock evidence recorded into docs:
+  - hotfix branch `fix/backend-w7-t3e-purchase-validation-beanie-collection`
+  - hotfix commit `7c6499d`
+  - patched file `backend/app/services/passes.py`
+
+Notes / follow-ups:
+- `W7-T3-H - QA passes verifier` is the next active Track 3 item.
+- `W7-T3-G` and `W7-T3-J` remain later Track 3 work.
+- `W7-T3-I` remains Phase 2 only.
+
 ## W7-T3-F - Chat Night pass consumption
 Status: DONE  
 Date: 2026-03-18  
@@ -46,10 +93,9 @@ How verified:
   - `PASS: safety/admin contract verifier completed (enabled mode).`
 
 Notes / follow-ups:
-- `W7-T3-E` frontend Android billing code is merged to `main` via `fb54123`, but real Google Play end-to-end billing verification is still externally blocked.
-- External blocker: Google Play Console identity/payments verification pending.
-- Track 3 remains in progress until real T3-E billing proof is completed and the remaining closeout items are resolved.
-- `Resume W7-T3-E real Play billing verification after Google approval` is the next active item.
+- `W7-T3-E` is now fully closed with real Play billing proof and the final validation hotfix recorded in the 2026-03-31 closeout entry.
+- Track 3 remains in progress for QA, UX, and final runbook work.
+- `W7-T3-H - QA passes verifier` is the next active item.
 - `W7-T3-G` remains not started and pending final Track 3 closure sequencing.
 
 ## W7-T3-D - Backend Google Play purchase validation
@@ -98,8 +144,8 @@ How verified:
   - `PASS: safety/admin contract verifier completed (enabled mode).`
 
 Notes / follow-ups:
-- Real end-to-end Google test purchase validation is still pending and must be exercised with valid Play credentials plus a real test purchase token.
-- `W7-T3-E - Android billing integration` is now the next active item.
+- Real end-to-end Google test purchase validation is now closed out under `W7-T3-E`.
+- Later Track 3 work continues with `W7-T3-H - QA passes verifier`.
 - RTDN, refund/revocation handling, and Chat Night pass consumption remain later Track 3 work.
 
 ## W7-T3-C - Frontend passes shell

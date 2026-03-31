@@ -7,19 +7,30 @@ Plan: `docs/codex/week7/track3/PLAN.md`
 
 ## Status
 - Track 3: IN PROGRESS
-- Track 3 cannot close yet because real `W7-T3-E` Google Play billing proof is still externally blocked.
+- Real end-to-end Google Play billing verification for `W7-T3-E` is complete.
 - Closed out in docs:
   - `W7-T3-A / W7-T3-DOCS` - DONE
   - `W7-T3-B` - DONE
   - `W7-T3-C` - DONE
   - `W7-T3-D` - DONE
+  - `W7-T3-E` - DONE
   - `W7-T3-F` - DONE
-- Merged to `main`, but not fully closed in docs:
-  - `W7-T3-E` - Android billing integration merged via `fb54123`; real Play verification still blocked
 - Next active item:
-  - `Resume W7-T3-E real Play billing verification after Google approval`
-- External blocker:
-  - Google Play Console identity/payments verification pending
+  - `W7-T3-H` - QA passes verifier
+- Final real Play billing proof recorded:
+  - Play internal testing app installed from Play Store
+  - real prices visible
+  - purchase flow opened successfully
+  - purchase completed successfully
+  - backend `POST /api/passes/google/validate` returned `200 OK`
+  - wallet refreshed from `0 -> 1`
+  - app showed `Purchase validated. Wallet refreshed.`
+  - Render logs showed `POST /api/passes/google/validate HTTP/1.1" 200 OK`
+- Final T3-E unblock recorded:
+  - frontend merge to `main`: `fb54123`
+  - hotfix branch: `fix/backend-w7-t3e-purchase-validation-beanie-collection`
+  - hotfix commit: `7c6499d`
+  - hotfix purpose: Beanie collection accessor compatibility in `backend/app/services/passes.py`
 
 ## Locked Decisions
 - Android-first / Google Play Billing for paid passes.
@@ -31,21 +42,18 @@ Plan: `docs/codex/week7/track3/PLAN.md`
 - Extension is phase 2 only.
 - Backend Google Play purchase validation is shipped.
 - Frontend Android billing integration code is merged to `main` via `fb54123`.
-- Real end-to-end Google Play billing verification is still externally blocked pending Google Play Console identity/payments verification.
+- Real end-to-end Google Play billing verification is complete.
 - Subscriptions are out of scope for v1.
 
 ## Remaining Tasks
-- [ ] `W7-T3-E` - Resume real Play billing verification
-  - Scope: frontend verification / external unblock
-  - Goal: complete a real Google Play test purchase end-to-end against the merged Android billing code on `main`
-  - Blocker: Google Play Console identity/payments verification pending
-- [ ] `W7-T3-G` - Out-of-passes UX
-  - Scope: frontend only
-  - Goal: show clear wallet state and respectful purchase prompts when free and paid balances are exhausted
-  - Status: not started; keep pending until the real T3-E billing proof is completed
 - [ ] `W7-T3-H` - QA passes verifier
   - Scope: QA only
   - Goal: verify purchase validation, wallet grants, idempotency, and consumption order
+  - Status: next active item after `W7-T3-E` closeout
+- [ ] `W7-T3-G` - Out-of-passes UX
+  - Scope: frontend only
+  - Goal: show clear wallet state and respectful purchase prompts when free and paid balances are exhausted
+  - Status: not started; keep pending until the QA verifier and final Track 3 sequencing are complete
 - [ ] `W7-T3-I` - Phase 2 extension design and implementation
   - Scope: docs first, implementation later
   - Goal: define extension rules only after wallet and billing flows are stable
