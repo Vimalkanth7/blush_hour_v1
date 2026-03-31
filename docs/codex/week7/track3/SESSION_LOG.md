@@ -9,6 +9,64 @@
 - Risks or follow-ups
 
 ## Entries
+## 2026-03-31 - W7-T3-E closeout recorded complete
+What changed:
+- Updated Track 3 docs only:
+  - `docs/codex/week7/track3/PENDING_TASKS.md`
+  - `docs/codex/week7/track3/COMPLETED_TASKS.md`
+  - `docs/codex/week7/track3/SESSION_LOG.md`
+  - `docs/codex/week7/track3/PLAN.md`
+- Marked `W7-T3-E = DONE`.
+- Removed the current-state blocker language that said real Play billing proof was still waiting on Google approval.
+- Recorded the already-merged frontend Android billing reference:
+  - merge to `main` via `fb54123`
+- Recorded the final backend hotfix that unblocked production-style validation:
+  - branch `fix/backend-w7-t3e-purchase-validation-beanie-collection`
+  - commit `7c6499d`
+  - file changed `backend/app/services/passes.py`
+  - purpose: Beanie collection accessor compatibility in the passes purchase-grant path
+- Recorded final real verification evidence:
+  - Play internal testing app installed from Play Store
+  - real prices visible
+  - purchase flow opened successfully
+  - purchase completed successfully
+  - backend `POST /api/passes/google/validate` returned `200 OK`
+  - wallet updated from `0 -> 1`
+  - app showed `Purchase validated. Wallet refreshed.`
+  - Render logs showed `POST /api/passes/google/validate HTTP/1.1" 200 OK`
+- Moved the next active item to `W7-T3-H - QA passes verifier`.
+
+Decisions:
+- Marked real end-to-end Google Play billing verification complete and treated `W7-T3-E` as fully closed.
+- Preserved the final unblock honestly as a small backend compatibility hotfix rather than rewriting the earlier implementation history.
+- Kept Track 3 in progress for the remaining QA, UX, and docs/runbook items, not because of any remaining Play approval blocker.
+- Kept `W7-T3-I` as Phase 2 only.
+
+How verified:
+- Source packet evidence recorded into docs:
+  - Play internal testing app installed from Play Store
+  - prices visible
+  - purchase flow opened successfully
+  - purchase completed successfully
+  - backend `/api/passes/google/validate` returned `200 OK`
+  - wallet changed `0 -> 1`
+  - app showed `Purchase validated. Wallet refreshed.`
+  - Render logs showed `POST /api/passes/google/validate HTTP/1.1" 200 OK`
+- Docs-only verification:
+  - `git diff --name-only`
+  - `git status`
+  - `git diff --name-only -- docs/codex/week7/track3`
+
+PR or branch refs:
+- Working branch: `chore/docs-week7-track3-t3e-closeout`
+- Supporting hotfix branch: `fix/backend-w7-t3e-purchase-validation-beanie-collection`
+- Supporting hotfix commit: `7c6499d`
+
+Risks or follow-ups:
+- `W7-T3-H - QA passes verifier` is the next active item.
+- `W7-T3-G` and `W7-T3-J` remain later Track 3 work.
+- `W7-T3-I` remains Phase 2.
+
 ## 2026-03-18 - W7-T3-F closeout recorded and Track 3 merged state reconciled
 What changed:
 - Updated Track 3 docs only:
@@ -33,14 +91,14 @@ What changed:
   - match-side correctness
   - idempotent retry proof
 - Reconciled stale Track 3 docs so merged `W7-T3-C` is no longer shown as pending.
-- Preserved the real `W7-T3-E` merged state on `main`:
+- Preserved the then-current `W7-T3-E` merged state on `main` before final closeout:
   - code merged via `fb54123`
-  - real Google Play end-to-end billing verification is still externally blocked
-- Moved the next active item to `Resume W7-T3-E real Play billing verification after Google approval`.
+  - real Google Play end-to-end billing verification had not yet been completed on `2026-03-18`
+- Moved the next active item at that time to finishing `W7-T3-E` real Play billing verification.
 
 Decisions:
-- Kept Track 3 in progress because the real Google Play billing proof for `W7-T3-E` has not been completed yet.
-- Recorded `W7-T3-E` honestly as merged to `main` but still blocked on external verification, instead of marking it fully done.
+- Kept Track 3 in progress because the real Google Play billing proof for `W7-T3-E` had not been completed yet as of `2026-03-18`.
+- Recorded `W7-T3-E` honestly as merged to `main` but not yet closed on `2026-03-18`, instead of marking it fully done early.
 - Left `W7-T3-G` not started and pending final Track 3 closure sequencing.
 - Carried forward the existing `W7-T3-C` docs closeout state so the pending list matches the actual merged code state on `main`.
 
@@ -70,8 +128,8 @@ PR or branch refs:
 - Working branch: `chore/docs-week7-track3-t3f-closeout`
 
 Risks or follow-ups:
-- Real Google Play billing verification remains externally blocked until Google Play Console identity/payments verification is approved.
-- `Resume W7-T3-E real Play billing verification after Google approval` is the next active item.
+- This intermediate state was later resolved in the `2026-03-31` `W7-T3-E` closeout entry.
+- The then-next active item was finishing `W7-T3-E` real Play billing verification.
 - Track 3 must not be marked fully done until the real billing proof and remaining closure work are complete.
 
 ## 2026-03-15 - W7-T3-C recorded complete
