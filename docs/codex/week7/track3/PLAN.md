@@ -10,8 +10,9 @@
 - `W7-T3-D` - DONE
 - `W7-T3-E` - DONE
 - `W7-T3-F` - DONE
+- `W7-T3-H` - DONE
 - `W7-T3-E` frontend Android billing integration is merged to `main` via `fb54123`, with final validation unblocked by hotfix `7c6499d`.
-- Next active item: `W7-T3-H - QA passes verifier`
+- Next active item: `W7-T3-G - Out-of-passes UX`
 - Real Google Play end-to-end billing verification is complete:
   - Play internal testing app installed from Play Store
   - real prices visible
@@ -21,6 +22,14 @@
   - wallet refreshed `0 -> 1`
   - app showed `Purchase validated. Wallet refreshed.`
   - Render logs showed `POST /api/passes/google/validate HTTP/1.1" 200 OK`
+- Repeatable monetization QA coverage is complete:
+  - disabled-mode PASS
+  - stub-mode PASS
+  - google-mode smoke PASS
+  - delegated Chat Night spend-order PASS
+  - full suite PASS
+  - real Google validate intentionally reports `SKIP` when no real token is supplied
+- Real purchase validation remains the already-completed `W7-T3-E` proof; `W7-T3-H` adds repeatable regression coverage.
 
 ## Locked Decisions
 - Android-first / Google Play Billing for paid passes.
@@ -57,12 +66,12 @@
 - `W7-T3-D` - DONE
 - `W7-T3-E` - DONE (`fb54123` frontend merge; `7c6499d` validation hotfix)
 - `W7-T3-F` - DONE
-- `W7-T3-H` - QA passes verifier
+- `W7-T3-H` - DONE (`test/qa-w7-t3h-passes-verifier`; `2c71404`)
 - `W7-T3-G` - Out-of-passes UX (not started; pending final Track 3 closure sequencing)
 - `W7-T3-I` - Phase 2 extension design and implementation
 - `W7-T3-J` - Docs closeout and runbook
 
 ## Next Step
-- Run `W7-T3-H - QA passes verifier` next.
-- Keep `W7-T3-G` and `W7-T3-J` as later Track 3 work after the QA pass.
+- Run `W7-T3-G - Out-of-passes UX` next.
+- Keep `W7-T3-J` as the pending final docs/runbook step after the remaining implementation work.
 - Keep `W7-T3-I` as Phase 2 only.
