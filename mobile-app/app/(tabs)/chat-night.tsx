@@ -1,7 +1,7 @@
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS, SHADOWS } from '../../constants/Theme';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, AppState, ScrollView } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -108,13 +108,18 @@ export default function ChatNightScreen() {
     const paidPassCredits = chatNightStatus?.paid_pass_credits ?? 0;
     const effectivePassesRemaining = chatNightStatus?.effective_passes_remaining ?? (freePassesRemaining + paidPassCredits);
     const nextSpendSource = chatNightStatus?.next_spend_source ?? null;
+    const hasEffectiveEntitlement = (
+        effectivePassesRemaining > 0
+        || nextSpendSource === 'free_daily'
+        || nextSpendSource === 'paid_credit'
+    );
     const entryBalanceState = getEntryBalanceState(
         freePassesRemaining,
         paidPassCredits,
         effectivePassesRemaining,
         nextSpendSource,
     );
-    const canEnterPool = entryBalanceState !== 'fully_exhausted';
+    const canEnterPool = hasEffectiveEntitlement;
     const entryMessage = getEntryMessage(
         entryBalanceState,
         freePassesRemaining,
@@ -162,13 +167,6 @@ export default function ChatNightScreen() {
     const animatedSearchStyle = useAnimatedStyle(() => ({
         opacity: opacity.value,
     }));
-
-    useEffect(() => {
-        const subscription = AppState.addEventListener('change', (nextAppState) => {
-            appState.current = nextAppState;
-        });
-        return () => subscription.remove();
-    }, []);
 
     const stopPolling = useCallback(() => {
         if (pollIdRef.current) {
@@ -241,6 +239,28 @@ export default function ChatNightScreen() {
             return null;
         }
     }, [applyChatNightStatus, status, token]);
+
+    useEffect(() => {
+        const subscription = AppState.addEventListener('change', (nextAppState) => {
+            const previousAppState = appState.current;
+            appState.current = nextAppState;
+
+            if (
+                previousAppState.match(/inactive|background/)
+                && nextAppState === 'active'
+            ) {
+                void checkStatus(false);
+            }
+        });
+
+        return () => subscription.remove();
+    }, [checkStatus]);
+
+    useFocusEffect(
+        useCallback(() => {
+            void checkStatus(false);
+        }, [checkStatus]),
+    );
 
     useEffect(() => {
         if (!token) {
