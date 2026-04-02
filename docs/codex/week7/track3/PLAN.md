@@ -10,9 +10,11 @@
 - `W7-T3-D` - DONE
 - `W7-T3-E` - DONE
 - `W7-T3-F` - DONE
+- `W7-T3-G` - DONE
 - `W7-T3-H` - DONE
 - `W7-T3-E` frontend Android billing integration is merged to `main` via `fb54123`, with final validation unblocked by hotfix `7c6499d`.
-- Next active item: `W7-T3-G - Out-of-passes UX`
+- `W7-T3-G` frontend out-of-passes UX is merged to `main` via `2fd3e2b`, with paid-fallback state hotfix merged via `fb29faa`.
+- Next active item: `W7-T3-J - Docs closeout and runbook`
 - Real Google Play end-to-end billing verification is complete:
   - Play internal testing app installed from Play Store
   - real prices visible
@@ -66,12 +68,12 @@
 - `W7-T3-D` - DONE
 - `W7-T3-E` - DONE (`fb54123` frontend merge; `7c6499d` validation hotfix)
 - `W7-T3-F` - DONE
+- `W7-T3-G` - DONE (`feat/frontend-w7-t3g-out-of-passes-ux`; `9dbd20c`; merged via `2fd3e2b`; hotfix `fix/frontend-w7-t3g-paid-fallback-state`; `b174e0d`; merged via `fb29faa`)
 - `W7-T3-H` - DONE (`test/qa-w7-t3h-passes-verifier`; `2c71404`)
-- `W7-T3-G` - Out-of-passes UX (not started; pending final Track 3 closure sequencing)
 - `W7-T3-I` - Phase 2 extension design and implementation
 - `W7-T3-J` - Docs closeout and runbook
 
 ## Next Step
-- Run `W7-T3-G - Out-of-passes UX` next.
-- Keep `W7-T3-J` as the pending final docs/runbook step after the remaining implementation work.
+- Run `W7-T3-J - Docs closeout and runbook` next.
+- Keep `W7-T3-J` as the pending final docs/runbook step after the completed implementation work.
 - Keep `W7-T3-I` as Phase 2 only.

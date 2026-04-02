@@ -1,5 +1,52 @@
 # Week 7 - Track 3 Completed Tasks
 
+## W7-T3-G - Out-of-passes UX
+Status: DONE  
+Date: 2026-04-02  
+Feature branch: `feat/frontend-w7-t3g-out-of-passes-ux`  
+Feature commit: `9dbd20c`  
+Feature merge to `main`: `2fd3e2b`  
+Hotfix branch: `fix/frontend-w7-t3g-paid-fallback-state`  
+Hotfix commit: `b174e0d`  
+Hotfix merge to `main`: `fb29faa`  
+Scope: frontend only
+
+What shipped:
+- Closed out `W7-T3-G` from the merged frontend UX work already on `main`.
+- Recorded the shipped frontend files:
+  - `mobile-app/app/(tabs)/chat-night.tsx`
+  - `mobile-app/constants/Api.ts`
+- Recorded the shipped frontend scope:
+  - out-of-passes state UX when both free and paid balances are exhausted
+  - paid-fallback messaging when free passes are exhausted but paid credits remain
+  - `Open Passes` CTA from the fully exhausted state
+  - paid-fallback hotfix refresh behavior after returning from Passes and on app foreground
+  - clear free-vs-paid balance display on the Chat Night screen
+- Recorded that the frontend consumes existing Chat Night status data through:
+  - `ChatNightSpendSource`
+  - `ChatNightStatusResponse`
+  - `getChatNightStatus`
+- Recorded both merged source refs on `main`:
+  - `feat/frontend-w7-t3g-out-of-passes-ux` -> `9dbd20c` -> `2fd3e2b`
+  - `fix/frontend-w7-t3g-paid-fallback-state` -> `b174e0d` -> `fb29faa`
+- Recorded that no backend code, frontend code, or API contract changed in this docs closeout packet.
+
+How verified:
+- Manual verification evidence from merged `main`:
+  - `Paid fallback PASS` - when paid credits remain, Chat Night no longer hard-blocks the user
+  - `Enter Pool available PASS` - paid-fallback state keeps entry usable
+  - `Stale-state refresh PASS` - returning from Passes / foreground refresh no longer leaves the stale blocked state
+  - `Fully exhausted state PASS` - true zero-entitlement still shows blocked/out-of-passes behavior
+  - `Open Passes CTA PASS` - exhausted state routes users to Passes
+- Merged-state proof from `main`:
+  - `2fd3e2b` = Merge pull request `#64` from `feat/frontend-w7-t3g-out-of-passes-ux`
+  - `fb29faa` = Merge pull request `#65` from `fix/frontend-w7-t3g-paid-fallback-state`
+
+Notes / follow-ups:
+- `W7-T3-J - Docs closeout and runbook` is now the next active Track 3 item.
+- `W7-T3-I` remains Phase 2 only.
+- This packet records docs state only and does not ship any new backend or frontend code.
+
 ## W7-T3-H - QA passes verifier
 Status: DONE  
 Date: 2026-03-31  
