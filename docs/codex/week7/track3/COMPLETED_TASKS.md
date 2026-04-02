@@ -1,5 +1,76 @@
 # Week 7 - Track 3 Completed Tasks
 
+## W7-T3-J - Final Track 3 closeout
+Status: DONE
+Date: 2026-04-02
+Branch: `chore/docs-week7-track3-final-closeout`
+Scope: docs only
+
+What shipped:
+- Marked the current Week 7 Track 3 shipped scope complete and removed the last current-scope pending marker.
+- Published the final shipped Track 3 scope in one closure entry:
+  - `W7-T3-B` wallet/catalog foundation
+  - `W7-T3-C` frontend passes UI shell
+  - `W7-T3-D` backend Google validation / stub verification
+  - `W7-T3-E` real Play billing integration + real purchase validation proof
+  - `W7-T3-F` Chat Night pass consumption with free-first / paid-second
+  - `W7-T3-G` out-of-passes UX + paid-fallback hotfix
+  - `W7-T3-H` QA runtime verifier coverage
+- Recorded the merged refs already on `main` for the shipped scope and prior closeouts:
+  - `fb54123` - `W7-T3-E` frontend billing merge
+  - `225569a` - `W7-T3-E` purchase validation hotfix merge
+  - `973d402` - `W7-T3-F` Chat Night pass consumption merge
+  - `05576b5` - `W7-T3-H` QA verifier merge
+  - `2fd3e2b` - `W7-T3-G` out-of-passes UX merge
+  - `fb29faa` - `W7-T3-G` paid-fallback hotfix merge
+  - `37678c2` - `W7-T3-E` docs closeout merge
+  - `6ad1afe` - `W7-T3-F` docs closeout merge
+  - `d27dcac` - `W7-T3-H` docs closeout merge
+  - `cbb1cc4` - `W7-T3-G` docs closeout commit
+  - `ac2a5a4` - merge of `cbb1cc4` to `main`
+- Captured the final shipped proof points:
+  - Play internal testing app installed from Play Store
+  - real prices visible
+  - purchase completed successfully
+  - backend `POST /api/passes/google/validate` returned `200 OK`
+  - wallet refreshed `0 -> 1`
+  - Chat Night spend rule stays locked as free-first then paid-second
+  - `Paid fallback PASS`
+  - `Enter Pool available PASS`
+  - `Stale-state refresh PASS`
+  - `Fully exhausted state PASS`
+  - `Open Passes CTA PASS`
+- Published the final runbook notes for provider modes, kill switches, verifier references, and release/testing posture.
+- Explicitly kept `W7-T3-I` deferred to Phase 2 and out of the current Track 3 closure.
+
+How verified:
+- Required docs-only verification:
+  - `git diff --name-only`
+  - `git status`
+  - `git diff --name-only -- docs/codex/week7/track3`
+  - `git log main --decorate --oneline -n 20`
+- Merged-state proof recorded from `main`:
+  - `fb54123`
+  - `225569a`
+  - `973d402`
+  - `05576b5`
+  - `2fd3e2b`
+  - `fb29faa`
+  - `37678c2`
+  - `6ad1afe`
+  - `d27dcac`
+  - `cbb1cc4`
+  - `ac2a5a4`
+- Final runbook / regression references recorded:
+  - `backend/verify_passes_contract.ps1`
+  - `backend/verify_passes_runtime_suite.ps1`
+  - `backend/verify_chat_night_pass_consumption_contract.ps1`
+
+Notes / follow-ups:
+- Week 7 Track 3 current scope is complete.
+- `W7-T3-I` remains deferred to Phase 2.
+- `W7-T3-H` remains additive regression coverage only and does not replace the real device billing proof captured under `W7-T3-E`.
+
 ## W7-T3-G - Out-of-passes UX
 Status: DONE  
 Date: 2026-04-02  

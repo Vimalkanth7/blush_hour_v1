@@ -9,6 +9,77 @@
 - Risks or follow-ups
 
 ## Entries
+## 2026-04-02 - W7-T3-J final Track 3 closure recorded complete
+What changed:
+- Updated Track 3 docs only:
+  - `docs/codex/week7/track3/PENDING_TASKS.md`
+  - `docs/codex/week7/track3/COMPLETED_TASKS.md`
+  - `docs/codex/week7/track3/SESSION_LOG.md`
+  - `docs/codex/week7/track3/PLAN.md`
+- Marked Week 7 Track 3 current scope complete.
+- Removed `W7-T3-J` from the active queue and left only `W7-T3-I` deferred to Phase 2.
+- Published the final shipped Track 3 scope:
+  - `W7-T3-B` wallet/catalog foundation
+  - `W7-T3-C` frontend passes UI shell
+  - `W7-T3-D` backend Google validation / stub verification
+  - `W7-T3-E` real Play billing integration + real purchase validation proof
+  - `W7-T3-F` Chat Night pass consumption with free-first / paid-second
+  - `W7-T3-G` out-of-passes UX + paid-fallback hotfix
+  - `W7-T3-H` QA runtime verifier coverage
+- Published final runbook notes for provider modes, kill switches, verifier coverage, and release/testing posture.
+- Recorded the merged refs used for final closure:
+  - `fb54123`
+  - `225569a`
+  - `973d402`
+  - `05576b5`
+  - `2fd3e2b`
+  - `fb29faa`
+  - `37678c2`
+  - `6ad1afe`
+  - `d27dcac`
+  - `cbb1cc4`
+  - `ac2a5a4`
+
+Decisions:
+- Closed Week 7 Track 3 current scope using the already-merged code, QA, and docs refs on `main`.
+- Kept the locked product decisions unchanged:
+  - Android-first
+  - Google Play consumables only
+  - backend as source of truth
+  - consume free passes first
+  - consume paid credits second
+  - extensions deferred to Phase 2
+- Preserved the final proof posture:
+  - real Play billing proof is already complete under `W7-T3-E`
+  - `W7-T3-H` remains additive regression coverage and not a replacement for real device proof
+- Left `W7-T3-I` explicitly deferred to Phase 2 and out of this closure packet.
+
+How verified:
+- Required docs-only verification commands:
+  - `git diff --name-only`
+  - `git status`
+  - `git diff --name-only -- docs/codex/week7/track3`
+  - `git log main --decorate --oneline -n 20`
+- Final proof points recorded in docs:
+  - Play internal testing app installed from Play Store
+  - real prices visible
+  - purchase completed successfully
+  - backend `POST /api/passes/google/validate` returned `200 OK`
+  - wallet refreshed `0 -> 1`
+  - `Paid fallback PASS`
+  - `Enter Pool available PASS`
+  - `Stale-state refresh PASS`
+  - `Fully exhausted state PASS`
+  - `Open Passes CTA PASS`
+
+PR or branch refs:
+- Working branch: `chore/docs-week7-track3-final-closeout`
+- Supporting merged refs on `main`: `fb54123`, `225569a`, `973d402`, `05576b5`, `2fd3e2b`, `fb29faa`, `37678c2`, `6ad1afe`, `d27dcac`, `cbb1cc4`, `ac2a5a4`
+
+Risks or follow-ups:
+- No active current-scope Week 7 Track 3 item remains.
+- `W7-T3-I` is the only remaining monetization item and stays deferred to Phase 2.
+
 ## 2026-04-02 - W7-T3-G closeout recorded complete
 What changed:
 - Updated Track 3 docs only:
