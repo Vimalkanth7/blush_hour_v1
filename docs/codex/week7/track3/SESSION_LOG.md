@@ -9,6 +9,69 @@
 - Risks or follow-ups
 
 ## Entries
+## 2026-04-02 - W7-T3-G closeout recorded complete
+What changed:
+- Updated Track 3 docs only:
+  - `docs/codex/week7/track3/PENDING_TASKS.md`
+  - `docs/codex/week7/track3/COMPLETED_TASKS.md`
+  - `docs/codex/week7/track3/SESSION_LOG.md`
+  - `docs/codex/week7/track3/PLAN.md`
+- Marked `W7-T3-G = DONE`.
+- Recorded the shipped frontend files:
+  - `mobile-app/app/(tabs)/chat-night.tsx`
+  - `mobile-app/constants/Api.ts`
+- Recorded the shipped frontend scope:
+  - out-of-passes state UX
+  - paid-fallback messaging
+  - `Open Passes` CTA
+  - paid-fallback hotfix refresh behavior after returning from Passes and on app foreground
+- Recorded the source refs:
+  - `feat/frontend-w7-t3g-out-of-passes-ux` -> `9dbd20c` -> `2fd3e2b`
+  - `fix/frontend-w7-t3g-paid-fallback-state` -> `b174e0d` -> `fb29faa`
+- Recorded the manual verification evidence from merged `main`:
+  - `Paid fallback PASS` - when paid credits remain, Chat Night no longer hard-blocks the user
+  - `Enter Pool available PASS` - paid-fallback state keeps entry usable
+  - `Stale-state refresh PASS` - returning from Passes / foreground refresh no longer leaves the stale blocked state
+  - `Fully exhausted state PASS` - true zero-entitlement still shows blocked/out-of-passes behavior
+  - `Open Passes CTA PASS` - exhausted state routes users to Passes
+- Moved the next active item to `W7-T3-J - Docs closeout and runbook`.
+
+Decisions:
+- Closed out `W7-T3-G` from the already-merged frontend work on `main`.
+- Recorded the paid-fallback refresh fix as frontend UX follow-through, not as a backend change.
+- Kept `W7-T3-I` as Phase 2 only.
+- Set `W7-T3-J` as the next active Track 3 item.
+
+How verified:
+- Merged-state verification from `main`:
+  - `2fd3e2b` = Merge pull request `#64` from `feat/frontend-w7-t3g-out-of-passes-ux`
+  - `fb29faa` = Merge pull request `#65` from `fix/frontend-w7-t3g-paid-fallback-state`
+  - `9dbd20c` = feature commit for the initial out-of-passes UX
+  - `b174e0d` = hotfix commit for paid-fallback refresh behavior
+- Manual verification evidence recorded into docs:
+  - `Paid fallback PASS` - when paid credits remain, Chat Night no longer hard-blocks the user
+  - `Enter Pool available PASS` - paid-fallback state keeps entry usable
+  - `Stale-state refresh PASS` - returning from Passes / foreground refresh no longer leaves the stale blocked state
+  - `Fully exhausted state PASS` - true zero-entitlement still shows blocked/out-of-passes behavior
+  - `Open Passes CTA PASS` - exhausted state routes users to Passes
+- Docs-only verification:
+  - `git diff --name-only`
+  - `git status`
+  - `git diff --name-only -- docs/codex/week7/track3`
+
+PR or branch refs:
+- Working branch: `chore/docs-week7-track3-t3g-closeout`
+- Source feature branch: `feat/frontend-w7-t3g-out-of-passes-ux`
+- Source feature commit: `9dbd20c`
+- Source feature merge: `2fd3e2b`
+- Source hotfix branch: `fix/frontend-w7-t3g-paid-fallback-state`
+- Source hotfix commit: `b174e0d`
+- Source hotfix merge: `fb29faa`
+
+Risks or follow-ups:
+- `W7-T3-J - Docs closeout and runbook` is now the next active Track 3 item.
+- `W7-T3-I` remains Phase 2 only.
+
 ## 2026-03-31 - W7-T3-H closeout recorded complete
 What changed:
 - Updated Track 3 docs only:

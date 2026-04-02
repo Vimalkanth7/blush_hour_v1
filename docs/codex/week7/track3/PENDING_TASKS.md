@@ -15,9 +15,10 @@ Plan: `docs/codex/week7/track3/PLAN.md`
   - `W7-T3-D` - DONE
   - `W7-T3-E` - DONE
   - `W7-T3-F` - DONE
+  - `W7-T3-G` - DONE
   - `W7-T3-H` - DONE
 - Next active item:
-  - `W7-T3-G` - Out-of-passes UX
+  - `W7-T3-J` - Docs closeout and runbook
 - Final real Play billing proof recorded:
   - Play internal testing app installed from Play Store
   - real prices visible
@@ -44,6 +45,14 @@ Plan: `docs/codex/week7/track3/PLAN.md`
 - T3-H is additive QA coverage only:
   - real purchase validation was already completed in `W7-T3-E`
   - `W7-T3-H` adds repeatable regression coverage, not a replacement for real-device billing proof
+- T3-G frontend UX closeout recorded:
+  - feature branch: `feat/frontend-w7-t3g-out-of-passes-ux`
+  - feature commit: `9dbd20c`
+  - merge to `main`: `2fd3e2b`
+  - hotfix branch: `fix/frontend-w7-t3g-paid-fallback-state`
+  - hotfix commit: `b174e0d`
+  - merge to `main`: `fb29faa`
+  - shipped UX: out-of-passes state, paid-fallback messaging, `Open Passes` CTA, stale-state refresh after Passes return / app foreground
 
 ## Locked Decisions
 - Android-first / Google Play Billing for paid passes.
@@ -59,16 +68,14 @@ Plan: `docs/codex/week7/track3/PLAN.md`
 - Subscriptions are out of scope for v1.
 
 ## Remaining Tasks
-- [ ] `W7-T3-G` - Out-of-passes UX
-  - Scope: frontend only
-  - Goal: show clear wallet state and respectful purchase prompts when free and paid balances are exhausted
-  - Status: next active item after `W7-T3-H` closeout
 - [ ] `W7-T3-I` - Phase 2 extension design and implementation
   - Scope: docs first, implementation later
   - Goal: define extension rules only after wallet and billing flows are stable
+  - Status: Phase 2 only
 - [ ] `W7-T3-J` - Docs closeout and runbook
   - Scope: docs only
   - Goal: capture shipped behavior, rollout notes, compatibility constraints, and regression evidence
+  - Status: next active item after `W7-T3-G` closeout
 
 ## Rollback / Kill Switch
 - `BH_PASSES_ENABLED=true` (default)
