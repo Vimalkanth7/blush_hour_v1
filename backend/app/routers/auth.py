@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from app.auth.utils import create_access_token
 from app.core.config import settings
-from app.core.limiter import limiter
+from app.core.limiter import get_otp_start_limit, get_otp_start_limit_key, limiter
 from app.core.security import get_password_hash, verify_password
 from app.models.user import User
 from app.services.event_logger import log_event
@@ -173,7 +173,7 @@ async def login(request: Request, data: AuthRequest = Body(...)):
 
 
 @router.post("/otp/start")
-@limiter.limit("3/minute")
+@limiter.limit(get_otp_start_limit, key_func=get_otp_start_limit_key)
 async def otp_start(request: Request, data: OtpStartRequest = Body(...)):
     _ensure_otp_enabled()
     phone_hash = _hash_phone(data.phone)
@@ -198,7 +198,7 @@ async def otp_start(request: Request, data: OtpStartRequest = Body(...)):
 
 
 @router.post("/otp/verify", response_model=LoginResponse)
-@limiter.limit("10/minute")
+@limiter.limit(settings.BH_OTP_VERIFY_RATE_LIMIT)
 async def otp_verify(request: Request, data: OtpVerifyRequest = Body(...)):
     _ensure_otp_enabled()
     phone_hash = _hash_phone(data.phone)

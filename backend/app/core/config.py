@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     BH_OTP_ENABLED: bool = True
     BH_OTP_PROVIDER: str = "twilio"  # twilio | test
     BH_OTP_TEST_CODE: str = "000000"
+    BH_OTP_START_RATE_LIMIT: str = "3/minute"
+    BH_OTP_VERIFY_RATE_LIMIT: str = "10/minute"
+    BH_OTP_LOCAL_DEV_START_RATE_LIMIT: str = "30/minute"
     TWILIO_ACCOUNT_SID: Optional[str] = None
     TWILIO_AUTH_TOKEN: Optional[str] = None
     TWILIO_VERIFY_SERVICE_SID: Optional[str] = None
